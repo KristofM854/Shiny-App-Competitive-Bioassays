@@ -31,53 +31,58 @@ library(htmltools)
 library(tibble)
 library(jsonlite)
 
+# Define %||% operator (null coalescing)
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
 # Validate output directory
 output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
 
 # Load language setting
 lang <- params$lang %||% "en"
 
-# Source i18n translations
-i18n_path <- file.path(script_dir, "i18n.R")
-if (file.exists(i18n_path)) {
-  source(i18n_path)
-} else {
-  # Minimal fallback
-  tr <- function(key, lang = "en", ...) paste0("[", key, "]")
-}
-
-# Get script directory (handle R Project working directory)
+# Get script directory FIRST (needed before sourcing any files)
 script_dir <- tryCatch({
-  # Try to get actual RMD file location first
   rmd_path <- knitr::current_input()
   if (!is.null(rmd_path) && rmd_path != "" && rmd_path != ".") {
     normalizePath(dirname(rmd_path), winslash = "/")
   } else {
-    # R Project scenario: working directory is project root
-    # Look for reports subfolder
     if (dir.exists("reports")) {
       normalizePath("reports", winslash = "/")
     } else {
-      # Fallback: construct from output directory
       possible_reports_dir <- file.path(dirname(params$output_dir), "reports")
       if (dir.exists(possible_reports_dir)) {
         normalizePath(possible_reports_dir, winslash = "/")
       } else {
-        stop("Cannot find reports directory")
+        "."
       }
     }
   }
 }, error = function(e) {
-  # Final fallback for R Projects
   if (dir.exists("reports")) {
     return(normalizePath("reports", winslash = "/"))
   } else {
-    stop("Cannot find reports directory. Error: ", e$message)
+    "."
   }
 })
 
-# Define %||% operator (null coalescing) - inline since we can't source yet
-`%||%` <- function(x, y) if (is.null(x)) y else x
+# Source i18n translations (search multiple locations)
+i18n_found <- FALSE
+for (i18n_candidate in c(
+  file.path(script_dir, "i18n.R"),
+  file.path(dirname(script_dir), "i18n.R"),
+  "../i18n.R",
+  "i18n.R",
+  file.path(dirname(output_dir), "i18n.R")
+)) {
+  if (file.exists(i18n_candidate)) {
+    source(i18n_candidate)
+    i18n_found <- TRUE
+    break
+  }
+}
+if (!i18n_found) {
+  tr <- function(key, lang = "en", ...) paste0("[", key, "]")
+}
 
 # Check if all required function files exist
 required_files <- c("report_constants.R", "report_functions.R", "plot_functions.R")
@@ -91,7 +96,7 @@ for (file in required_files) {
 }
 
 if (length(missing_files) > 0) {
-  stop("Missing required function files:\n", paste(missing_files, collapse = "\n"), 
+  stop("Missing required function files:\n", paste(missing_files, collapse = "\n"),
        "\n\nExpected in directory: ", script_dir,
        "\nActual files found: ", paste(list.files(script_dir, pattern = "\\.R$"), collapse = ", "),
        "\n\nMake sure all R files are in the 'reports/' folder.")
@@ -99,7 +104,7 @@ if (length(missing_files) > 0) {
 
 # Source function files
 source(file.path(script_dir, "report_constants.R"))
-source(file.path(script_dir, "report_functions.R"))  
+source(file.path(script_dir, "report_functions.R"))
 source(file.path(script_dir, "plot_functions.R"))
 
 # Load assay configuration
@@ -190,36 +195,34 @@ if (isTRUE(is_elisa)) {
 }
 ```
 
-# `r if (isTRUE(is_elisa)) "ELISA" else "RBA"` Analysis Report
+# `r tr(if (isTRUE(is_elisa)) "report_elisa" else "report_rba", lang)` `r tr("analysis_report", lang)`
 
-**Assay Type:** `r toupper(assay_config$assay_type)`  
-**Analysis Date:** `r Sys.Date()`  
-**Analyst:** `r Sys.info()[["user"]]`
+**`r tr("assay_type", lang)`** `r toupper(assay_config$assay_type)`
+**`r tr("analysis_date", lang)`** `r Sys.Date()`
+**`r tr("analyst", lang)`** `r Sys.info()[["user"]]`
 
 ```{r dynamic-description, results='asis'}
 # Dynamic description based on assay type
 if (isTRUE(is_elisa)) {
-  cat("This report analyzes ELISA data using a four-parameter logistic dose–response curve to estimate concentrations of", 
-      assay_config$analyte %||% "analyte", "in unknown samples.\n\n")
-  cat("**Method:** Competitive enzyme-linked immunosorbent assay with %B/B0 normalization\n\n")
+  cat(tr("elisa_intro", lang, assay_config$analyte %||% "analyte"), "\n\n")
+  cat("**", tr("elisa_method", lang), "**\n\n", sep = "")
 } else {
-  cat("This report analyzes Receptor Binding Assay (RBA) data using a four-parameter logistic dose–response curve to estimate concentrations of",
-      assay_config$toxin_standard_label %||% "biotoxin", "in unknown samples.\n\n")
-  cat("**Method:** Competitive receptor binding assay with", assay_config$detection_method %||% "radioligand", "detection\n\n")
+  cat(tr("rba_intro", lang, assay_config$toxin_standard_label %||% "biotoxin"), "\n\n")
+  cat("**", tr("rba_method", lang, assay_config$detection_method %||% "radioligand"), "**\n\n", sep = "")
 }
 ```
 
-## Analysis Notes
+## `r tr("analysis_notes", lang)`
 
 ```{r notes-section, results='asis'}
-if (nzchar(trimws(notes_text))) {
+if (nzchar(trimws(notes_text)) && notes_text != "No notes added.") {
   cat(notes_text)
 } else {
-  cat("*No additional notes provided.*")
+  cat("*", tr("no_notes", lang), "*", sep = "")
 }
 ```
 
-## Standard Curve Configuration
+## `r tr("std_curve_config", lang)`
 
 ```{r standards-table}
 # Extract and display standard concentrations
@@ -247,12 +250,12 @@ if (isTRUE(is_elisa)) {
 
 render_table(
   standard_table, 
-  caption = "Standard Concentrations",
+  caption = tr("std_concentrations_table", lang),
   col_names = c("Standard", unit_label)
 )
 ```
 
-## Dose–Response Curve Analysis
+## `r tr("drc_analysis", lang)`
 
 ```{r model-fitting, include=FALSE}
 # Add concentration column and identify high variability standards
@@ -386,7 +389,7 @@ flag_range <- function(response_val, conc_val, is_elisa_assay) {
 
 ```{r variability-info, results='asis'}
 if (nrow(high_var_standards) > 0) {
-  cat("**Standards with high variability (>30% CV):**\n\n")
+  cat("**", tr("high_var_standards", lang), "**\n\n", sep = "")
   
   for (i in seq_len(nrow(high_var_standards))) {
     if (isTRUE(is_elisa)) {
@@ -402,7 +405,7 @@ if (nrow(high_var_standards) > 0) {
   }
   cat("\n")
 } else {
-  cat("✅ All standards show acceptable variability (<30% CV).\n\n")
+  cat(tr("all_std_acceptable", lang), "\n\n")
 }
 ```
 
@@ -456,7 +459,7 @@ if (isTRUE(is_elisa)) {
 
 drc_plot <- drc_plot + 
   ylab(labels$y_label) +
-  ggtitle(paste("Four-Parameter Logistic Model -", toupper(assay_config$assay_type), "Analysis"))
+  ggtitle(paste(tr("four_pl_coefficients", lang), "-", toupper(assay_config$assay_type)))
 
 # Display plot
 if (knitr::is_html_output()) {
@@ -467,7 +470,7 @@ if (knitr::is_html_output()) {
 }
 ```
 
-## Model Parameters
+## `r tr("model_parameters", lang)`
 
 ```{r model-stats}
 # Extract and display model coefficients with correct parameter order
@@ -502,8 +505,8 @@ tryCatch({
     
     render_table(
       drc_results,
-      caption = "Four-Parameter Logistic Model Coefficients",
-      col_names = c("Parameter", "Estimate", "Std. Error", "P-value")
+      caption = tr("four_pl_coefficients", lang),
+      col_names = c(tr("col_parameter", lang), tr("col_estimate", lang), tr("col_std_error", lang), tr("col_pvalue", lang))
     )
     
   } else {
@@ -518,11 +521,11 @@ tryCatch({
 })
 ```
 
-**Model Fit Statistics:**
+**`r tr("model_fit_stats", lang)`**
 
-- **R²** = `r round(R2, 3)`  
+- **R²** = `r round(R2, 3)`
 - **RMSE** = `r round(RMSE, 3)` `r labels$y_unit`
-- **Standards Used** = `r nrow(standards_for_model)` of `r length(unique(standards_data$StandardConc))`
+- **`r tr("standards_used", lang)`** = `r nrow(standards_for_model)` / `r length(unique(standards_data$StandardConc))`
 
 ```{r save-model-stats, include=FALSE}
 # Save model statistics for multiwavelength executive summary
@@ -550,9 +553,9 @@ write_json_safe <- function(x, file) {
 write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 ```
 
-### Standard Back-Calculation and Recovery
+### `r tr("std_backcalc_title", lang)`
 
-```{r standard-backcalculation}
+```{r standard-backcalculation, results='asis'}
 # Back-calculate concentrations for each standard well using the fitted model
 # and compute % recovery vs nominal concentration
 standards_backcalc <- data_long %>%
@@ -611,20 +614,20 @@ names(recovery_display) <- c(paste0("Nominal (", conc_unit, ")"), "n",
                               paste0("SD (", conc_unit, ")"),
                               "Recovery (%)")
 
-render_table(recovery_display, 
-            caption = "Standard Back-Calculation and Recovery")
+render_table(recovery_display,
+            caption = tr("std_backcalc_caption", lang))
 
 # Report overall recovery statistics
 mean_overall_recovery <- mean(recovery_summary$mean_recovery, na.rm = TRUE)
-cat(sprintf("\n**Overall Mean Recovery:** %.1f%%\n", mean_overall_recovery))
+cat(sprintf("\n**%s**\n", tr("overall_recovery", lang, mean_overall_recovery)))
 if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
-  cat("✅ Overall recovery is within acceptable range (80–120%).\n\n")
+  cat(tr("recovery_acceptable", lang), "\n\n")
 } else {
-  cat("⚠️ Overall recovery is outside the typical acceptable range (80–120%). Review curve fit.\n\n")
+  cat(tr("recovery_outside", lang), "\n\n")
 }
 ```
 
-## Sample Concentration Results
+## `r tr("sample_results", lang)`
 
 ```{r sample-analysis, include=FALSE}
 # Only analyze actual samples (exclude standards and control wells)
@@ -847,7 +850,7 @@ if (nrow(samples_to_analyze) > 0) {
 }
 ```
 
-```{r sample-results-table}
+```{r sample-results-table, results='asis'}
 # Wrap entire chunk in tryCatch for debugging
 tryCatch({
   
@@ -910,9 +913,9 @@ tryCatch({
     }
     
     # Generate table caption
-    caption_text <- paste("Sample Quantification Results -", toupper(assay_config$assay_type))
+    caption_text <- tr("sample_results_caption", lang, toupper(assay_config$assay_type))
     if (isTRUE(is_elisa) && isTRUE(has_tissue_weights)) {
-      caption_text <- paste(caption_text, "(with tissue normalization)")
+      caption_text <- paste(caption_text, tr("with_tissue", lang))
     }
     
     render_table(results_display, caption = caption_text)
@@ -930,9 +933,9 @@ tryCatch({
                row.names = FALSE)
     }
     
-    cat("\n**Output Files Created:**\n")
-    cat("- `unknown_results.csv` - Individual well results\n") 
-    cat("- `unknown_results_summary.csv` - Replicate group statistics with confidence intervals\n\n")
+    cat("\n**", tr("output_files_created", lang), "**\n", sep = "")
+    cat("- ", tr("individual_results", lang), "\n", sep = "")
+    cat("- ", tr("summary_results", lang), "\n\n", sep = "")
     
     # Display quality assessment (robust to NA in cv_percent)
     high_cv_groups <- tryCatch({
@@ -943,16 +946,15 @@ tryCatch({
     })
     
     if (!is.null(high_cv_groups) && nrow(high_cv_groups) > 0) {
-      cat("**⚠️ Quality Alert:**\n")
-      cat("- Replicate groups with high variability (CV > 30%):", 
-          paste(high_cv_groups$Replicate, collapse = ", "), "\n")
-      cat("- Consider checking sample preparation or dilution consistency\n\n")
+      cat("**", tr("quality_alert", lang), "**\n", sep = "")
+      cat("- ", tr("high_cv_groups", lang, paste(high_cv_groups$Replicate, collapse = ", ")), "\n", sep = "")
+      cat("- ", tr("check_preparation", lang), "\n\n", sep = "")
     } else {
-      cat("**✅ Quality Check:** All replicate groups show acceptable variability (CV ≤ 30%)\n\n")
+      cat("**", tr("quality_pass", lang), "**\n\n", sep = "")
     }
     
   } else {
-    cat("*No samples could be quantified.*\n\n")
+    cat("*", tr("no_samples_quantified", lang), "*\n\n", sep = "")
     
     if (exists("samples_to_analyze") && !is.null(samples_to_analyze) && nrow(samples_to_analyze) > 0) {
       cat("**Possible reasons:**\n")
@@ -977,7 +979,7 @@ tryCatch({
 })
 ```
 
-## Detailed Sample Results Summary
+## `r tr("detailed_summary", lang)`
 
 ```{r summary-results-table}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
@@ -1053,7 +1055,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 }
 ```
 
-## Sample Variability Visualization
+## `r tr("sample_variability", lang)`
 
 ```{r sample-boxplot, fig.width=10, fig.height=7, warning=FALSE, message=FALSE}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
@@ -1124,7 +1126,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 }
 ```
 
-## Dose-Response Curve with Unknown Samples
+## `r tr("drc_with_samples", lang)`
 
 ```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
@@ -1183,7 +1185,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         axis.text.x = element_text(angle = 45, hjust = 1)
       ) +
       labs(x = labels$x_label, y = labels$y_label,
-           title = "Dose-Response Curve with Standards and Unknown Samples")
+           title = tr("drc_combined_title", lang))
     
     if (isTRUE(is_elisa)) {
       combined_drc <- combined_drc + 
@@ -1212,8 +1214,8 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
 ---
 
-**Report Generated:** `r Sys.Date()`  
-**Contact:** kr.moeller@iaea.org  
-**Feedback:** [Online Form](https://forms.office.com/e/q8eqJfp4QM)
+**`r tr("report_generated", lang)`** `r Sys.Date()`
+**`r tr("contact", lang)`** kr.moeller@iaea.org
+**`r tr("feedback", lang)`** [`r tr("online_form", lang)`](https://forms.office.com/e/q8eqJfp4QM)
 
-*Automated bioassay analysis using modular system v2.0*
+*`r tr("automated_analysis", lang)`*

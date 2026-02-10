@@ -28,21 +28,21 @@ ui <- fluidPage(
   introjsUI(),
   shinyFeedback::useShinyFeedback(),
   
-  titlePanel("RBA Analysis – Microplate Processing & Curve Fitting"),
+  uiOutput("app_title_ui"),
   br(),
-  
+
   # ------------------------------
   # Language Toggle & Guided Tour
   # ------------------------------
   div(
     style = "display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 20px; align-items: center;",
-    actionButton("start_tour", "🚀 Start Guided Tour", 
+    actionButton("start_tour", "\U0001F680 Start Guided Tour",
                 class = "btn btn-lg btn-info",
                 style = "font-size: 18px; padding: 15px 30px;"),
     div(
       id = "language_toggle_section",
       style = "display: flex; align-items: center; gap: 8px;",
-      tags$span("🌐", style = "font-size: 20px;"),
+      tags$span("\U0001F310", style = "font-size: 20px;"),
       selectInput("app_language", NULL,
                   choices = c("English" = "en", "Español" = "es"),
                   selected = "en",
@@ -56,7 +56,7 @@ ui <- fluidPage(
   introBox(
     div(
       id = "step0_section",
-      column(12, h4("Step 0: Assay Configuration")),
+      column(12, uiOutput("step0_header")),
       
       fluidRow(
         column(
@@ -173,7 +173,7 @@ ui <- fluidPage(
       id = "step1_section",
       style = "padding-bottom: 100px;",
       
-      h4("Step 1: Edit Microplate Matrices & QC Parameters"),
+      uiOutput("step1_header"),
       
       # Type matrix
       div(
@@ -278,7 +278,7 @@ ui <- fluidPage(
       # Upload section
       div(
         id = "upload_section",
-        h4("Step 2: Upload Plate Data"),
+        uiOutput("step2_header"),
         
         # Import method toggle
         radioButtons("import_method", "Import method:",
@@ -388,17 +388,55 @@ server <- function(input, output, session) {
   # --------------------------------------------------------------------------
   # Assay Type Configuration
   # --------------------------------------------------------------------------
-  
+
+  # Language-reactive UI elements
+  output$app_title_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    titlePanel(tr("app_title", lang))
+  })
+
+  output$step0_header <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("step0_title", lang))
+  })
+
+  output$step1_header <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("step1_title", lang))
+  })
+
+  output$step2_header <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("step2_title", lang))
+  })
+
+  # Sync report language with app language
+  observeEvent(input$app_language, {
+    lang <- input$app_language
+    updateSelectInput(session, "report_language", selected = lang)
+    updateActionButton(session, "start_tour", label = tr("start_tour", lang))
+    updateActionButton(session, "convert",
+                      label = tagList(icon("file-arrow-down"), tr("generate_report", lang)))
+    updateRadioButtons(session, "import_method", label = tr("upload_or_visual", lang),
+                      choices = setNames(c("classic", "visual"),
+                                        c(tr("import_classic", lang), tr("import_visual", lang))))
+    updateCheckboxGroupInput(session, "export_formats", label = tr("report_formats", lang))
+    updateSelectInput(session, "report_language", label = tr("report_language", lang))
+    updateTextAreaInput(session, "notes", label = tr("notes_label", lang),
+                       placeholder = tr("notes_placeholder", lang))
+  })
+
   output$assay_description <- renderUI({
+    lang <- input$app_language %||% "en"
     if (input$assay_type == "rba") {
       div(
         style = "font-style: italic; color: #666; margin-top: 10px;",
-        "Receptor binding assays measure displacement of radioligand or fluorescent ligand."
+        tr("rba_description", lang)
       )
     } else {
       div(
         style = "font-style: italic; color: #666; margin-top: 10px;",
-        "ELISA measures analyte concentration via antibody-enzyme reactions."
+        tr("elisa_description", lang)
       )
     }
   })
@@ -840,14 +878,15 @@ server <- function(input, output, session) {
     excluded_wells = list()
   )
   
-  # Visual file preview: render the uploaded file as an interactive grid
+  # Visual file preview: render file content and auto-detected plates
   output$visual_file_preview <- renderUI({
     req(input$upload_counts)
     req(input$import_method == "visual")
-    
+    lang <- input$app_language %||% "en"
+
     file_path <- input$upload_counts$datapath
     ext <- tools::file_ext(input$upload_counts$name)
-    
+
     # Read raw file content
     raw <- tryCatch({
       if (ext %in% c("xlsx", "xls")) {
@@ -858,82 +897,227 @@ server <- function(input, output, session) {
         read.table(file_path, header = FALSE, sep = "\t", stringsAsFactors = FALSE)
       }
     }, error = function(e) NULL)
-    
+
     if (is.null(raw)) {
       return(tags$p(style = "color: red;", "Could not read file for preview."))
     }
-    
+
     rv_file_preview$raw_data <- raw
     rv_file_preview$file_path <- file_path
-    
+
     # Auto-detect plate regions
     mat <- as.matrix(raw)
     detected <- list()
     plate_idx <- 1
-    
-    # Search for 8-row blocks with row labels A-H
+
     for (i in 1:(nrow(mat) - 7)) {
       potential_rows <- trimws(as.character(mat[i:(i+7), 1]))
       if (identical(potential_rows, LETTERS[1:8])) {
-        # Check for numeric data in columns 2+
         test_data <- suppressWarnings(as.numeric(mat[i, 2:min(13, ncol(mat))]))
         num_valid <- sum(!is.na(test_data))
         if (num_valid >= 4) {
+          # Try to find a wavelength label above the plate
+          wl_label <- ""
+          if (i >= 3) {
+            for (look_back in 1:min(3, i-1)) {
+              above_text <- trimws(as.character(mat[i - look_back, 1]))
+              if (grepl("Raw Data|\\d{3}", above_text)) {
+                wl_label <- paste0(" - ", above_text)
+                break
+              }
+            }
+          }
           detected[[plate_idx]] <- list(
             start_row = i,
             start_col = 2,
             nrows = 8,
             ncols = min(12, num_valid),
-            label = paste0("Plate ", plate_idx, " (rows ", i, "-", i+7, ")")
+            label = paste0("Plate ", plate_idx, wl_label)
           )
           plate_idx <- plate_idx + 1
         }
       }
     }
-    
+
     rv_file_preview$detected_plates <- detected
-    
+
     if (length(detected) == 0) {
-      return(tags$p(style = "color: orange;", 
-                    "No 8×12 plate regions auto-detected. Use Classic Import, or check file format."))
+      return(tags$p(style = "color: orange;",
+                    "No 8\u00D712 plate regions auto-detected. Use Classic Import, or check file format."))
     }
-    
-    # Build the preview UI with highlighted plate regions
+
+    # Build file preview HTML table with highlighted plate regions
+    plate_row_ranges <- lapply(detected, function(pl) pl$start_row:(pl$start_row + pl$nrows - 1))
+    plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
+
+    # Build a compact HTML preview of the raw file
+    n_preview_rows <- min(nrow(mat), max(unlist(plate_row_ranges)) + 2)
+    n_preview_cols <- min(ncol(mat), 14)
+    preview_rows <- lapply(1:n_preview_rows, function(r) {
+      bg <- "transparent"
+      for (p_idx in seq_along(plate_row_ranges)) {
+        if (r %in% plate_row_ranges[[p_idx]]) {
+          bg <- plate_colors[(p_idx - 1) %% length(plate_colors) + 1]
+          break
+        }
+      }
+      cells <- lapply(1:n_preview_cols, function(c) {
+        val <- if (c <= ncol(mat)) as.character(mat[r, c]) else ""
+        if (is.na(val)) val <- ""
+        tags$td(style = paste0("padding:2px 6px; font-size:11px; border:1px solid #ddd; background:", bg),
+                val)
+      })
+      tags$tr(cells)
+    })
+
     tagList(
       tags$p(style = "color: green; font-weight: bold;",
-             sprintf("✅ %d plate region(s) detected in file.", length(detected))),
+             sprintf("\u2705 %d plate region(s) detected.", length(detected))),
+
+      # File preview table
+      tags$div(
+        style = "max-height: 300px; overflow: auto; border: 1px solid #ccc; margin: 10px 0; border-radius: 4px;",
+        tags$table(
+          style = "border-collapse: collapse; width: 100%;",
+          preview_rows
+        )
+      ),
+
+      # Plate checkboxes
       tags$div(
         style = "margin: 10px 0;",
         lapply(seq_along(detected), function(idx) {
           pl <- detected[[idx]]
-          checked <- idx <= length(rv_file_preview$selected_plates) || 
-                    length(rv_file_preview$selected_plates) == 0
+          bg <- plate_colors[(idx - 1) %% length(plate_colors) + 1]
           div(
-            style = "display: inline-flex; align-items: center; gap: 8px; margin: 5px 10px;",
-            checkboxInput(paste0("select_plate_", idx), 
+            style = paste0("display: inline-flex; align-items: center; gap: 8px; margin: 5px 10px; ",
+                          "padding: 4px 10px; border-radius: 4px; background:", bg, ";"),
+            checkboxInput(paste0("select_plate_", idx),
                          pl$label, value = TRUE),
-            tags$small(sprintf("(%d×%d)", pl$nrows, pl$ncols))
+            tags$small(sprintf("(%d\u00D7%d)", pl$nrows, pl$ncols))
           )
         })
       ),
       tags$p(tags$small(style = "color: #666;",
-                        "Uncheck plates you do not want to analyze."))
+                        "Uncheck plates you do not want to analyze.")),
+
+      # Well grid section for each selected plate
+      uiOutput("visual_well_grids"),
+
+      # Confirm button
+      actionButton("confirm_visual_import",
+                   tr("confirm_selection", lang),
+                   class = "btn btn-success",
+                   style = "width: 100%; margin-top: 10px; font-size: 16px; padding: 10px;")
     )
   })
-  
-  # Well exclusion UI
-  output$visual_well_exclusion <- renderUI({
-    req(input$import_method == "visual")
-    req(length(rv_file_preview$detected_plates) > 0)
-    
+
+  # Render interactive well grids for each selected plate
+  output$visual_well_grids <- renderUI({
+    req(rv_file_preview$detected_plates)
+    lang <- input$app_language %||% "en"
+    detected <- rv_file_preview$detected_plates
+    raw <- rv_file_preview$raw_data
+    if (is.null(raw) || length(detected) == 0) return(NULL)
+
+    plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
+
+    plate_grids <- lapply(seq_along(detected), function(idx) {
+      # Check if this plate is selected
+      checkbox_val <- input[[paste0("select_plate_", idx)]]
+      if (!isTRUE(checkbox_val)) return(NULL)
+
+      pl <- detected[[idx]]
+      bg <- plate_colors[(idx - 1) %% length(plate_colors) + 1]
+
+      # Extract the plate data
+      mat <- as.matrix(raw)
+      plate_data <- mat[pl$start_row:(pl$start_row + pl$nrows - 1),
+                        pl$start_col:(pl$start_col + pl$ncols - 1), drop = FALSE]
+
+      # Build an 8×ncol interactive grid
+      grid_rows <- lapply(1:8, function(r) {
+        row_letter <- LETTERS[r]
+        cells <- lapply(1:pl$ncols, function(c) {
+          well_id <- paste0(row_letter, c)
+          val <- tryCatch(as.character(plate_data[r, c]), error = function(e) "")
+          if (is.na(val)) val <- ""
+          num_val <- suppressWarnings(as.numeric(val))
+          display_val <- if (!is.na(num_val)) round(num_val, 3) else val
+
+          # Check if this well is excluded
+          excluded_key <- paste0("plate_", idx, "_", well_id)
+          is_excluded <- isTRUE(rv_file_preview$excluded_wells[[excluded_key]])
+
+          cell_style <- if (is_excluded) {
+            "padding:3px 5px; font-size:10px; border:1px solid #ccc; cursor:pointer; background:#ffcdd2; color:#999; text-decoration:line-through; text-align:center; min-width:48px;"
+          } else {
+            paste0("padding:3px 5px; font-size:10px; border:1px solid #ccc; cursor:pointer; background:", bg, "; text-align:center; min-width:48px;")
+          }
+
+          tags$td(
+            style = cell_style,
+            onclick = sprintf("Shiny.setInputValue('toggle_well', {plate: %d, well: '%s', ts: Date.now()});",
+                             idx, well_id),
+            title = paste0(well_id, if (is_excluded) " (excluded)" else ""),
+            display_val
+          )
+        })
+        tags$tr(
+          tags$td(style = "padding:3px 5px; font-weight:bold; font-size:11px; text-align:center;", row_letter),
+          cells
+        )
+      })
+
+      # Column headers
+      col_header <- tags$tr(
+        tags$th(style = "padding:3px 5px; font-size:10px;", ""),
+        lapply(1:pl$ncols, function(c) {
+          tags$th(style = "padding:3px 5px; font-size:10px; text-align:center;", c)
+        })
+      )
+
+      div(
+        style = "margin: 10px 0;",
+        tags$b(pl$label),
+        tags$small(style = "color: #666; margin-left: 10px;",
+                   tr("excluded_wells_label", lang)),
+        tags$div(
+          style = "overflow-x: auto; margin-top: 5px;",
+          tags$table(
+            style = "border-collapse: collapse;",
+            tags$thead(col_header),
+            tags$tbody(grid_rows)
+          )
+        )
+      )
+    })
+
     tagList(
       hr(),
-      h6("Exclude individual wells:"),
-      tags$p(tags$small("Enter well positions to exclude (e.g., A1, B3, H12). Separate with commas.")),
-      textInput("excluded_wells_input", NULL,
-               placeholder = "e.g., A1, B3, H12",
-               width = "100%")
+      tags$b(style = "font-size: 14px;", "Step 2: ", tr("excluded_wells_label", lang)),
+      plate_grids
     )
+  })
+
+  # Handle well toggle clicks from JavaScript
+  observeEvent(input$toggle_well, {
+    info <- input$toggle_well
+    if (is.null(info)) return()
+    key <- paste0("plate_", info$plate, "_", info$well)
+    current <- isTRUE(rv_file_preview$excluded_wells[[key]])
+    rv_file_preview$excluded_wells[[key]] <- !current
+  })
+
+  # Well exclusion UI (kept for backwards compat but now integrated into grid)
+  output$visual_well_exclusion <- renderUI({
+    # The well exclusion is now handled by clickable grid cells above
+    NULL
+  })
+
+  output$visual_plate_selections <- renderUI({
+    # Plate selection is now integrated into the visual_file_preview above
+    NULL
   })
   
   # --------------------------------------------------------------------------
@@ -1025,11 +1209,12 @@ server <- function(input, output, session) {
   observeEvent(input$confirm_visual_import, {
     req(rv_file_preview$raw_data)
     req(length(rv_file_preview$detected_plates) > 0)
-    
+    lang <- input$app_language %||% "en"
+
     file_path <- rv_file_preview$file_path
     raw <- rv_file_preview$raw_data
     detected <- rv_file_preview$detected_plates
-    
+
     # Determine which plates are selected
     selected_indices <- c()
     for (idx in seq_along(detected)) {
@@ -1038,18 +1223,32 @@ server <- function(input, output, session) {
         selected_indices <- c(selected_indices, idx)
       }
     }
-    
+
     if (length(selected_indices) == 0) {
       showNotification("Please select at least one plate.", type = "warning")
       return()
     }
-    
+
+    # Helper: apply well exclusions to a plate
+    apply_exclusions <- function(plate_numeric, plate_idx) {
+      for (r in 1:8) {
+        for (c in 1:ncol(plate_numeric)) {
+          well_id <- paste0(LETTERS[r], c)
+          key <- paste0("plate_", plate_idx, "_", well_id)
+          if (isTRUE(rv_file_preview$excluded_wells[[key]])) {
+            plate_numeric[r, c] <- NA_real_
+          }
+        }
+      }
+      plate_numeric
+    }
+
     # Extract selected plates
     selected_plates <- detected[selected_indices]
-    
+
     if (length(selected_plates) == 1) {
-      # Single plate: standard import
       rv$is_multiwavelength <- FALSE
+      pl_idx <- selected_indices[1]
       pl <- selected_plates[[1]]
       plate_data <- raw[pl$start_row:(pl$start_row + pl$nrows - 1),
                         pl$start_col:(pl$start_col + pl$ncols - 1), drop = FALSE]
@@ -1057,24 +1256,32 @@ server <- function(input, output, session) {
         as.data.frame(apply(plate_data, 2, as.numeric), stringsAsFactors = FALSE)
       )
       plate_numeric <- enforce_plate_shape(plate_numeric)
+      plate_numeric <- apply_exclusions(plate_numeric, pl_idx)
       matrix_measresults(plate_numeric)
-      showNotification("✅ Single plate imported from visual selection.", type = "message")
-      
+
+      n_excluded <- sum(sapply(names(rv_file_preview$excluded_wells), function(k) {
+        grepl(paste0("^plate_", pl_idx, "_"), k) && isTRUE(rv_file_preview$excluded_wells[[k]])
+      }))
+      msg <- "\u2705 Single plate imported from visual selection."
+      if (n_excluded > 0) msg <- paste0(msg, sprintf(" (%d wells excluded)", n_excluded))
+      showNotification(msg, type = "message")
+
     } else {
-      # Multiple plates: treat as multi-wavelength
       rv$is_multiwavelength <- TRUE
       plates <- list()
-      for (idx in seq_along(selected_plates)) {
-        pl <- selected_plates[[idx]]
+      for (i in seq_along(selected_plates)) {
+        pl_idx <- selected_indices[i]
+        pl <- selected_plates[[i]]
         plate_data <- raw[pl$start_row:(pl$start_row + pl$nrows - 1),
                           pl$start_col:(pl$start_col + pl$ncols - 1), drop = FALSE]
         plate_numeric <- suppressWarnings(
           as.data.frame(apply(plate_data, 2, as.numeric), stringsAsFactors = FALSE)
         )
         plate_numeric <- enforce_plate_shape(plate_numeric)
-        plates[[paste0("Plate_", idx)]] <- plate_numeric
+        plate_numeric <- apply_exclusions(plate_numeric, pl_idx)
+        plates[[paste0("Plate_", i)]] <- plate_numeric
       }
-      
+
       rv$wavelength_plates <- plates
       rv$wavelengths <- names(plates)
       matrix_measresults(plates[[1]])
@@ -1414,36 +1621,40 @@ server <- function(input, output, session) {
   })
       
   # --------------------------------------------------------------------------
-  # Guided Tour
+  # Guided Tour (language-reactive)
   # --------------------------------------------------------------------------
-  
-  tour_steps <- data.frame(
-    element = c("#step0_section", "#matrix_type_section", "#matrix_id_section",
-                "#matrix_dilution_section", "#matrix_replicate_section",
-                "#tissue_weight_section", "#upload_section", "#visual_selector_section",
-                "#language_toggle_section", "#convert_section"),
-    intro = c(
-      "Step 0: Configure your assay type and standard concentrations. Choose between RBA and ELISA, select the analyte, and enter standard concentrations.",
-      "Step 1: Define the plate layout. Assign each well as Standard, Sample, QC, Blank, NSB, B0, etc.",
-      "Assign sample IDs to each well. Standards are automatically labeled S1, S2, etc.",
-      "Enter dilution factors for each well. Supports numeric values (0.5) and ratios (1:2).",
-      "Define replicate groups. Wells with the same label are treated as replicates.",
-      "For ELISA: enter tissue weights (mg) per replicate group and extraction volume for pg/g tissue calculations.",
-      "Step 2: Upload your plate reader data file (.xlsx, .csv, or .txt).",
-      "Use the Visual Plate Selector to preview the file and select plate regions. You can also exclude individual wells.",
-      "Switch between English and Spanish for the interface and reports.",
-      "Step 3: Choose report format(s) and language, then generate the report."
-    ),
-    stringsAsFactors = FALSE
-  )
-  
-  introjs(session, options = list(
-    nextLabel = "Next", prevLabel = "Back", skipLabel = "Exit",
-    doneLabel = "Finish", showProgress = TRUE
-  ))
-  
+
   observeEvent(input$start_tour, {
-    introjs(session, options = list(steps = tour_steps))
+    lang <- input$app_language %||% "en"
+
+    tour_steps <- data.frame(
+      element = c("#step0_section", "#matrix_type_section", "#matrix_id_section",
+                  "#matrix_dilution_section", "#matrix_replicate_section",
+                  "#tissue_weight_section", "#upload_section", "#visual_selector_section",
+                  "#language_toggle_section", "#convert_section"),
+      intro = c(
+        tr("tour_step0", lang),
+        tr("tour_step1_type", lang),
+        tr("tour_step1_id", lang),
+        tr("tour_step1_dilution", lang),
+        tr("tour_step1_replicate", lang),
+        tr("tour_step1_tissue", lang),
+        tr("tour_step2_upload", lang),
+        tr("tour_step2_visual", lang),
+        tr("tour_language", lang),
+        tr("tour_step3", lang)
+      ),
+      stringsAsFactors = FALSE
+    )
+
+    introjs(session, options = list(
+      steps = tour_steps,
+      nextLabel = tr("tour_next", lang),
+      prevLabel = tr("tour_prev", lang),
+      skipLabel = tr("tour_skip", lang),
+      doneLabel = tr("tour_done", lang),
+      showProgress = TRUE
+    ))
   })
 }
 

@@ -36,12 +36,31 @@ if (is.null(wavelengths) || length(wavelengths) == 0) {
 lang <- params$lang %||% "en"
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
-script_dir <- tryCatch(dirname(knitr::current_input()), error = function(e) ".")
+script_dir <- tryCatch({
+  rmd_path <- knitr::current_input()
+  if (!is.null(rmd_path) && rmd_path != "" && rmd_path != ".") {
+    normalizePath(dirname(rmd_path), winslash = "/")
+  } else {
+    "."
+  }
+}, error = function(e) ".")
 
-i18n_path <- file.path(script_dir, "i18n.R")
-if (file.exists(i18n_path)) {
-  source(i18n_path)
-} else {
+# Source i18n translations (search multiple locations)
+i18n_found <- FALSE
+for (i18n_candidate in c(
+  file.path(script_dir, "i18n.R"),
+  file.path(dirname(script_dir), "i18n.R"),
+  "../i18n.R",
+  "i18n.R",
+  file.path(dirname(output_dir), "i18n.R")
+)) {
+  if (file.exists(i18n_candidate)) {
+    source(i18n_candidate)
+    i18n_found <- TRUE
+    break
+  }
+}
+if (!i18n_found) {
   tr <- function(key, lang = "en", ...) paste0("[", key, "]")
 }
 
