@@ -1,0 +1,378 @@
+---
+title: "Dose Response Curve Analysis Report"
+author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+output:
+  html_document:
+    df_print: paged
+    self_contained: true
+  pdf_document: default
+  word_document: default
+params:
+  output_dir: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Load required libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(drc)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(stringr)
+library(ggtext)
+library(glue)
+library(htmltools)
+library(tibble)
+library(jsonlite)
+
+# Validate output directory
+output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
+
+# Get script directory (handle R Project working directory)
+script_dir <- tryCatch({
+  # Try to get actual RMD file location first
+  rmd_path <- knitr::current_input()
+  if (!is.null(rmd_path) && rmd_path != "" && rmd_path != ".") {
+    normalizePath(dirname(rmd_path), winslash = "/")
+  } else {
+    # R Project scenario: working directory is project root
+    # Look for reports subfolder
+    if (dir.exists("reports")) {
+      normalizePath("reports", winslash = "/")
+    } else {
+      # Fallback: construct from output directory
+      possible_reports_dir <- file.path(dirname(params$output_dir), "reports")
+      if (dir.exists(possible_reports_dir)) {
+        normalizePath(possible_reports_dir, winslash = "/")
+      } else {
+        stop("Cannot find reports directory")
+      }
+    }
+  }
+}, error = function(e) {
+  # Final fallback for R Projects
+  if (dir.exists("reports")) {
+    return(normalizePath("reports", winslash = "/"))
+  } else {
+    stop("Cannot find reports directory. Error: ", e$message)
+  }
+})
+
+# Define %||% operator (null coalescing) - inline since we can't source yet
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+# Check if all required function files exist
+required_files <- c("report_constants.R", "report_functions.R", "plot_functions.R")
+missing_files <- c()
+
+for (file in required_files) {
+  file_path <- file.path(script_dir, file)
+  if (!file.exists(file_path)) {
+    missing_files <- c(missing_files, file_path)
+  }
+}
+
+if (length(missing_files) > 0) {
+  stop("Missing required function files:\n", paste(missing_files, collapse = "\n"), 
+       "\n\nExpected in directory: ", script_dir,
+       "\nActual files found: ", paste(list.files(script_dir, pattern = "\\.R$"), collapse = ", "),
+       "\n\nMake sure all R files are in the 'reports/' folder.")
+}
+
+# Source function files
+source(file.path(script_dir, "report_constants.R"))
+source(file.path(script_dir, "report_functions.R"))  
+source(file.path(script_dir, "plot_functions.R"))
+
+# Load assay configuration
+assay_config <- tryCatch({
+  load_assay_config(output_dir)
+}, error = function(e) {
+  # Fallback to RBA defaults
+  list(
+    assay_type = "rba",
+    detection_method = "radioligand",
+    toxin_standard_label = "Saxitoxin"
+  )
+})
+```
+
+```{r load-data, include=FALSE}
+# Load and validate data
+data_long <- read.csv(file.path(output_dir, "long_data_output.csv"), stringsAsFactors = FALSE)
+validate_input_data(data_long)
+
+# Check if this is ELISA data with normalized values
+has_normalized <- "NormalizedValue" %in% names(data_long)
+response_var <- if (has_normalized && assay_config$assay_type == "elisa") {
+  "NormalizedValue"
+} else {
+  "MeasurementValue"  
+}
+
+# Get axis labels
+labels <- get_axis_labels(assay_config)
+
+# Load notes (optional)
+notes_file <- file.path(output_dir, "notes.json")
+notes_text <- "No notes added."
+if (file.exists(notes_file)) {
+  notes_obj <- jsonlite::fromJSON(notes_file, simplifyVector = FALSE)
+  notes_text <- notes_obj$notes %||% "No notes added."
+}
+
+# Check data quality for ELISA
+if (assay_config$assay_type == "elisa" && has_normalized) {
+  # Check for normalization issues
+  invalid_normalized <- sum(!is.finite(data_long$NormalizedValue), na.rm = TRUE)
+  if (invalid_normalized > 0) {
+    warning("Found ", invalid_normalized, " invalid normalized values. Using MeasurementValue instead.")
+    response_var <- "MeasurementValue"
+  }
+}
+```
+
+# Assay Analysis Report
+
+**Assay Type:** `r toupper(assay_config$assay_type)`  
+**Analysis Date:** `r Sys.Date()`  
+**Analyst:** `r Sys.info()[["user"]]`
+
+```{r dynamic-title, results='asis'}
+# Dynamic description based on assay type
+if (assay_config$assay_type == "elisa") {
+  cat("This report analyzes ELISA data using a four-parameter logistic dose–response curve to estimate concentrations of", 
+      assay_config$analyte %||% "analyte", "samples.\n\n")
+} else {
+  cat("This report analyzes RBA data using a four-parameter logistic dose–response curve to estimate concentrations of",
+      assay_config$toxin_standard_label %||% "biotoxin", "samples.\n\n")
+}
+```
+
+## Notes
+
+```{r notes-section, results='asis'}
+if (nzchar(trimws(notes_text))) {
+  cat(notes_text)
+} else {
+  cat("*No notes added.*")
+}
+```
+
+## Standard Concentrations
+
+```{r standards-table}
+# Extract and display standard concentrations
+standards_data <- data_long %>%
+  filter(SampleType == "Standard", !is.na(StandardConc)) %>%
+  arrange(desc(StandardConc)) %>%
+  distinct(StandardConc)
+
+standard_table <- data.frame(
+  StandardNumber = seq_len(nrow(standards_data)),
+  Concentration = format(standards_data$StandardConc, scientific = TRUE, digits = 2)
+)
+
+unit_label <- if (assay_config$assay_type == "elisa") {
+  paste0("Standard Concentration (", assay_config$units %||% "pg/mL", ")")
+} else {
+  "Standard Concentration (mol/L)"
+}
+
+render_table(
+  standard_table, 
+  caption = "Standard Concentrations Used",
+  col_names = c("Standard Number", unit_label)
+)
+```
+
+## Dose–Response Curve Analysis
+
+```{r model-fitting, include=FALSE}
+# Add concentration column and identify high variability standards
+data_long <- data_long %>%
+  mutate(concentration = ifelse(SampleType == "Standard", StandardConc, NA_real_))
+
+high_var_standards <- identify_high_variability_standards(data_long)
+
+# Mark high variability in data
+data_long <- data_long %>%
+  mutate(
+    high_variability = ifelse(
+      SampleType == "Standard" & concentration %in% high_var_standards$StandardConc,
+      "High Variability", 
+      "Normal Variability"
+    )
+  )
+
+# Prepare standards for modeling (excluding high variability)
+standards_for_model <- data_long %>%
+  filter(
+    SampleType == "Standard",
+    !is.na(concentration),
+    high_variability == "Normal Variability"
+  )
+
+# Fit 4-parameter logistic model
+model_fit <- drc::drm(
+  as.formula(paste(response_var, "~ concentration")),
+  data = standards_for_model,
+  fct = drc::LL.4()
+)
+
+# Model statistics
+fitted_vals <- fitted(model_fit)
+residuals_vals <- residuals(model_fit)
+R2 <- 1 - sum(residuals_vals^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
+RMSE <- sqrt(mean(residuals_vals^2))
+
+# Generate predictions for plotting
+conc_range <- seq(1e-12, 1e-5, length.out = 1000)
+model_fits <- data.frame(conc = conc_range)
+model_fits$p <- predict(model_fit, newdata = model_fits)
+```
+
+```{r variability-info, results='asis'}
+if (nrow(high_var_standards) > 0) {
+  cat("**Standards with high variability (>30%CV):**\n\n")
+  
+  for (i in seq_len(nrow(high_var_standards))) {
+    cat(sprintf("- Concentration %.2e: %.1f%% CV\n", 
+                high_var_standards$StandardConc[i], 
+                high_var_standards$cv[i]))
+  }
+  cat("\n")
+} else {
+  cat("All standards show acceptable variability (<30%CV).\n\n")
+}
+```
+
+```{r dose-response-plots, fig.width=10, fig.height=8}
+# Create dose-response curve plot
+drc_plot <- create_dose_response_plot(data_long, model_fits, assay_config, response_var)
+
+# Display plot
+if (knitr::is_html_output()) {
+  plotly::ggplotly(drc_plot, tooltip = "text")
+} else {
+  print(drc_plot)
+}
+```
+
+## Model Results
+
+```{r model-stats}
+# Extract and display model coefficients with error handling
+tryCatch({
+  
+  coefficients <- summary(model_fit)$coefficients
+  
+  # Check if coefficients have expected structure
+  if (is.matrix(coefficients) && nrow(coefficients) >= 4) {
+    
+    # Standard 4PL parameter names
+    param_names <- c("Bottom", "Top", "IC50", "Hill Slope")
+    
+    # Ensure we don't exceed available rows
+    n_params <- min(length(param_names), nrow(coefficients))
+    param_names <- param_names[1:n_params]
+    
+    # Create results data frame with safe indexing
+    drc_results <- data.frame(
+      Parameter = param_names,
+      Value = coefficients[1:n_params, "Estimate"],
+      StdError = if ("Std. Error" %in% colnames(coefficients)) {
+        coefficients[1:n_params, "Std. Error"]
+      } else {
+        rep(NA, n_params)
+      },
+      PValue = if ("Pr(>|t|)" %in% colnames(coefficients)) {
+        coefficients[1:n_params, "Pr(>|t|)"]
+      } else {
+        rep(NA, n_params)
+      }
+    )
+    
+    render_table(
+      drc_results,
+      caption = "4PL Model Parameters",
+      col_names = c("Parameter", "Estimate", "Std. Error", "P-value")
+    )
+    
+  } else {
+    cat("Model coefficients structure unexpected. Available coefficients:\n")
+    print(coefficients)
+  }
+  
+}, error = function(e) {
+  cat("Error extracting model coefficients:", e$message, "\n")
+  cat("Model summary:\n")
+  print(summary(model_fit))
+})
+```
+
+**Model Fit Statistics:**
+
+- R² = `r round(R2, 3)`  
+- RMSE = `r round(RMSE, 1)` `r labels$y_unit`
+
+## Sample Concentration Results
+
+```{r sample-analysis, include=FALSE}
+# Only analyze non-standard samples
+samples_to_analyze <- data_long %>%
+  filter(SampleType != "Standard")
+
+if (nrow(samples_to_analyze) > 0) {
+  # Predict sample concentrations
+  sample_results <- predict_sample_concentrations(model_fit, samples_to_analyze, assay_config)
+  
+  # Calculate replicate statistics
+  replicate_stats <- calculate_replicate_stats(sample_results)
+} else {
+  sample_results <- data.frame()
+  replicate_stats <- data.frame()
+}
+```
+
+```{r sample-results-table}
+if (nrow(replicate_stats) > 0) {
+  
+  # Format table for display
+  results_display <- replicate_stats %>%
+    select(SampleType, sampleID, Replicate, mean_conc_formatted, se_conc_formatted) %>%
+    rename(
+      "Sample Type" = SampleType,
+      "Sample ID" = sampleID,
+      "Replicate" = Replicate,
+      "Mean Concentration" = mean_conc_formatted,
+      "Std. Error" = se_conc_formatted
+    )
+  
+  render_table(
+    results_display,
+    caption = "Sample Concentration Results"
+  )
+  
+  # Save detailed results
+  write.csv(sample_results, 
+           file.path(output_dir, "unknown_results.csv"),
+           row.names = FALSE)
+  
+} else {
+  cat("*No samples found for analysis.*\n")
+}
+```
+
+---
+
+**Report generated:** `r Sys.Date()`  
+**Contact:** kr.moeller@iaea.org  
+**Feedback:** [Online form](https://forms.office.com/e/q8eqJfp4QM)
+
+*Report generated using modular analysis system v2.0*

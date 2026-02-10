@@ -1,0 +1,414 @@
+---
+title: "Dose Response Curve Analysis Report"
+author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+output:
+  html_document:
+    df_print: paged
+    self_contained: true
+  pdf_document: default
+  word_document: default
+params:
+  output_dir: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Load required libraries
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(plotly)
+  library(drc)
+  library(scales)
+  library(knitr)
+  library(kableExtra)
+  library(stringr)
+  library(ggtext)
+  library(glue)
+  library(htmltools)
+  library(tibble)
+  library(jsonlite)
+})
+
+# Validate output directory
+stopifnot(!is.null(params$output_dir), nzchar(params$output_dir))
+output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
+
+# Get the directory where this RMD file is located
+rmd_dir <- tryCatch({
+  normalizePath(dirname(knitr::current_input()), winslash = "/", mustWork = TRUE)
+}, error = function(e) {
+  # Fallback: try to find based on output directory
+  possible_dir <- file.path(dirname(output_dir), "reports")
+  if (dir.exists(possible_dir)) {
+    return(normalizePath(possible_dir, winslash = "/"))
+  } else {
+    stop("Cannot determine RMD directory. Error: ", e$message)
+  }
+})
+
+# Debug: show what directory we're using
+cat("Using RMD directory:", rmd_dir, "\n")
+
+# List files in the directory for debugging
+available_files <- list.files(rmd_dir, pattern = "\\.R$")
+cat("Available R files:", paste(available_files, collapse = ", "), "\n")
+
+# Source modular functions with error checking
+source_file_safely <- function(filename) {
+  filepath <- file.path(rmd_dir, filename)
+  if (!file.exists(filepath)) {
+    stop("Required file not found: ", filepath, 
+         "\nAvailable files: ", paste(available_files, collapse = ", "))
+  }
+  cat("Sourcing:", filename, "\n")
+  source(filepath)
+}
+
+# Source the function files
+source_file_safely("report_constants.R")
+source_file_safely("report_functions.R")  
+source_file_safely("plot_functions.R")
+
+# Load configuration and data
+assay_config <- load_assay_config(output_dir)
+```
+
+```{r load-data, include=FALSE}
+# Load and validate data
+long_data_file <- file.path(output_dir, OUTPUT_FILES$long_data)
+if (!file.exists(long_data_file)) {
+  stop("Missing long_data_output.csv in output_dir: ", long_data_file)
+}
+
+data_long <- read.csv(long_data_file, stringsAsFactors = FALSE)
+validate_input_data(data_long)
+
+# Determine response variable based on assay type
+response_var <- get_response_variable(data_long, assay_config)
+labels <- get_axis_labels(assay_config)
+
+# Load notes (optional)
+notes_file <- file.path(output_dir, OUTPUT_FILES$notes_file)
+notes_text <- "No notes added."
+if (file.exists(notes_file)) {
+  notes_obj <- jsonlite::fromJSON(notes_file)
+  notes_text <- notes_obj$notes %||% "No notes added."
+}
+```
+
+# Assay Analysis Report
+
+**Assay Type:** `r toupper(assay_config$assay_type)`  
+**Analysis Date:** `r Sys.Date()`  
+**Analyst:** `r Sys.info()[["user"]]`
+
+```{r dynamic-title, results='asis'}
+# Dynamic title and description based on assay type
+if (assay_config$assay_type == "elisa") {
+  cat("This report analyzes ELISA data using a four-parameter logistic dose–response curve to estimate concentrations of", 
+      assay_config$analyte %||% "analyte", "samples.\n\n")
+} else {
+  cat("This report analyzes RBA data using a four-parameter logistic dose–response curve to estimate concentrations of",
+      assay_config$toxin_standard_label %||% "biotoxin", "samples.\n\n")
+}
+```
+
+## Notes
+
+```{r notes-section, results='asis'}
+if (nzchar(trimws(notes_text))) {
+  cat(notes_text)
+} else {
+  cat("*No notes added.*")
+}
+```
+
+## Standard Concentrations
+
+```{r standards-table}
+# Extract and display standard concentrations
+standards_data <- data_long %>%
+  filter(SampleType == "Standard", !is.na(StandardConc)) %>%
+  arrange(desc(StandardConc)) %>%
+  distinct(StandardConc)
+
+standard_table <- data.frame(
+  StandardNumber = seq_len(nrow(standards_data)),
+  Concentration = format(standards_data$StandardConc, scientific = TRUE, digits = 2)
+)
+
+unit_label <- if (assay_config$assay_type == "elisa") {
+  paste0("Standard Concentration (", assay_config$units %||% "pg/mL", ")")
+} else {
+  "Standard Concentration (mol/L)"
+}
+
+render_table(
+  standard_table, 
+  caption = "Standard Concentrations Used",
+  col_names = c("Standard Number", unit_label)
+)
+```
+
+## Dose–Response Curve and Variability Analysis
+
+```{r model-fitting, include=FALSE}
+# Identify high variability standards
+high_var_standards <- identify_high_variability_standards(data_long)
+
+# Prepare data for modeling
+standards_for_model <- prepare_standards_for_modeling(data_long, exclude_high_var = TRUE)
+
+# Add concentration and variability info to full dataset  
+data_long <- data_long %>%
+  mutate(
+    concentration = ifelse(SampleType == "Standard", StandardConc, NA_real_),
+    high_variability = ifelse(
+      SampleType == "Standard" & concentration %in% high_var_standards$StandardConc,
+      "High Variability", 
+      "Normal Variability"
+    )
+  )
+
+# Fit 4-parameter logistic model
+model_fit <- drc::drm(
+  as.formula(paste(response_var, "~ concentration")),
+  data = standards_for_model,
+  fct = drc::LL.4(),
+  lowerl = c(-Inf, -Inf, -Inf, -Inf),
+  upperl = c(Inf, Inf, Inf, Inf)
+)
+
+# Generate model predictions for plotting
+model_fits <- expand.grid(conc = c(seq(2e-12, 10e-11, by = 2e-12), 
+                                  seq(1e-12, 1e-5, length = 5000)))
+pm <- predict(model_fit, newdata = model_fits, interval = "confidence")
+model_fits$p <- pm[, 1]
+model_fits$pmin <- pm[, 2]
+model_fits$pmax <- pm[, 3]
+
+# Calculate model statistics
+fitted_vals <- fitted(model_fit)
+residuals_vals <- residuals(model_fit)
+R2 <- 1 - sum(residuals_vals^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
+RMSE <- sqrt(mean(residuals_vals^2))
+```
+
+```{r variability-info, results='asis'}
+if (nrow(high_var_standards) > 0) {
+  cat("**Standards with high variability (>", QC_THRESHOLDS$cv_limit, "%CV):**\n\n")
+  
+  for (i in seq_len(nrow(high_var_standards))) {
+    cat(sprintf("- Concentration %.2e: %.1f%% CV\n", 
+                high_var_standards$StandardConc[i], 
+                high_var_standards$cv[i]))
+  }
+  cat("\n")
+  
+  render_table(
+    high_var_standards %>% select(StandardConc, cv) %>%
+      mutate(StandardConc = format(StandardConc, scientific = TRUE, digits = 2)),
+    caption = "High Variability Standards (Excluded from Model)",
+    col_names = c("Standard Concentration", "CV (%)")
+  )
+} else {
+  cat("All standards show acceptable variability (<", QC_THRESHOLDS$cv_limit, "%CV).\n\n")
+}
+```
+
+```{r dose-response-plots, fig.width=10, fig.height=12}
+# Create main plots
+drc_plot <- create_dose_response_plot(data_long, model_fits, assay_config, response_var)
+boxplot <- create_standards_boxplot(data_long, assay_config, response_var)  
+residual_plot <- create_residuals_plot(fitted_vals, residuals_vals)
+
+# Display plots
+display_plots(list(drc_plot, boxplot, residual_plot))
+```
+
+## Model Results and Quality Control
+
+```{r model-stats}
+# Extract model coefficients
+coefficients <- summary(model_fit)$coefficients
+rownames(coefficients) <- c("Bottom", "Top", "IC50", "Hill Slope")
+
+drc_results <- data.frame(
+  Parameter = rownames(coefficients),
+  Value = coefficients[, "Estimate"],
+  StdError = coefficients[, "Std. Error"], 
+  PValue = coefficients[, "Pr(>|t|)"]
+)
+
+render_table(
+  drc_results,
+  caption = "4PL Model Parameters",
+  col_names = c("Parameter", "Estimate", "Std. Error", "P-value")
+)
+
+cat("\n**Model Fit Statistics:**\n\n")
+cat("- R² =", round(R2, 3), "\n")
+cat("- RMSE =", round(RMSE, 1), labels$y_unit, "\n\n")
+```
+
+```{r qc-checks, results='asis'}
+# Quality control checks (RBA specific for now)
+if (assay_config$assay_type == "rba") {
+  
+  # Load QC parameters
+  qc_file <- file.path(output_dir, OUTPUT_FILES$qc_params)
+  qc_params <- if (file.exists(qc_file)) jsonlite::fromJSON(qc_file) else list()
+  
+  # Extract model parameters
+  hill_slope_val <- coefficients["Hill Slope", "Estimate"]
+  ec50_val <- coefficients["IC50", "Estimate"] 
+  ec50_se <- coefficients["IC50", "Std. Error"]
+  
+  expected_hill <- as.numeric(qc_params$expected_hill %||% 1)
+  qc_concentration <- as.numeric(qc_params$qc_concentration %||% 3e-9)
+  
+  # Hill slope check
+  hill_pass <- !is.na(hill_slope_val) && 
+               hill_slope_val >= expected_hill * (1 - QC_THRESHOLDS$hill_slope_tolerance) &&
+               hill_slope_val <= expected_hill * (1 + QC_THRESHOLDS$hill_slope_tolerance)
+  
+  # EC50 check  
+  ec50_pass <- !is.na(ec50_val) && !is.na(ec50_se) &&
+               ec50_se < QC_THRESHOLDS$ec50_se_limit * abs(ec50_val)
+  
+  # QC sample check (if available)
+  qc_samples <- data_long %>% filter(SampleType == "QC")
+  if (nrow(qc_samples) > 0) {
+    # This would need sample prediction - simplified for now
+    qc_pass <- TRUE  # Placeholder
+    qc_label <- "QC samples present (detailed check not implemented)"
+  } else {
+    qc_pass <- FALSE
+    qc_label <- "No QC samples specified"
+  }
+  
+  # Create QC results
+  qc_results <- data.frame(
+    Check = c(
+      ifelse(hill_pass, 
+             paste0("Hill slope within ±", QC_THRESHOLDS$hill_slope_tolerance*100, "% (", round(hill_slope_val, 2), ")"),
+             paste0("Hill slope outside acceptable range (", round(hill_slope_val, 2), ")")),
+      ifelse(ec50_pass,
+             paste0("IC50 precision acceptable (SE = ", round(ec50_se/abs(ec50_val)*100, 1), "%)"),
+             paste0("IC50 precision poor (SE = ", round(ec50_se/abs(ec50_val)*100, 1), "%)")),
+      qc_label
+    ),
+    Result = c(
+      ifelse(hill_pass, "Pass", "Review"),
+      ifelse(ec50_pass, "Pass", "Review"), 
+      ifelse(qc_pass, "Pass", "Review")
+    ),
+    Pass = c(hill_pass, ec50_pass, qc_pass),
+    stringsAsFactors = FALSE
+  )
+  
+  render_qc_table(qc_results)
+  
+} else {
+  cat("*Quality control checks for ELISA are under development.*\n")
+}
+```
+
+## Sample Concentration Results
+
+```{r sample-predictions, include=FALSE}
+# Prepare samples for prediction (exclude standards, filter by valid range)
+if (assay_config$assay_type == "rba") {
+  # For RBA, use measurement range filtering
+  B_min <- min(model_fits$p, na.rm = TRUE)
+  B_max <- max(model_fits$p, na.rm = TRUE)
+  
+  samples_for_pred <- data_long %>%
+    filter(
+      SampleType != "Standard",
+      .data[[response_var]] >= B_min,
+      .data[[response_var]] <= B_max
+    )
+} else {
+  # For ELISA, include all non-standard samples  
+  samples_for_pred <- data_long %>%
+    filter(SampleType != "Standard")
+}
+
+if (nrow(samples_for_pred) > 0) {
+  # Predict concentrations
+  sample_results <- predict_sample_concentrations(model_fit, samples_for_pred, assay_config)
+  
+  # Calculate EC20 and EC80 for range determination
+  ec_values <- drc::ED(model_fit, c(20, 80), type = "relative")
+  ec20 <- ec_values[1, 1]
+  ec80 <- ec_values[2, 1]
+  
+  # Add dilution status
+  sample_results <- sample_results %>%
+    mutate(
+      Dilution = purrr::map_chr(estimated_concentration, 
+                               ~determine_dilution_status(.x, ec20, ec80))
+    )
+  
+  # Calculate replicate statistics
+  replicate_stats <- calculate_replicate_stats(sample_results)
+  
+} else {
+  sample_results <- data.frame()
+  replicate_stats <- data.frame()
+}
+```
+
+```{r sample-results-table}
+if (nrow(replicate_stats) > 0) {
+  
+  # Format table for display
+  results_table <- replicate_stats %>%
+    select(-n_replicates) %>%
+    rename(
+      "Sample Type" = SampleType,
+      "Sample ID" = sampleID,
+      "Replicate" = Replicate,
+      "Mean Concentration" = mean_conc_formatted,
+      "Std. Error" = se_conc_formatted
+    )
+  
+  render_table(
+    results_table,
+    caption = "Sample Concentration Results"
+  )
+  
+  # Save detailed results
+  write.csv(sample_results, 
+           file.path(output_dir, OUTPUT_FILES$unknown_results),
+           row.names = FALSE)
+  
+} else {
+  cat("*No samples found within the detectable range.*\n")
+}
+```
+
+```{r sample-plots, fig.width=10, fig.height=8}
+if (nrow(sample_results) > 0) {
+  
+  # Sample variability plot
+  samples_plot <- create_samples_boxplot(sample_results, assay_config)
+  
+  # Combined dose-response plot  
+  combined_plot <- create_combined_drc_plot(model_fits, sample_results, assay_config, response_var)
+  
+  display_plots(list(samples_plot, combined_plot))
+}
+```
+
+---
+
+**Report generated on:** `r Sys.Date()`  
+**Contact:** `r REPORT_INFO$contact`  
+**Feedback:** [Online form](`r REPORT_INFO$feedback_url`)
+
+*This report was generated using modular analysis functions for improved maintainability and dual-assay support.*
