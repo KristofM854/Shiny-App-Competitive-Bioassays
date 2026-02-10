@@ -1,0 +1,1219 @@
+---
+title: "Bioassay Analysis Report"
+author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+output:
+  html_document:
+    df_print: paged
+    self_contained: true
+  pdf_document: default
+  word_document: default
+params:
+  output_dir: NULL
+  lang: "en"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Load required libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(drc)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(stringr)
+library(ggtext)
+library(glue)
+library(htmltools)
+library(tibble)
+library(jsonlite)
+
+# Validate output directory
+output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
+
+# Load language setting
+lang <- params$lang %||% "en"
+
+# Source i18n translations
+i18n_path <- file.path(script_dir, "i18n.R")
+if (file.exists(i18n_path)) {
+  source(i18n_path)
+} else {
+  # Minimal fallback
+  tr <- function(key, lang = "en", ...) paste0("[", key, "]")
+}
+
+# Get script directory (handle R Project working directory)
+script_dir <- tryCatch({
+  # Try to get actual RMD file location first
+  rmd_path <- knitr::current_input()
+  if (!is.null(rmd_path) && rmd_path != "" && rmd_path != ".") {
+    normalizePath(dirname(rmd_path), winslash = "/")
+  } else {
+    # R Project scenario: working directory is project root
+    # Look for reports subfolder
+    if (dir.exists("reports")) {
+      normalizePath("reports", winslash = "/")
+    } else {
+      # Fallback: construct from output directory
+      possible_reports_dir <- file.path(dirname(params$output_dir), "reports")
+      if (dir.exists(possible_reports_dir)) {
+        normalizePath(possible_reports_dir, winslash = "/")
+      } else {
+        stop("Cannot find reports directory")
+      }
+    }
+  }
+}, error = function(e) {
+  # Final fallback for R Projects
+  if (dir.exists("reports")) {
+    return(normalizePath("reports", winslash = "/"))
+  } else {
+    stop("Cannot find reports directory. Error: ", e$message)
+  }
+})
+
+# Define %||% operator (null coalescing) - inline since we can't source yet
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+# Check if all required function files exist
+required_files <- c("report_constants.R", "report_functions.R", "plot_functions.R")
+missing_files <- c()
+
+for (file in required_files) {
+  file_path <- file.path(script_dir, file)
+  if (!file.exists(file_path)) {
+    missing_files <- c(missing_files, file_path)
+  }
+}
+
+if (length(missing_files) > 0) {
+  stop("Missing required function files:\n", paste(missing_files, collapse = "\n"), 
+       "\n\nExpected in directory: ", script_dir,
+       "\nActual files found: ", paste(list.files(script_dir, pattern = "\\.R$"), collapse = ", "),
+       "\n\nMake sure all R files are in the 'reports/' folder.")
+}
+
+# Source function files
+source(file.path(script_dir, "report_constants.R"))
+source(file.path(script_dir, "report_functions.R"))  
+source(file.path(script_dir, "plot_functions.R"))
+
+# Load assay configuration
+assay_config <- tryCatch({
+  load_assay_config(output_dir)
+}, error = function(e) {
+  # Fallback to RBA defaults
+  list(
+    assay_type = "rba",
+    detection_method = "radioligand",
+    toxin_standard_label = "Saxitoxin"
+  )
+})
+```
+
+```{r load-data, include=FALSE}
+# Load and validate data
+data_long_raw <- read.csv(file.path(output_dir, "long_data_output.csv"), stringsAsFactors = FALSE)
+
+# Remove diagnostic control columns that confuse users
+diagnostic_cols <- c("ControlValues_B0", "ControlValues_NSB", "ControlValues_Blank")
+data_long <- data_long_raw %>%
+  dplyr::select(-any_of(diagnostic_cols))
+
+validate_input_data(data_long)
+
+# Detect assay type from data if not specified in config
+has_normalized <- "NormalizedValue" %in% names(data_long)
+is_elisa <- isTRUE(assay_config$assay_type == "elisa") || has_normalized
+
+# For ELISA, calculate proper B/B0 values following Cayman protocol
+if (isTRUE(is_elisa)) {
+  # Calculate B/B0 values using control wells (Blank, NSB, B0)
+  # Use the raw data with diagnostic columns for calculation, but return clean data
+  data_long <- tryCatch({
+    data_with_bb0 <- calculate_elisa_bb0(data_long_raw, use_percent = TRUE)  # Use %B/B0 (0-100%)
+    # Remove diagnostic columns from the result
+    data_with_bb0 %>% dplyr::select(-any_of(diagnostic_cols))
+  }, error = function(e) {
+    warning("Could not calculate B/B0 values: ", e$message)
+    warning("Falling back to existing NormalizedValue column")
+    data_long$calculated_bb0 <- data_long$NormalizedValue
+    data_long
+  })
+  
+  response_var <- "calculated_bb0"
+  
+  # Update assay configuration
+  if (!isTRUE(assay_config$assay_type == "elisa")) {
+    assay_config$assay_type <- "elisa"
+    assay_config$units <- "pg/mL"
+    assay_config$analyte <- assay_config$analyte %||% "Analyte"
+  }
+  
+  # Display control well summary for QC
+  control_summary <- attr(data_long, "control_summary")
+  if (!is.null(control_summary)) {
+    cat("**Control Well QC:**\n")
+    cat("- Blank average:", round(control_summary$blank_avg, 3), "\n")
+    cat("- NSB average:", round(control_summary$nsb_avg, 3), "\n") 
+    cat("- B0 average:", round(control_summary$b0_avg, 3), "\n")
+    cat("- Hierarchy valid:", control_summary$hierarchy_valid, "\n\n")
+  }
+  
+} else {
+  # RBA: Use existing response variable
+  response_var <- if (has_normalized && "NormalizedValue" %in% names(data_long)) {
+    "NormalizedValue"
+  } else {
+    "MeasurementValue"  
+  }
+}
+
+# Get axis labels
+labels <- get_axis_labels(assay_config)
+
+# Load notes (optional)
+notes_file <- file.path(output_dir, "notes.json")
+notes_text <- "No notes added."
+if (file.exists(notes_file)) {
+  notes_obj <- jsonlite::fromJSON(notes_file, simplifyVector = FALSE)
+  notes_text <- notes_obj$notes %||% "No notes added."
+}
+
+# Load sample processing configuration for ELISA
+if (isTRUE(is_elisa)) {
+  processing_config <- load_sample_processing_config(output_dir)
+}
+```
+
+# `r if (isTRUE(is_elisa)) "ELISA" else "RBA"` Analysis Report
+
+**Assay Type:** `r toupper(assay_config$assay_type)`  
+**Analysis Date:** `r Sys.Date()`  
+**Analyst:** `r Sys.info()[["user"]]`
+
+```{r dynamic-description, results='asis'}
+# Dynamic description based on assay type
+if (isTRUE(is_elisa)) {
+  cat("This report analyzes ELISA data using a four-parameter logistic dose–response curve to estimate concentrations of", 
+      assay_config$analyte %||% "analyte", "in unknown samples.\n\n")
+  cat("**Method:** Competitive enzyme-linked immunosorbent assay with %B/B0 normalization\n\n")
+} else {
+  cat("This report analyzes Receptor Binding Assay (RBA) data using a four-parameter logistic dose–response curve to estimate concentrations of",
+      assay_config$toxin_standard_label %||% "biotoxin", "in unknown samples.\n\n")
+  cat("**Method:** Competitive receptor binding assay with", assay_config$detection_method %||% "radioligand", "detection\n\n")
+}
+```
+
+## Analysis Notes
+
+```{r notes-section, results='asis'}
+if (nzchar(trimws(notes_text))) {
+  cat(notes_text)
+} else {
+  cat("*No additional notes provided.*")
+}
+```
+
+## Standard Curve Configuration
+
+```{r standards-table}
+# Extract and display standard concentrations
+standards_data <- data_long %>%
+  filter(SampleType == "Standard", !is.na(StandardConc)) %>%
+  arrange(desc(StandardConc)) %>%
+  distinct(StandardConc)
+
+# Format concentrations based on assay type
+if (isTRUE(is_elisa)) {
+  # ELISA: Use regular number formatting (no scientific notation)
+  standard_table <- data.frame(
+    StandardNumber = seq_len(nrow(standards_data)),
+    Concentration = format(standards_data$StandardConc, digits = 4, nsmall = 1, big.mark = ",")
+  )
+  unit_label <- paste0("Concentration (", assay_config$units %||% "pg/mL", ")")
+} else {
+  # RBA: Use scientific notation  
+  standard_table <- data.frame(
+    StandardNumber = seq_len(nrow(standards_data)),
+    Concentration = format(standards_data$StandardConc, scientific = TRUE, digits = 3)
+  )
+  unit_label <- "Concentration (mol/L)"
+}
+
+render_table(
+  standard_table, 
+  caption = "Standard Concentrations",
+  col_names = c("Standard", unit_label)
+)
+```
+
+## Dose–Response Curve Analysis
+
+```{r model-fitting, include=FALSE}
+# Add concentration column and identify high variability standards
+data_long <- data_long %>%
+  mutate(concentration = ifelse(SampleType == "Standard", StandardConc, NA_real_))
+
+high_var_standards <- identify_high_variability_standards(data_long)
+
+# Mark high variability in data
+data_long <- data_long %>%
+  mutate(
+    high_variability = ifelse(
+      SampleType == "Standard" & concentration %in% high_var_standards$StandardConc,
+      "High Variability", 
+      "Normal Variability"
+    )
+  )
+
+# Prepare standards for modeling (excluding high variability)
+standards_for_model <- data_long %>%
+  filter(
+    SampleType == "Standard",
+    !is.na(concentration),
+    high_variability == "Normal Variability",
+    !is.na(.data[[response_var]])  # Exclude NA response values
+  )
+
+# Fit 4-parameter logistic model
+# For ELISA: constrain bottom >= 0 and top <= 100 (since %B/B0 is 0-100%)
+if (isTRUE(is_elisa)) {
+  model_fit <- drc::drm(
+    as.formula(paste(response_var, "~ concentration")),
+    data = standards_for_model,
+    fct = drc::LL.4(),
+    lowerl = c(NA, 0, NA, NA),    # c(b=Hill, c=Bottom, d=Top, e=IC50): Bottom >= 0
+    upperl = c(NA, NA, 100, NA)   # Top <= 100
+  )
+} else {
+  # RBA: no constraints on response range
+  model_fit <- drc::drm(
+    as.formula(paste(response_var, "~ concentration")),
+    data = standards_for_model,
+    fct = drc::LL.4()
+  )
+}
+
+# Model statistics
+fitted_vals <- fitted(model_fit)
+residuals_vals <- residuals(model_fit)
+R2 <- 1 - sum(residuals_vals^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
+RMSE <- sqrt(mean(residuals_vals^2))
+
+# Generate predictions for plotting - use appropriate concentration range
+if (isTRUE(is_elisa)) {
+  # ELISA: Use pg/mL range based on actual standards
+  conc_min <- min(standards_for_model$concentration, na.rm = TRUE) * 0.1
+  conc_max <- max(standards_for_model$concentration, na.rm = TRUE) * 10
+  conc_range <- exp(seq(log(conc_min), log(conc_max), length.out = 1000))
+} else {
+  # RBA: Use mol/L range
+  conc_range <- seq(1e-12, 1e-5, length.out = 1000)
+}
+
+model_fits <- data.frame(conc = conc_range)
+model_fits$p <- predict(model_fit, newdata = model_fits)
+
+# Calculate EC20 and EC80 immediately after model fitting so they are available
+# for within-range classification in all downstream plots and tables.
+# For ELISA: classify by %B/B0 response value (20-80% is within range)
+# For RBA: classify by concentration (EC20-EC80 range)
+if (isTRUE(is_elisa)) {
+  bb0_lower <- 20  # Lower bound of reliable %B/B0 range (inclusive)
+  bb0_upper <- 80  # Upper bound of reliable %B/B0 range (inclusive)
+  # Still compute EC20/EC80 concentrations for reference/reporting
+  ec20 <- tryCatch({
+    ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
+    as.numeric(ed_result[1, 1])
+  }, error = function(e) NA_real_)
+  ec80 <- tryCatch({
+    ed_result <- ED(model_fit, respLev = 20, type = "absolute", display = FALSE)
+    as.numeric(ed_result[1, 1])
+  }, error = function(e) NA_real_)
+  if (!is.na(ec20) && !is.na(ec80) && ec20 > ec80) {
+    temp <- ec20; ec20 <- ec80; ec80 <- temp
+  }
+} else {
+  # RBA: use concentration-based EC20/EC80
+  ec20 <- tryCatch({
+    ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
+    as.numeric(ed_result[1, 1])
+  }, error = function(e) NA_real_)
+  ec80 <- tryCatch({
+    ed_result <- ED(model_fit, respLev = 20, type = "absolute", display = FALSE)
+    as.numeric(ed_result[1, 1])
+  }, error = function(e) NA_real_)
+  if (!is.na(ec20) && !is.na(ec80) && ec20 > ec80) {
+    temp <- ec20; ec20 <- ec80; ec80 <- temp
+  }
+}
+
+# Helper function: classify a sample as within range or out of range
+# For ELISA: based on %B/B0 response value
+# For RBA: based on estimated concentration vs EC20/EC80
+classify_range <- function(response_val, conc_val, is_elisa_assay) {
+  if (isTRUE(is_elisa_assay)) {
+    if (is.na(response_val)) return("Unknown")
+    if (response_val >= bb0_lower && response_val <= bb0_upper) return("Within Range")
+    return("Out of Range")
+  } else {
+    if (is.na(conc_val) || is.na(ec20) || is.na(ec80)) return("Unknown")
+    if (conc_val >= ec20 && conc_val <= ec80) return("Within Range")
+    return("Out of Range")
+  }
+}
+
+# Helper function: get LLOQ/ULOQ flag for a sample
+flag_range <- function(response_val, conc_val, is_elisa_assay) {
+  if (isTRUE(is_elisa_assay)) {
+    if (is.na(response_val)) return("")
+    if (response_val > bb0_upper) return("<LLOQ")
+    if (response_val < bb0_lower) return(">ULOQ")
+    return("")
+  } else {
+    if (is.na(conc_val) || is.na(ec20) || is.na(ec80)) return("")
+    if (conc_val < ec20) return("<LLOQ")
+    if (conc_val > ec80) return(">ULOQ")
+    return("")
+  }
+}
+```
+
+```{r variability-info, results='asis'}
+if (nrow(high_var_standards) > 0) {
+  cat("**Standards with high variability (>30% CV):**\n\n")
+  
+  for (i in seq_len(nrow(high_var_standards))) {
+    if (isTRUE(is_elisa)) {
+      cat(sprintf("- Concentration %.1f %s: %.1f%% CV\n", 
+                  high_var_standards$StandardConc[i], 
+                  assay_config$units %||% "pg/mL",
+                  high_var_standards$cv[i]))
+    } else {
+      cat(sprintf("- Concentration %.2e mol/L: %.1f%% CV\n", 
+                  high_var_standards$StandardConc[i], 
+                  high_var_standards$cv[i]))
+    }
+  }
+  cat("\n")
+} else {
+  cat("✅ All standards show acceptable variability (<30% CV).\n\n")
+}
+```
+
+```{r dose-response-plots, fig.width=12, fig.height=8}
+# Create unified dose-response curve plot
+plot_data <- data_long %>% filter(!is.na(concentration))
+
+drc_plot <- ggplot(plot_data, aes(x = concentration, y = .data[[response_var]], color = high_variability)) +
+  geom_point(size = 3, aes(text = paste0(
+    "Concentration: ", if (isTRUE(is_elisa)) format(concentration, digits = 4, big.mark = ",") else scales::scientific(concentration, digits = 2), "<br>",
+    labels$y_label, ": ", round(.data[[response_var]], 2), "<br>",
+    "Variability: ", high_variability
+  ))) +
+  geom_line(data = model_fits, aes(x = conc, y = p), color = "black", size = 1.2, inherit.aes = FALSE) +
+  scale_color_manual(
+    name = "Standard Quality",
+    values = c(
+      "Normal Variability" = "#2E86AB",
+      "High Variability" = "#E63946"
+    )
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "top",
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 11),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    panel.grid.minor = element_line(color = "grey90", size = 0.25),
+    panel.grid.major = element_line(color = "grey85", size = 0.5)
+  )
+
+# Set appropriate axis scaling based on assay type
+if (isTRUE(is_elisa)) {
+  # ELISA: Log scale for wide concentration ranges
+  conc_range_factor <- max(plot_data$concentration, na.rm = TRUE) / min(plot_data$concentration, na.rm = TRUE)
+  drc_plot <- drc_plot + 
+    scale_x_log10(
+      name = labels$x_label,
+      labels = function(x) format(x, digits = 3, big.mark = ","),
+      breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
+    )
+} else {
+  # RBA: Log scale with scientific notation
+  drc_plot <- drc_plot + 
+    scale_x_log10(
+      name = labels$x_label,
+      breaks = scales::trans_breaks("log10", function(x) 10^x),
+      labels = scales::trans_format("log10", scales::math_format(10^.x))
+    )
+}
+
+drc_plot <- drc_plot + 
+  ylab(labels$y_label) +
+  ggtitle(paste("Four-Parameter Logistic Model -", toupper(assay_config$assay_type), "Analysis"))
+
+# Display plot
+if (knitr::is_html_output()) {
+  plotly::ggplotly(drc_plot, tooltip = "text") %>%
+    plotly::layout(showlegend = TRUE)
+} else {
+  print(drc_plot)
+}
+```
+
+## Model Parameters
+
+```{r model-stats}
+# Extract and display model coefficients with correct parameter order
+tryCatch({
+  
+  coefficients <- summary(model_fit)$coefficients
+  
+  # Check if coefficients have expected structure
+  if (is.matrix(coefficients) && nrow(coefficients) >= 4) {
+    
+    # DRC package LL.4() parameter order: b (Hill slope), c (Lower asymptote), d (Upper asymptote), e (IC50)
+    actual_param_names <- c("Hill Slope", "Bottom", "Top", "IC50")
+    
+    # Ensure we don't exceed available rows
+    n_params <- min(length(actual_param_names), nrow(coefficients))
+    
+    # Create results data frame with correct parameter mapping
+    drc_results <- data.frame(
+      Parameter = actual_param_names[1:n_params],
+      Value = coefficients[1:n_params, "Estimate"],
+      StdError = if ("Std. Error" %in% colnames(coefficients)) {
+        coefficients[1:n_params, "Std. Error"]
+      } else {
+        rep(NA, n_params)
+      },
+      PValue = if ("Pr(>|t|)" %in% colnames(coefficients)) {
+        coefficients[1:n_params, "Pr(>|t|)"]
+      } else {
+        rep(NA, n_params)
+      }
+    )
+    
+    render_table(
+      drc_results,
+      caption = "Four-Parameter Logistic Model Coefficients",
+      col_names = c("Parameter", "Estimate", "Std. Error", "P-value")
+    )
+    
+  } else {
+    cat("Model coefficients structure unexpected. Available coefficients:\n")
+    print(coefficients)
+  }
+  
+}, error = function(e) {
+  cat("Error extracting model coefficients:", e$message, "\n")
+  cat("Model summary:\n")
+  print(summary(model_fit))
+})
+```
+
+**Model Fit Statistics:**
+
+- **R²** = `r round(R2, 3)`  
+- **RMSE** = `r round(RMSE, 3)` `r labels$y_unit`
+- **Standards Used** = `r nrow(standards_for_model)` of `r length(unique(standards_data$StandardConc))`
+
+```{r save-model-stats, include=FALSE}
+# Save model statistics for multiwavelength executive summary
+model_stats <- list(
+  r_squared = R2,
+  rmse = RMSE,
+  ic50 = coef(model_fit)[4],
+  hill_slope = coef(model_fit)[1],
+  n_standards = nrow(standards_for_model),
+  n_unique_concs = length(unique(standards_data$StandardConc))
+)
+
+# Also compute mean sample CV for the executive summary
+if (exists("replicate_stats") && !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
+  model_stats$mean_sample_cv <- mean(replicate_stats$cv_percent, na.rm = TRUE)
+} else {
+  model_stats$mean_sample_cv <- NA_real_
+}
+
+write_json_safe <- function(x, file) {
+  dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+  jsonlite::write_json(x, path = file, pretty = TRUE, auto_unbox = TRUE, null = "null")
+}
+
+write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
+```
+
+### Standard Back-Calculation and Recovery
+
+```{r standard-backcalculation}
+# Back-calculate concentrations for each standard well using the fitted model
+# and compute % recovery vs nominal concentration
+standards_backcalc <- data_long %>%
+  dplyr::filter(SampleType == "Standard", !is.na(concentration), !is.na(.data[[response_var]])) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(
+    backcalc_conc = tryCatch({
+      pred <- ED(model_fit, respLev = .data[[response_var]], type = "absolute", display = FALSE)
+      as.numeric(pred[1, 1])
+    }, error = function(e) NA_real_),
+    recovery_pct = if (!is.na(backcalc_conc) && concentration > 0) {
+      (backcalc_conc / concentration) * 100
+    } else {
+      NA_real_
+    }
+  ) %>%
+  dplyr::ungroup()
+
+# Summarise by standard concentration level (mean of replicates)
+recovery_summary <- standards_backcalc %>%
+  dplyr::group_by(concentration) %>%
+  dplyr::summarise(
+    n = n(),
+    nominal = first(concentration),
+    mean_backcalc = mean(backcalc_conc, na.rm = TRUE),
+    sd_backcalc = sd(backcalc_conc, na.rm = TRUE),
+    mean_recovery = mean(recovery_pct, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  dplyr::arrange(desc(nominal))
+
+# Format for display
+if (isTRUE(is_elisa)) {
+  recovery_display <- recovery_summary %>%
+    dplyr::mutate(
+      `Nominal Conc.` = format(nominal, digits = 4, nsmall = 1, big.mark = ","),
+      `Back-Calculated` = format(mean_backcalc, digits = 4, nsmall = 1, big.mark = ","),
+      `SD` = ifelse(is.na(sd_backcalc), "—", format(sd_backcalc, digits = 3, nsmall = 1)),
+      `Recovery (%)` = ifelse(is.na(mean_recovery), "—", format(mean_recovery, digits = 4, nsmall = 1))
+    ) %>%
+    dplyr::select(`Nominal Conc.`, n, `Back-Calculated`, SD, `Recovery (%)`)
+} else {
+  recovery_display <- recovery_summary %>%
+    dplyr::mutate(
+      `Nominal Conc.` = format(nominal, scientific = TRUE, digits = 3),
+      `Back-Calculated` = format(mean_backcalc, scientific = TRUE, digits = 3),
+      `SD` = ifelse(is.na(sd_backcalc), "—", format(sd_backcalc, scientific = TRUE, digits = 2)),
+      `Recovery (%)` = ifelse(is.na(mean_recovery), "—", format(mean_recovery, digits = 4, nsmall = 1))
+    ) %>%
+    dplyr::select(`Nominal Conc.`, n, `Back-Calculated`, SD, `Recovery (%)`)
+}
+
+conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
+names(recovery_display) <- c(paste0("Nominal (", conc_unit, ")"), "n",
+                              paste0("Back-Calc. (", conc_unit, ")"), 
+                              paste0("SD (", conc_unit, ")"),
+                              "Recovery (%)")
+
+render_table(recovery_display, 
+            caption = "Standard Back-Calculation and Recovery")
+
+# Report overall recovery statistics
+mean_overall_recovery <- mean(recovery_summary$mean_recovery, na.rm = TRUE)
+cat(sprintf("\n**Overall Mean Recovery:** %.1f%%\n", mean_overall_recovery))
+if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
+  cat("✅ Overall recovery is within acceptable range (80–120%).\n\n")
+} else {
+  cat("⚠️ Overall recovery is outside the typical acceptable range (80–120%). Review curve fit.\n\n")
+}
+```
+
+## Sample Concentration Results
+
+```{r sample-analysis, include=FALSE}
+# Only analyze actual samples (exclude standards and control wells)
+samples_to_analyze <- data_long %>%
+  filter(
+    SampleType == "Sample",  # Only samples, not Standards, Blanks, NSB, TA, etc.
+    !is.na(.data[[response_var]]),
+    is.finite(.data[[response_var]])
+  )
+
+if (nrow(samples_to_analyze) > 0) {
+  
+  # Use DRC's ED function to get predictions with proper confidence intervals
+  # This accounts for model uncertainty via the delta method
+  
+  # For each sample, predict concentration with CI using DRC
+  sample_predictions_list <- lapply(seq_len(nrow(samples_to_analyze)), function(i) {
+    response_value <- samples_to_analyze[[response_var]][i]
+    dilution <- samples_to_analyze$DilutionFactor[i]
+    
+    tryCatch({
+      # Use ED function to get inverse prediction with confidence interval
+      # The "delta" method properly propagates model uncertainty
+      pred_result <- ED(model_fit, respLev = response_value, type = "absolute", 
+                       interval = "delta", level = 0.95, display = FALSE)
+      
+      # Extract estimates and CI (these are at the diluted level - as measured)
+      estimate_diluted <- as.numeric(pred_result[1, 1])
+      ci_lower_diluted <- as.numeric(pred_result[1, 3])
+      ci_upper_diluted <- as.numeric(pred_result[1, 4])
+      
+      # Apply dilution correction to get actual sample concentration
+      data.frame(
+        Well = samples_to_analyze$Well[i],
+        SampleID = samples_to_analyze$SampleID[i],
+        SampleType = samples_to_analyze$SampleType[i],
+        Replicate = samples_to_analyze$Replicate[i],
+        DilutionFactor = dilution,
+        response_value = response_value,
+        # For plotting on the curve (diluted level)
+        concentration_diluted = estimate_diluted,
+        # For reporting (actual sample concentration)
+        estimated_concentration = estimate_diluted / dilution,
+        ci_lower = ci_lower_diluted / dilution,
+        ci_upper = ci_upper_diluted / dilution,
+        stringsAsFactors = FALSE
+      )
+    }, error = function(e) {
+      # If prediction fails, return NA
+      data.frame(
+        Well = samples_to_analyze$Well[i],
+        SampleID = samples_to_analyze$SampleID[i],
+        SampleType = samples_to_analyze$SampleType[i],
+        Replicate = samples_to_analyze$Replicate[i],
+        DilutionFactor = dilution,
+        response_value = response_value,
+        concentration_diluted = NA_real_,
+        estimated_concentration = NA_real_,
+        ci_lower = NA_real_,
+        ci_upper = NA_real_,
+        stringsAsFactors = FALSE
+      )
+    })
+  })
+  
+  # Combine all predictions
+  sample_results <- do.call(rbind, sample_predictions_list)
+  
+  # Calculate replicate group statistics
+  replicate_stats <- sample_results %>%
+    filter(!is.na(estimated_concentration)) %>%
+    group_by(Replicate) %>%
+    summarise(
+      sampleID = paste(unique(SampleID), collapse = ","),
+      sample_type = first(SampleType),
+      n_replicates = n(),
+      # Mean of point estimates
+      mean_conc = mean(estimated_concentration, na.rm = TRUE),
+      sd_conc = sd(estimated_concentration, na.rm = TRUE),
+      se_conc = sd_conc / sqrt(n_replicates),
+      # t-distribution based 95% CI on the mean concentration
+      ci_lower = if (n_replicates >= 2 && !is.na(sd_conc)) {
+        mean_conc - qt(0.975, df = n_replicates - 1) * se_conc
+      } else {
+        mean_conc  # single replicate: CI not meaningful
+      },
+      ci_upper = if (n_replicates >= 2 && !is.na(sd_conc)) {
+        mean_conc + qt(0.975, df = n_replicates - 1) * se_conc
+      } else {
+        mean_conc
+      },
+      # CV for quality assessment
+      cv_percent = (sd_conc / mean_conc) * 100,
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Ensure CI lower bound is not negative for concentrations
+      ci_lower = pmax(ci_lower, 0),
+      # Format for display
+      mean_conc_formatted = if (isTRUE(is_elisa)) {
+        format(mean_conc, digits = 4, nsmall = 1, big.mark = ",")
+      } else {
+        format(mean_conc, scientific = TRUE, digits = 3)
+      },
+      ci_formatted = if (isTRUE(is_elisa)) {
+        paste0("[", format(ci_lower, digits = 3, nsmall = 1), " - ", 
+               format(ci_upper, digits = 3, nsmall = 1), "]")
+      } else {
+        paste0("[", format(ci_lower, scientific = TRUE, digits = 2), " - ", 
+               format(ci_upper, scientific = TRUE, digits = 2), "]")
+      },
+      cv_formatted = paste0(format(cv_percent, digits = 3, nsmall = 1), "%")
+    )
+  
+  # Add within-range classification and LLOQ/ULOQ flags per replicate group
+  # by looking at the mean response value of each group
+  replicate_range <- sample_results %>%
+    filter(!is.na(estimated_concentration)) %>%
+    group_by(Replicate) %>%
+    summarise(
+      mean_response = mean(response_value, na.rm = TRUE),
+      mean_conc_for_flag = mean(estimated_concentration, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      within_range = mapply(classify_range, mean_response, mean_conc_for_flag,
+                            MoreArgs = list(is_elisa_assay = is_elisa)),
+      range_flag = mapply(flag_range, mean_response, mean_conc_for_flag,
+                          MoreArgs = list(is_elisa_assay = is_elisa))
+    )
+  
+  replicate_stats <- replicate_stats %>%
+    left_join(replicate_range %>% select(Replicate, within_range, range_flag), by = "Replicate")
+  
+  # Add tissue-weight-based concentration if applicable (ELISA only)
+  if (isTRUE(is_elisa)) {
+    # Load processing config for extraction volume
+    processing_config <- tryCatch({
+      load_sample_processing_config(output_dir)
+    }, error = function(e) {
+      list(extraction_volume_ul = 500)
+    })
+    
+    # Load tissue weights if available
+    tissue_weights_file <- file.path(output_dir, "tissue_weights.json")
+    tissue_weights <- NULL
+    if (file.exists(tissue_weights_file)) {
+      tissue_weights <- tryCatch({
+        jsonlite::fromJSON(tissue_weights_file, simplifyVector = FALSE)
+      }, error = function(e) NULL)
+    }
+    
+    if (!is.null(tissue_weights) && length(tissue_weights) > 0) {
+      # Convert tissue weights list to data frame
+      tw_df <- data.frame(
+        Replicate = names(tissue_weights),
+        TissueWeight_mg = as.numeric(unlist(tissue_weights)),
+        stringsAsFactors = FALSE
+      )
+      tw_df <- tw_df %>% filter(!is.na(TissueWeight_mg) & TissueWeight_mg > 0)
+      
+      if (nrow(tw_df) > 0) {
+        extraction_vol_ul <- processing_config$extraction_volume_ul %||% 500
+        
+        replicate_stats <- replicate_stats %>%
+          left_join(tw_df, by = "Replicate") %>%
+          mutate(
+            total_amount_pg = mean_conc * (extraction_vol_ul / 1000),
+            concentration_pg_per_g = ifelse(
+              !is.na(TissueWeight_mg) & TissueWeight_mg > 0,
+              total_amount_pg / (TissueWeight_mg / 1000),
+              NA_real_
+            )
+          )
+        
+        # Also add to sample_results for individual well reporting
+        sample_results <- sample_results %>%
+          left_join(tw_df, by = "Replicate") %>%
+          mutate(
+            total_amount_pg = estimated_concentration * (extraction_vol_ul / 1000),
+            concentration_pg_per_g = ifelse(
+              !is.na(TissueWeight_mg) & TissueWeight_mg > 0,
+              total_amount_pg / (TissueWeight_mg / 1000),
+              NA_real_
+            )
+          )
+      }
+    }
+  }
+  
+  # Save detailed results (cleaned up columns)
+  sample_results_clean <- sample_results %>%
+    dplyr::rename(
+      concentration = estimated_concentration
+    )
+  
+  # Save replicate summary
+  replicate_summary <- replicate_stats %>%
+    dplyr::select(
+      Replicate, sampleID, sample_type, n_replicates,
+      mean_conc, sd_conc, se_conc, ci_lower, ci_upper, cv_percent,
+      any_of(c("within_range", "range_flag", "TissueWeight_mg", "concentration_pg_per_g"))
+    ) %>%
+    dplyr::rename(
+      replicate_group = Replicate,
+      sample_ids = sampleID,
+      mean_concentration = mean_conc,
+      std_dev = sd_conc,
+      std_error = se_conc,
+      ci_lower_95 = ci_lower,
+      ci_upper_95 = ci_upper,
+      cv_percent = cv_percent
+    )
+    
+} else {
+  sample_results <- data.frame()
+  replicate_stats <- data.frame()
+  sample_results_clean <- data.frame()
+  replicate_summary <- data.frame()
+}
+```
+
+```{r sample-results-table}
+# Wrap entire chunk in tryCatch for debugging
+tryCatch({
+  
+  if (exists("replicate_stats") && !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
+    
+    # Check if tissue weights were provided (robust to NA)
+    has_tissue_weights <- FALSE
+    if (exists("sample_results") && !is.null(sample_results) && "TissueWeight_mg" %in% names(sample_results)) {
+      tissue_check <- tryCatch({
+        any(!is.na(sample_results$TissueWeight_mg) & sample_results$TissueWeight_mg > 0, na.rm = TRUE)
+      }, error = function(e) FALSE)
+      has_tissue_weights <- isTRUE(tissue_check)
+    }
+    
+    # Determine concentration column name based on assay type
+    conc_col_name <- if (isTRUE(is_elisa)) "Mean Conc. (pg/mL)" else "Mean Conc. (mol/L)"
+    
+    # Create clean results table
+    results_display <- replicate_stats %>%
+      dplyr::select(Replicate, sampleID, n_replicates, mean_conc_formatted, ci_formatted, cv_formatted)
+    
+    # Rename columns
+    names(results_display) <- c("Replicate Group", "Sample ID", "n", conc_col_name, "95% CI", "CV%")
+    
+    # Add tissue-based concentrations if available
+    if (isTRUE(is_elisa) && isTRUE(has_tissue_weights)) {
+      tissue_results <- tryCatch({
+        sample_results %>%
+          dplyr::filter(!is.na(TissueWeight_mg) & TissueWeight_mg > 0) %>%
+          dplyr::group_by(Replicate) %>%
+          dplyr::summarise(
+            tissue_weight = dplyr::first(TissueWeight_mg),
+            mean_tissue_conc = mean(concentration_ng_per_g, na.rm = TRUE),
+            .groups = "drop"
+          ) %>%
+          dplyr::mutate(
+            tissue_weight_formatted = paste0(format(tissue_weight, digits = 4, nsmall = 1), " mg"),
+            tissue_conc_formatted = format(mean_tissue_conc, digits = 4, nsmall = 2, big.mark = ",")
+          )
+      }, error = function(e) {
+        warning("Could not process tissue weight data: ", e$message)
+        NULL
+      })
+      
+      if (!is.null(tissue_results) && nrow(tissue_results) > 0) {
+        results_display <- results_display %>%
+          dplyr::left_join(
+            tissue_results %>% dplyr::select(Replicate, tissue_weight_formatted, tissue_conc_formatted), 
+            by = c("Replicate Group" = "Replicate")
+          )
+        
+        # Rename tissue columns if they exist
+        if ("tissue_weight_formatted" %in% names(results_display)) {
+          names(results_display)[names(results_display) == "tissue_weight_formatted"] <- "Tissue Mass"
+        }
+        if ("tissue_conc_formatted" %in% names(results_display)) {
+          names(results_display)[names(results_display) == "tissue_conc_formatted"] <- "Conc. (ng/g tissue)"
+        }
+      }
+    }
+    
+    # Generate table caption
+    caption_text <- paste("Sample Quantification Results -", toupper(assay_config$assay_type))
+    if (isTRUE(is_elisa) && isTRUE(has_tissue_weights)) {
+      caption_text <- paste(caption_text, "(with tissue normalization)")
+    }
+    
+    render_table(results_display, caption = caption_text)
+    
+    # Save cleaned results files
+    if (exists("sample_results_clean") && !is.null(sample_results_clean)) {
+      write.csv(sample_results_clean, 
+               file.path(output_dir, "unknown_results.csv"),
+               row.names = FALSE)
+    }
+    
+    if (exists("replicate_summary") && !is.null(replicate_summary)) {
+      write.csv(replicate_summary,
+               file.path(output_dir, "unknown_results_summary.csv"), 
+               row.names = FALSE)
+    }
+    
+    cat("\n**Output Files Created:**\n")
+    cat("- `unknown_results.csv` - Individual well results\n") 
+    cat("- `unknown_results_summary.csv` - Replicate group statistics with confidence intervals\n\n")
+    
+    # Display quality assessment (robust to NA in cv_percent)
+    high_cv_groups <- tryCatch({
+      replicate_stats %>% 
+        dplyr::filter(!is.na(cv_percent) & cv_percent > 30)
+    }, error = function(e) {
+      data.frame()
+    })
+    
+    if (!is.null(high_cv_groups) && nrow(high_cv_groups) > 0) {
+      cat("**⚠️ Quality Alert:**\n")
+      cat("- Replicate groups with high variability (CV > 30%):", 
+          paste(high_cv_groups$Replicate, collapse = ", "), "\n")
+      cat("- Consider checking sample preparation or dilution consistency\n\n")
+    } else {
+      cat("**✅ Quality Check:** All replicate groups show acceptable variability (CV ≤ 30%)\n\n")
+    }
+    
+  } else {
+    cat("*No samples could be quantified.*\n\n")
+    
+    if (exists("samples_to_analyze") && !is.null(samples_to_analyze) && nrow(samples_to_analyze) > 0) {
+      cat("**Possible reasons:**\n")
+      cat("- Response values outside the standard curve range\n")
+      cat("- Model fitting issues\n")
+      if (isTRUE(is_elisa)) {
+        cat("- Invalid %B/B0 normalization\n")
+        cat("- Control well hierarchy violations\n")
+      }
+      cat("- Mathematical prediction errors\n")
+    } else {
+      cat("**No sample data found for analysis.**\n")
+      cat("Note: Only wells marked as 'Sample' are quantified.\n")
+      cat("Blanks, NSB, TA, and Standards are excluded from quantification.\n")
+    }
+  }
+  
+}, error = function(e) {
+  cat("\n**Error in sample results table:**\n")
+  cat("Error message:", e$message, "\n")
+  cat("This section will be skipped.\n\n")
+})
+```
+
+## Detailed Sample Results Summary
+
+```{r summary-results-table}
+if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
+  
+  # Format the summary table for display
+  summary_display <- replicate_summary %>%
+    dplyr::mutate(
+      mean_concentration = if (isTRUE(is_elisa)) {
+        format(as.numeric(mean_concentration), digits = 4, nsmall = 1, big.mark = ",")
+      } else {
+        format(as.numeric(mean_concentration), scientific = TRUE, digits = 3)
+      },
+      std_dev = if (isTRUE(is_elisa)) {
+        ifelse(is.na(std_dev), "\u2014", format(as.numeric(std_dev), digits = 3, nsmall = 1))
+      } else {
+        ifelse(is.na(std_dev), "\u2014", format(as.numeric(std_dev), scientific = TRUE, digits = 2))
+      },
+      std_error = if (isTRUE(is_elisa)) {
+        ifelse(is.na(std_error), "\u2014", format(as.numeric(std_error), digits = 3, nsmall = 1))
+      } else {
+        ifelse(is.na(std_error), "\u2014", format(as.numeric(std_error), scientific = TRUE, digits = 2))
+      },
+      ci_95 = if (isTRUE(is_elisa)) {
+        paste0("[", format(as.numeric(ci_lower_95), digits = 3, nsmall = 1), " \u2013 ", 
+               format(as.numeric(ci_upper_95), digits = 3, nsmall = 1), "]")
+      } else {
+        paste0("[", format(as.numeric(ci_lower_95), scientific = TRUE, digits = 2), " \u2013 ", 
+               format(as.numeric(ci_upper_95), scientific = TRUE, digits = 2), "]")
+      },
+      cv_percent = ifelse(is.na(cv_percent), "\u2014", format(as.numeric(cv_percent), digits = 3, nsmall = 1)),
+      range_flag_display = if ("range_flag" %in% names(.)) {
+        ifelse(is.na(range_flag) | range_flag == "", "\u2705", range_flag)
+      } else {
+        "\u2705"
+      }
+    ) %>%
+    dplyr::select(-ci_lower_95, -ci_upper_95,
+                  -any_of(c("within_range", "range_flag")))
+  
+  # Set column names
+  conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
+  
+  # Build column name vector dynamically based on available columns
+  base_names <- c("Replicate Group", "Sample IDs", "Sample Type", "n", 
+                  paste0("Mean (", conc_unit, ")"), 
+                  paste0("SD (", conc_unit, ")"),
+                  paste0("SE (", conc_unit, ")"),
+                  "95% CI", "CV%")
+  
+  # Add range flag column
+  base_names <- c(base_names, "Range")
+  
+  # Add tissue concentration columns if present
+  if ("TissueWeight_mg" %in% names(summary_display)) {
+    summary_display <- summary_display %>%
+      dplyr::mutate(
+        TissueWeight_mg = ifelse(is.na(TissueWeight_mg), "\u2014", 
+                                  paste0(format(TissueWeight_mg, digits = 4, nsmall = 1), " mg")),
+        concentration_pg_per_g = ifelse(is.na(concentration_pg_per_g), "\u2014",
+                                         format(concentration_pg_per_g, digits = 4, nsmall = 1, big.mark = ","))
+      )
+    base_names <- c(base_names, "Tissue Mass", "Conc. (pg/g)")
+  }
+  
+  # Remove extra columns that aren't in our name mapping
+  summary_display <- summary_display %>%
+    dplyr::select(-any_of(c("total_amount_pg")))
+  
+  names(summary_display) <- base_names[1:ncol(summary_display)]
+  
+  render_table(summary_display, 
+              caption = tr("detailed_caption", lang))
+}
+```
+
+## Sample Variability Visualization
+
+```{r sample-boxplot, fig.width=10, fig.height=7, warning=FALSE, message=FALSE}
+if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
+  
+  sample_plot_data <- sample_results %>%
+    dplyr::filter(!is.na(estimated_concentration), is.finite(estimated_concentration)) %>%
+    dplyr::mutate(
+      Replicate_wrapped = stringr::str_wrap(Replicate, width = 15),
+      within_range = mapply(classify_range, response_value, estimated_concentration,
+                            MoreArgs = list(is_elisa_assay = is_elisa)),
+      range_flag = mapply(flag_range, response_value, estimated_concentration,
+                          MoreArgs = list(is_elisa_assay = is_elisa))
+    )
+  
+  if (nrow(sample_plot_data) > 0) {
+    
+    # Create boxplot
+    sample_box <- ggplot(sample_plot_data, 
+                        aes(x = factor(Replicate_wrapped), 
+                            y = estimated_concentration)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(aes(color = within_range,
+                     text = paste0(
+                       "Replicate: ", Replicate, "<br>",
+                       "Sample ID: ", SampleID, "<br>",
+                       "Concentration: ", 
+                       if (isTRUE(is_elisa)) {
+                         format(estimated_concentration, digits = 4, big.mark = ",")
+                       } else {
+                         scales::scientific(estimated_concentration, digits = 2)
+                       }, "<br>",
+                       "Range Status: ", within_range
+                     )), 
+                 width = 0.15, size = 2) +
+      xlab("Replicate Group") +
+      ylab(if (isTRUE(is_elisa)) {
+        paste0("Estimated Concentration (", assay_config$units %||% "pg/mL", ")")
+      } else {
+        "Estimated Concentration (mol/L)"
+      }) +
+      theme_classic() +
+      theme(
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top"
+      )
+    
+    # Add log scale if appropriate
+    conc_range <- max(sample_plot_data$estimated_concentration, na.rm = TRUE) / 
+                  min(sample_plot_data$estimated_concentration, na.rm = TRUE)
+    
+    if (!isTRUE(is_elisa) || conc_range > 100) {
+      sample_box <- sample_box + 
+        scale_y_log10(labels = if (isTRUE(is_elisa)) {
+          function(x) format(x, big.mark = ",")
+        } else {
+          scales::scientific_format(digits = 2)
+        })
+    }
+  
+    # Render plot - same pattern as working standard DRC
+    if (knitr::is_html_output()) {
+      plotly::ggplotly(sample_box, tooltip = "text")
+    } else {
+      print(sample_box)
+    }
+  }
+}
+```
+
+## Dose-Response Curve with Unknown Samples
+
+```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE}
+if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
+  
+  standards_plot_data <- data_long %>%
+    dplyr::filter(!is.na(concentration), SampleType == "Standard")
+  
+  unknown_plot_data <- sample_results %>%
+    dplyr::filter(!is.na(concentration_diluted), is.finite(concentration_diluted)) %>%
+    dplyr::mutate(
+      falls_within_range = mapply(classify_range, response_value, estimated_concentration,
+                                  MoreArgs = list(is_elisa_assay = is_elisa))
+    )
+  
+  if (nrow(unknown_plot_data) > 0) {
+    
+    combined_drc <- ggplot() +
+      geom_line(data = model_fits, aes(x = conc, y = p), 
+               color = "black", size = 1.2) +
+      geom_point(data = standards_plot_data, 
+                aes(x = concentration, y = .data[[response_var]], 
+                    color = high_variability), 
+                size = 3, alpha = 0.7) +
+      geom_point(data = unknown_plot_data,
+                aes(x = concentration_diluted, y = response_value, 
+                    shape = falls_within_range,
+                    text = paste0(
+                      "Sample: ", SampleID, "<br>",
+                      "Replicate: ", Replicate, "<br>",
+                      "Dilution: 1:", DilutionFactor, "<br>",
+                      "Actual Concentration: ", 
+                      if (isTRUE(is_elisa)) {
+                        format(estimated_concentration, digits = 4, big.mark = ",")
+                      } else {
+                        scales::scientific(estimated_concentration, digits = 2)
+                      }, "<br>",
+                      "Diluted Concentration: ",
+                      if (isTRUE(is_elisa)) {
+                        format(concentration_diluted, digits = 4, big.mark = ",")
+                      } else {
+                        scales::scientific(concentration_diluted, digits = 2)
+                      }, "<br>",
+                      labels$y_label, ": ", round(response_value, 2), "<br>",
+                      "Range Status: ", falls_within_range
+                    )),
+                size = 3, color = "#E69F00") +
+      scale_shape_manual(name = "Sample Status",
+                        values = c("Within Range" = 16, "Out of Range" = 17, "Unknown" = 18)) +
+      scale_color_manual(name = "Standard Variability",
+                        values = c("Normal Variability" = "#0072B2", 
+                                  "High Variability" = "#D55E00")) +
+      theme_classic() +
+      theme(
+        legend.position = "top",
+        legend.box = "vertical",
+        axis.text.x = element_text(angle = 45, hjust = 1)
+      ) +
+      labs(x = labels$x_label, y = labels$y_label,
+           title = "Dose-Response Curve with Standards and Unknown Samples")
+    
+    if (isTRUE(is_elisa)) {
+      combined_drc <- combined_drc + 
+        scale_x_log10(
+          labels = function(x) format(x, digits = 3, big.mark = ","),
+          breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
+        )
+    } else {
+      combined_drc <- combined_drc + 
+        scale_x_log10(
+          limits = c(1e-12, 1e-5),
+          breaks = 10^seq(-12, -5, by = 1),
+          labels = scales::scientific_format(digits = 2)
+        )
+    }
+    
+    # Render plot - same pattern as working standard DRC
+    if (knitr::is_html_output()) {
+      plotly::ggplotly(combined_drc, tooltip = "text")
+    } else {
+      print(combined_drc)
+    }
+  }
+}
+```
+
+---
+
+**Report Generated:** `r Sys.Date()`  
+**Contact:** kr.moeller@iaea.org  
+**Feedback:** [Online Form](https://forms.office.com/e/q8eqJfp4QM)
+
+*Automated bioassay analysis using modular system v2.0*

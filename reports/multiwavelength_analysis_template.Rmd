@@ -1,0 +1,245 @@
+---
+title: "Multi-Wavelength Bioassay Analysis Report"
+author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+output:
+  html_document:
+    df_print: paged
+    self_contained: true
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
+  word_document:
+    toc: true
+params:
+  output_dir: NULL
+  wavelengths: NULL
+  lang: "en"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(purrr)
+library(jsonlite)
+
+output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
+
+wavelengths <- params$wavelengths
+if (is.null(wavelengths) || length(wavelengths) == 0) {
+  stop("No wavelengths specified in parameters")
+}
+
+lang <- params$lang %||% "en"
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+script_dir <- tryCatch(dirname(knitr::current_input()), error = function(e) ".")
+
+i18n_path <- file.path(script_dir, "i18n.R")
+if (file.exists(i18n_path)) {
+  source(i18n_path)
+} else {
+  tr <- function(key, lang = "en", ...) paste0("[", key, "]")
+}
+
+write_json_safe <- function(x, file) {
+  dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+  jsonlite::write_json(x, path = file, pretty = TRUE, auto_unbox = TRUE, null = "null")
+}
+
+message(sprintf("Processing %d wavelengths: %s", 
+                length(wavelengths), paste(wavelengths, collapse = ", ")))
+```
+
+# `r tr("multi_overview", lang)`
+
+`r tr("multi_overview_desc", lang, length(wavelengths), paste(wavelengths, collapse = ", "))`
+
+`r tr("multi_compare", lang)`
+
+- `r tr("multi_benefit1", lang)`
+- `r tr("multi_benefit2", lang)`
+- `r tr("multi_benefit3", lang)`
+
+**`r tr("multi_sections", lang)`**
+
+- `r tr("multi_exec_summary", lang)`
+- `r tr("multi_detailed", lang)`
+
+---
+
+## `r tr("exec_summary_title", lang)`
+
+```{r wavelength-summary, results='asis'}
+summary_data <- list()
+
+for (wl in wavelengths) {
+  csv_file <- file.path(output_dir, paste0("long_data_output_", wl, ".csv"))
+  wl_output_dir <- file.path(output_dir, wl)
+  stats_file <- file.path(wl_output_dir, "model_stats.json")
+  summary_file <- file.path(wl_output_dir, "unknown_results_summary.csv")
+  
+  wl_info <- list(wavelength = wl)
+  
+  if (file.exists(csv_file)) {
+    data_long <- read.csv(csv_file, stringsAsFactors = FALSE)
+    wl_info$n_standards <- sum(data_long$SampleType == "Standard", na.rm = TRUE)
+    wl_info$n_samples <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
+    
+    if (file.exists(stats_file)) {
+      stats <- tryCatch(jsonlite::fromJSON(stats_file), error = function(e) NULL)
+      if (!is.null(stats)) {
+        wl_info$r_squared <- stats$r_squared
+        wl_info$rmse <- stats$rmse
+        wl_info$ic50 <- stats$ic50
+        wl_info$mean_cv <- stats$mean_sample_cv
+      }
+    }
+    
+    if (file.exists(summary_file)) {
+      results <- read.csv(summary_file, stringsAsFactors = FALSE)
+      wl_info$n_quantified <- nrow(results)
+    } else {
+      wl_info$n_quantified <- 0
+    }
+  }
+  
+  summary_data[[wl]] <- wl_info
+}
+
+if (length(summary_data) > 0) {
+  summary_df <- data.frame(
+    Wavelength = sapply(summary_data, function(x) x$wavelength),
+    R2 = sapply(summary_data, function(x) {
+      val <- x$r_squared; if (is.null(val) || is.na(val)) "\u2014" else format(round(val, 4), nsmall = 4)
+    }),
+    RMSE = sapply(summary_data, function(x) {
+      val <- x$rmse; if (is.null(val) || is.na(val)) "\u2014" else format(round(val, 3), nsmall = 3)
+    }),
+    IC50 = sapply(summary_data, function(x) {
+      val <- x$ic50; if (is.null(val) || is.na(val)) "\u2014" else format(round(val, 1), nsmall = 1, big.mark = ",")
+    }),
+    Standards = sapply(summary_data, function(x) x$n_standards %||% NA),
+    Samples = sapply(summary_data, function(x) x$n_samples %||% NA),
+    Quantified = sapply(summary_data, function(x) x$n_quantified %||% NA),
+    Mean_CV = sapply(summary_data, function(x) {
+      val <- x$mean_cv; if (is.null(val) || is.na(val)) "\u2014" else paste0(format(round(val, 1), nsmall = 1), "%")
+    }),
+    stringsAsFactors = FALSE
+  )
+  
+  names(summary_df) <- c(
+    tr("col_wavelength", lang), tr("col_r2", lang), tr("col_rmse", lang),
+    tr("col_ic50", lang), tr("col_standards", lang), tr("col_samples", lang),
+    tr("col_quantified", lang), tr("col_mean_cv", lang)
+  )
+  
+  kable(summary_df, caption = tr("data_overview", lang)) %>%
+    kableExtra::kable_styling(full_width = FALSE, position = "center")
+  
+  rmse_vals <- sapply(summary_data, function(x) x$rmse)
+  rmse_valid <- rmse_vals[!sapply(rmse_vals, is.null) & !is.na(rmse_vals)]
+  
+  if (length(rmse_valid) > 0) {
+    best_wl <- names(which.min(unlist(rmse_valid)))
+    best_rmse <- min(unlist(rmse_valid))
+    cat("\n\n")
+    cat(tr("recommended_wavelength", lang, best_wl, best_rmse))
+    cat("\n\n")
+  }
+}
+```
+
+---
+
+```{r generate-wavelength-reports, results='asis'}
+preprocess_file <- file.path(script_dir, "preprocess_multiwavelength.R")
+if (file.exists(preprocess_file)) {
+  source(preprocess_file)
+} else {
+  preprocess_template_chunks <- function(template_path, label_prefix, temp_dir = tempdir()) {
+    template_lines <- readLines(template_path, warn = FALSE)
+    chunk_pattern <- "^```\\{r\\s+([^,}]+)"
+    processed_lines <- sapply(template_lines, function(line) {
+      if (grepl(chunk_pattern, line)) {
+        chunk_match <- regmatches(line, regexpr(chunk_pattern, line, perl = TRUE))
+        if (length(chunk_match) > 0) {
+          chunk_name <- sub("^```\\{r\\s+", "", chunk_match)
+          new_chunk_name <- paste0(label_prefix, "-", chunk_name)
+          line <- sub(paste0("(```\\{r\\s+)", chunk_name),
+                      paste0("\\1", new_chunk_name), line)
+        }
+      }
+      return(line)
+    }, USE.NAMES = FALSE)
+    temp_file <- file.path(temp_dir, paste0(label_prefix, "_", basename(template_path)))
+    writeLines(processed_lines, temp_file)
+    return(temp_file)
+  }
+}
+
+for (i in seq_along(wavelengths)) {
+  wl <- wavelengths[i]
+  
+  cat(sprintf("\n\n# %s\n\n", tr("wavelength_analysis", lang, wl)))
+  cat(sprintf("**%s**\n\n", tr("analysis_n_of", lang, i, length(wavelengths))))
+  
+  csv_file <- file.path(output_dir, paste0("long_data_output_", wl, ".csv"))
+  if (!file.exists(csv_file)) {
+    cat(sprintf("**Error:** Data file not found for %s\n\n", wl))
+    next
+  }
+  
+  wl_output_dir <- file.path(output_dir, wl)
+  if (!dir.exists(wl_output_dir)) dir.create(wl_output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  file.copy(from = csv_file, to = file.path(wl_output_dir, "long_data_output.csv"), overwrite = TRUE)
+  
+  config_files <- c("assay_config.json", "qc_params.json", "notes.json",
+                    "sample_processing_config.json", "tissue_weights.json", "excluded_wells.json")
+  for (cfg_file in config_files) {
+    src <- file.path(output_dir, cfg_file)
+    if (file.exists(src)) file.copy(src, file.path(wl_output_dir, cfg_file), overwrite = TRUE)
+  }
+  
+  tryCatch({
+    template_path <- file.path(script_dir, "unified_analysis_template.Rmd")
+    if (!file.exists(template_path)) {
+      cat(sprintf("**Error:** Template not found at `%s`\n\n", template_path))
+    } else {
+      label_prefix <- paste0("wl", gsub("[^a-zA-Z0-9]", "", wl))
+      preprocessed_template <- preprocess_template_chunks(template_path, label_prefix)
+      wl_env <- new.env(parent = environment())
+      wl_env$params <- list(output_dir = wl_output_dir, lang = lang)
+      result <- knitr::knit_child(preprocessed_template, envir = wl_env, quiet = TRUE)
+      cat(result, sep = "\n")
+      unlink(preprocessed_template)
+    }
+  }, error = function(e) {
+    cat(sprintf("**Error rendering %s analysis:**\n\nError: %s\n\n", wl, e$message))
+  })
+  
+  cat("\n\n---\n\n")
+}
+```
+
+# `r tr("overall_conclusions", lang)`
+
+```{r final-comparison, results='asis'}
+cat(sprintf("## %s\n\n", tr("wavelength_performance", lang)))
+cat(sprintf("**%s**\n\n", tr("recommendations", lang)))
+cat(sprintf("- %s\n", tr("rec_r2", lang)))
+cat(sprintf("- %s\n", tr("rec_cv", lang)))
+cat(sprintf("- %s\n\n", tr("rec_separation", lang)))
+```
+
+---
+
+**`r tr("report_generated", lang)`** `r Sys.Date()`
+**`r tr("contact", lang)`** kr.moeller@iaea.org
+**`r tr("feedback", lang)`** [`r tr("online_form", lang)`](https://forms.office.com/e/q8eqJfp4QM)
+
+*`r tr("automated_multi", lang)`*

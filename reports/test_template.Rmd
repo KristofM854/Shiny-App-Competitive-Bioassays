@@ -1,0 +1,77 @@
+---
+title: "Modular System Test"
+output: html_document
+params:
+  output_dir: NULL
+---
+
+```{r setup, include=TRUE, echo=TRUE}
+# Basic test to see if we can source the files
+
+cat("=== DEBUGGING MODULAR SETUP ===\n")
+
+# Check output directory
+cat("Output directory:", params$output_dir, "\n")
+output_dir <- params$output_dir
+
+# Try to find RMD directory
+cat("Trying to find RMD directory...\n")
+
+tryCatch({
+  rmd_dir <- dirname(knitr::current_input())
+  cat("RMD directory found:", rmd_dir, "\n")
+  
+  # List files
+  files <- list.files(rmd_dir, pattern = "\\.R$")
+  cat("R files in directory:", paste(files, collapse = ", "), "\n")
+  
+  # Check if required files exist
+  required_files <- c("report_constants.R", "report_functions.R", "plot_functions.R")
+  for (file in required_files) {
+    filepath <- file.path(rmd_dir, file)
+    exists <- file.exists(filepath)
+    cat("File", file, "exists:", exists, "\n")
+    if (!exists) {
+      cat("  Expected at:", filepath, "\n")
+    }
+  }
+  
+  # Try to source constants file
+  constants_file <- file.path(rmd_dir, "report_constants.R")
+  if (file.exists(constants_file)) {
+    cat("Attempting to source report_constants.R...\n")
+    source(constants_file)
+    cat("SUCCESS: Constants loaded\n")
+    
+    # Test if constants are available
+    if (exists("MOLECULAR_WEIGHTS")) {
+      cat("MOLECULAR_WEIGHTS found:", names(MOLECULAR_WEIGHTS)[1:3], "...\n")
+    }
+  } else {
+    cat("ERROR: report_constants.R not found\n")
+  }
+  
+}, error = function(e) {
+  cat("ERROR in setup:", e$message, "\n")
+})
+
+cat("=== END DEBUG ===\n")
+```
+
+This is a minimal test. If this works, the modular system should work too.
+
+## File Structure Check
+
+Make sure you have:
+
+```
+your_app/
+├── reports/
+│   ├── test_template.Rmd          # This test file
+│   ├── analysis_template.Rmd      # Main template  
+│   ├── report_constants.R         # Must be here
+│   ├── report_functions.R         # Must be here
+│   └── plot_functions.R           # Must be here
+```
+
+All files must be in the **same** `reports/` folder.
