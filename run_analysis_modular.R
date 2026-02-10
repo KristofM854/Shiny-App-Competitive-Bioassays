@@ -49,7 +49,7 @@ get_script_dir <- function() {
 }
 
 script_dir <- get_script_dir()
-app_dir <- script_dir  # app_modular.R should be in same folder
+app_dir <- script_dir  # app.R should be in same folder
 
 report_template <- file.path(script_dir, "reports", "unified_analysis_template.Rmd")
 
@@ -119,7 +119,7 @@ message("🚀 Launching Shiny app...")
 message("   App directory: ", app_dir)
 
 # Run the modular app
-shiny::runApp(file.path(app_dir, "app_modular.R"))
+shiny::runApp(file.path(app_dir, "app.R"))
 
 message("✅ Shiny app closed. Continuing with report generation...")
 
