@@ -246,12 +246,12 @@ enforce_plate_shape <- function(df) {
   
   # Pad rows if needed
   if (r < PLATE_NROW) {
-    df[(r+1):PLATE_NROW, ] <- NA_character_
+    df[(r+1):PLATE_NROW, ] <- NA
   }
-  
+
   # Pad columns if needed
   if (c < PLATE_NCOL) {
-    df[, (c+1):PLATE_NCOL] <- NA_character_
+    df[, (c+1):PLATE_NCOL] <- NA
   }
   
   # Trim to exact size
@@ -326,8 +326,9 @@ matrix_to_long <- function(type_mat, id_mat, dilution_mat,
     rownames_to_column("Row") %>% 
     pivot_longer(-Row, names_to = "Column", values_to = "Replicate")
   
-  df_meas <- measurement_mat %>% 
-    rownames_to_column("Row") %>% 
+  df_meas <- measurement_mat %>%
+    mutate(across(everything(), as.numeric)) %>%
+    rownames_to_column("Row") %>%
     pivot_longer(-Row, names_to = "Column", values_to = "MeasurementValue")
   
   # Combine
