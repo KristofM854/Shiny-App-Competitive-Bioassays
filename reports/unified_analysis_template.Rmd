@@ -163,9 +163,9 @@ if (isTRUE(is_elisa)) {
   control_summary <- attr(data_long, "control_summary")
   if (!is.null(control_summary)) {
     cat("**Control Well QC:**\n")
-    cat("- Blank average:", round(control_summary$blank_avg, 3), "\n")
-    cat("- NSB average:", round(control_summary$nsb_avg, 3), "\n") 
-    cat("- B0 average:", round(control_summary$b0_avg, 3), "\n")
+    cat("- Blank average:", round(as.numeric(control_summary$blank_avg), 3), "\n")
+    cat("- NSB average:", round(as.numeric(control_summary$nsb_avg), 3), "\n")
+    cat("- B0 average:", round(as.numeric(control_summary$b0_avg), 3), "\n")
     cat("- Hierarchy valid:", control_summary$hierarchy_valid, "\n\n")
   }
   
