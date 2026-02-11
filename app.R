@@ -17,24 +17,36 @@ source("utils_normalization.R")
 source("i18n.R")
 
 # Get output directory from environment (set by run_analysis_modular.R)
-# If not set (e.g. running via runGitHub), create a dated output folder
-output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
-if (output_dir == "") {
+# If not set OR if set by a previous standalone run, create a fresh dated folder
+standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
+                    Sys.getenv("RBA_STANDALONE") == "1")
+
+if (standalone_mode) {
   app_root <- getwd()
-  base_output_dir <- file.path(app_root, format(Sys.Date(), "%Y-%m-%d"))
-  output_dir <- base_output_dir
-  if (dir.exists(output_dir)) {
-    existing <- list.dirs(app_root, full.names = FALSE, recursive = FALSE)
-    pattern <- paste0("^", format(Sys.Date(), "%Y-%m-%d"), "(_\\d+)?$")
-    n <- sum(grepl(pattern, existing))
-    output_dir <- paste0(base_output_dir, "_", n)
+  base_name <- format(Sys.Date(), "%Y-%m-%d")
+  base_output_dir <- file.path(app_root, base_name)
+
+  # Find next available suffix
+  existing <- list.dirs(app_root, full.names = FALSE, recursive = FALSE)
+  pattern <- paste0("^", base_name, "(_\\d+)?$")
+  matches <- existing[grepl(pattern, existing)]
+  if (length(matches) == 0 && !dir.exists(base_output_dir)) {
+    output_dir <- base_output_dir
+  } else {
+    # Extract existing suffix numbers
+    suffix_nums <- as.integer(sub(paste0("^", base_name, "_?(\\d*)$"), "\\1", matches))
+    suffix_nums[is.na(suffix_nums)] <- 0
+    next_suffix <- max(suffix_nums, 0) + 1
+    output_dir <- paste0(base_output_dir, "_", next_suffix)
   }
+
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
   csv_path <- file.path(output_dir, "long_data_output.csv")
   Sys.setenv(RBA_OUTPUT_DIR = output_dir)
   Sys.setenv(RBA_CSV_PATH = normalizePath(csv_path, winslash = "/", mustWork = FALSE))
   Sys.setenv(RBA_FMT_JSON = normalizePath(file.path(output_dir, "selected_formats.json"), winslash = "/", mustWork = FALSE))
   Sys.setenv(RBA_NOTES_FILE = normalizePath(file.path(output_dir, "notes.json"), winslash = "/", mustWork = FALSE))
+  Sys.setenv(RBA_STANDALONE = "1")
   message("Standalone mode - output directory: ", output_dir)
 }
 output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
@@ -1658,6 +1670,15 @@ server <- function(input, output, session) {
 
         for (fmt in selected_formats) {
           showNotification(sprintf("Rendering %s report...", toupper(fmt)), type = "message", duration = 3)
+
+          # Clean up per-wavelength child output from previous renders
+          # so each format render starts fresh (avoids stale JSON issues)
+          if (is_mw && !is.null(rv$wavelengths)) {
+            for (wl_clean in rv$wavelengths) {
+              wl_sub <- file.path(out_dir_abs, wl_clean)
+              if (dir.exists(wl_sub)) unlink(wl_sub, recursive = TRUE)
+            }
+          }
 
           render_ok <- tryCatch({
             render_params <- list(

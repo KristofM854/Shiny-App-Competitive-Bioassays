@@ -93,6 +93,8 @@ message(sprintf("Processing %d wavelengths: %s",
 ## `r tr("exec_summary_title", lang)`
 
 ```{r wavelength-summary, results='asis'}
+tryCatch({
+
 summary_data <- list()
 
 for (wl in wavelengths) {
@@ -100,68 +102,80 @@ for (wl in wavelengths) {
   wl_output_dir <- file.path(output_dir, wl)
   stats_file <- file.path(wl_output_dir, "model_stats.json")
   summary_file <- file.path(wl_output_dir, "unknown_results_summary.csv")
-  
-  wl_info <- list(wavelength = wl)
-  
+
+  wl_info <- list(wavelength = wl, n_standards = 0L, n_samples = 0L,
+                  n_quantified = 0L, r_squared = NA_real_, rmse = NA_real_,
+                  ic50 = NA_real_, mean_cv = NA_real_)
+
   if (file.exists(csv_file)) {
     data_long <- read.csv(csv_file, stringsAsFactors = FALSE)
     wl_info$n_standards <- sum(data_long$SampleType == "Standard", na.rm = TRUE)
     wl_info$n_samples <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
-    
+
     if (file.exists(stats_file)) {
       stats <- tryCatch(jsonlite::fromJSON(stats_file), error = function(e) NULL)
       if (!is.null(stats)) {
-        wl_info$r_squared <- tryCatch(as.numeric(stats$r_squared), error = function(e) NA_real_)
-        wl_info$rmse <- tryCatch(as.numeric(stats$rmse), error = function(e) NA_real_)
-        wl_info$ic50 <- tryCatch(as.numeric(stats$ic50), error = function(e) NA_real_)
-        wl_info$mean_cv <- tryCatch(as.numeric(stats$mean_sample_cv), error = function(e) NA_real_)
+        safe_num <- function(x) tryCatch(as.numeric(x[[1]]), error = function(e) NA_real_, warning = function(w) NA_real_)
+        wl_info$r_squared <- safe_num(stats$r_squared)
+        wl_info$rmse      <- safe_num(stats$rmse)
+        wl_info$ic50      <- safe_num(stats$ic50)
+        wl_info$mean_cv   <- safe_num(stats$mean_sample_cv)
       }
     }
-    
+
     if (file.exists(summary_file)) {
-      results <- read.csv(summary_file, stringsAsFactors = FALSE)
+      results <- tryCatch(read.csv(summary_file, stringsAsFactors = FALSE), error = function(e) data.frame())
       wl_info$n_quantified <- nrow(results)
-    } else {
-      wl_info$n_quantified <- 0
     }
   }
-  
+
   summary_data[[wl]] <- wl_info
 }
 
 if (length(summary_data) > 0) {
+  fmt_num <- function(val, digits) {
+    if (is.null(val) || length(val) == 0 || !is.numeric(val) || is.na(val) || !is.finite(val)) return("\u2014")
+    format(round(val, digits), nsmall = digits)
+  }
+
   summary_df <- data.frame(
     Wavelength = sapply(summary_data, function(x) x$wavelength),
-    R2 = sapply(summary_data, function(x) {
-      val <- x$r_squared; if (is.null(val) || !is.numeric(val) || is.na(val)) "\u2014" else format(round(val, 4), nsmall = 4)
-    }),
-    RMSE = sapply(summary_data, function(x) {
-      val <- x$rmse; if (is.null(val) || !is.numeric(val) || is.na(val)) "\u2014" else format(round(val, 3), nsmall = 3)
-    }),
+    R2 = sapply(summary_data, function(x) fmt_num(x$r_squared, 4)),
+    RMSE = sapply(summary_data, function(x) fmt_num(x$rmse, 3)),
     IC50 = sapply(summary_data, function(x) {
-      val <- x$ic50; if (is.null(val) || !is.numeric(val) || is.na(val)) "\u2014" else format(round(val, 1), nsmall = 1, big.mark = ",")
+      v <- x$ic50
+      if (is.null(v) || !is.numeric(v) || is.na(v) || !is.finite(v)) "\u2014"
+      else format(round(v, 1), nsmall = 1, big.mark = ",")
     }),
-    Standards = sapply(summary_data, function(x) if (is.null(x$n_standards)) NA else x$n_standards),
-    Samples = sapply(summary_data, function(x) if (is.null(x$n_samples)) NA else x$n_samples),
-    Quantified = sapply(summary_data, function(x) if (is.null(x$n_quantified)) NA else x$n_quantified),
+    Standards = sapply(summary_data, function(x) x$n_standards),
+    Samples = sapply(summary_data, function(x) x$n_samples),
+    Quantified = sapply(summary_data, function(x) x$n_quantified),
     Mean_CV = sapply(summary_data, function(x) {
-      val <- x$mean_cv; if (is.null(val) || !is.numeric(val) || is.na(val)) "\u2014" else paste0(format(round(val, 1), nsmall = 1), "%")
+      v <- x$mean_cv
+      if (is.null(v) || !is.numeric(v) || is.na(v) || !is.finite(v)) "\u2014"
+      else paste0(format(round(v, 1), nsmall = 1), "%")
     }),
     stringsAsFactors = FALSE
   )
-  
+
   names(summary_df) <- c(
     tr("col_wavelength", lang), tr("col_r2", lang), tr("col_rmse", lang),
     tr("col_ic50", lang), tr("col_standards", lang), tr("col_samples", lang),
     tr("col_quantified", lang), tr("col_mean_cv", lang)
   )
-  
-  kable(summary_df, caption = tr("data_overview", lang)) %>%
-    kableExtra::kable_styling(full_width = FALSE, position = "center")
-  
+
+  # Use format appropriate for output type
+  out_fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if (!is.null(out_fmt) && out_fmt %in% c("docx", "latex")) {
+    print(kable(summary_df, caption = tr("data_overview", lang), format = "pandoc"))
+  } else {
+    print(kable(summary_df, caption = tr("data_overview", lang)) %>%
+      kableExtra::kable_styling(full_width = FALSE, position = "center"))
+  }
+
   rmse_vals <- sapply(summary_data, function(x) {
     v <- x$rmse
-    if (is.null(v) || !is.numeric(v) || is.na(v)) NA_real_ else v
+    if (is.null(v) || !is.numeric(v) || is.na(v) || !is.finite(v)) NA_real_ else v
   })
   rmse_valid <- rmse_vals[!is.na(rmse_vals)]
 
@@ -173,6 +187,10 @@ if (length(summary_data) > 0) {
     cat("\n\n")
   }
 }
+
+}, error = function(e) {
+  cat(sprintf("\n\n**Executive summary could not be generated:** %s\n\n", e$message))
+})
 ```
 
 ---
