@@ -760,7 +760,7 @@ if (nrow(samples_to_analyze) > 0) {
     )
   
   replicate_stats <- replicate_stats %>%
-    left_join(replicate_range %>% select(Replicate, within_range, range_flag), by = "Replicate")
+    left_join(replicate_range %>% dplyr::select(Replicate, within_range, range_flag), by = "Replicate")
   
   # Add tissue-weight-based concentration if applicable (ELISA only)
   if (isTRUE(is_elisa)) {

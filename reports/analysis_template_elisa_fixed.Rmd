@@ -447,7 +447,7 @@ if (exists("replicate_stats") && nrow(replicate_stats) > 0) {
   
   # Format table for display
   results_display <- replicate_stats %>%
-    select(SampleType, sampleID, Replicate, mean_conc_formatted, se_conc_formatted) %>%
+    dplyr::select(SampleType, sampleID, Replicate, mean_conc_formatted, se_conc_formatted) %>%
     rename(
       "Sample Type" = SampleType,
       "Sample ID" = sampleID,
