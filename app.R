@@ -22,7 +22,39 @@ standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
                     Sys.getenv("RBA_STANDALONE") == "1")
 
 if (standalone_mode) {
-  app_root <- getwd()
+  # In standalone mode (runGitHub), let user pick their output folder.
+  # Try native folder picker; fall back to Documents folder.
+  app_root <- NULL
+
+  # Try RStudio dialog
+  if (is.null(app_root) && requireNamespace("rstudioapi", quietly = TRUE)) {
+    app_root <- tryCatch(
+      rstudioapi::selectDirectory(
+        caption = "Select output folder for reports",
+        label = "Select"
+      ),
+      error = function(e) NULL
+    )
+  }
+
+  # Try Windows folder picker (base R)
+  if (is.null(app_root) && .Platform$OS.type == "windows") {
+    app_root <- tryCatch(
+      utils::choose.dir(
+        default = path.expand("~/Documents"),
+        caption = "Select output folder for reports"
+      ),
+      error = function(e) NULL
+    )
+  }
+
+  # Fall back to ~/Documents/App Competitive Bioassays
+  if (is.null(app_root) || is.na(app_root)) {
+    app_root <- file.path(path.expand("~"), "Documents", "App Competitive Bioassays")
+    dir.create(app_root, showWarnings = FALSE, recursive = TRUE)
+    message("Using default output location: ", app_root)
+  }
+
   base_name <- format(Sys.Date(), "%Y-%m-%d")
   base_output_dir <- file.path(app_root, base_name)
 
