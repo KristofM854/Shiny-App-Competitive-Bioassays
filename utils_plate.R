@@ -359,6 +359,6 @@ matrix_to_long <- function(type_mat, id_mat, dilution_mat,
   
   # Reorder columns
   df_long %>%
-    select(Well, Row, Column, SampleType, SampleID, 
+    dplyr::select(Well, Row, Column, SampleType, SampleID,
            any_of("StandardConc"), DilutionFactor, Replicate, MeasurementValue)
 }
