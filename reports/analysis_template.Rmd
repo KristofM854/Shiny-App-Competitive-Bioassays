@@ -209,7 +209,7 @@ if (nrow(high_var_standards) > 0) {
   cat("\n")
   
   render_table(
-    high_var_standards %>% select(StandardConc, cv) %>%
+    high_var_standards %>% dplyr::select(StandardConc, cv) %>%
       mutate(StandardConc = format(StandardConc, scientific = TRUE, digits = 2)),
     caption = "High Variability Standards (Excluded from Model)",
     col_names = c("Standard Concentration", "CV (%)")
@@ -368,7 +368,7 @@ if (nrow(replicate_stats) > 0) {
   
   # Format table for display
   results_table <- replicate_stats %>%
-    select(-n_replicates) %>%
+    dplyr::select(-n_replicates) %>%
     rename(
       "Sample Type" = SampleType,
       "Sample ID" = sampleID,
