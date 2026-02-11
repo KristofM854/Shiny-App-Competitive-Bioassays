@@ -300,7 +300,7 @@ predict_sample_concentrations <- function(model, samples, assay_config) {
           # Merge back tissue results
           results <- results %>%
             left_join(
-              tissue_results %>% select(SampleID, concentration_ng_per_g),
+              tissue_results %>% dplyr::select(SampleID, concentration_ng_per_g),
               by = "SampleID"
             )
         }
@@ -308,7 +308,7 @@ predict_sample_concentrations <- function(model, samples, assay_config) {
       
       # Return only essential columns
       results <- results %>%
-        select(
+        dplyr::select(
           Well, SampleID, SampleType, Replicate, DilutionFactor,
           estimated_concentration,
           if ("TissueWeight_mg" %in% names(samples)) "TissueWeight_mg" else NULL,
@@ -346,7 +346,7 @@ predict_sample_concentrations <- function(model, samples, assay_config) {
     
     # Join predictions with sample data
     results <- samples %>%
-      select(Well, SampleID, SampleType, Replicate, DilutionFactor, all_of(response_var)) %>%
+      dplyr::select(Well, SampleID, SampleType, Replicate, DilutionFactor, all_of(response_var)) %>%
       rename(Response = all_of(response_var)) %>%
       left_join(predicted_conc, by = c("Response" = "ResponseValue")) %>%
       mutate(
@@ -359,7 +359,7 @@ predict_sample_concentrations <- function(model, samples, assay_config) {
         # Apply dilution correction and rename to match ELISA structure
         estimated_concentration = Estimate / DilutionFactor
       ) %>%
-      select(Well, SampleID, SampleType, Replicate, DilutionFactor, estimated_concentration)
+      dplyr::select(Well, SampleID, SampleType, Replicate, DilutionFactor, estimated_concentration)
   }
   
   return(results)
@@ -472,7 +472,7 @@ calculate_elisa_bb0 <- function(data_long, use_percent = TRUE) {
       b_b0_ratio = nsb_corrected / corrected_b0,
       calculated_bb0 = if (use_percent) b_b0_ratio * 100 else b_b0_ratio
     ) %>%
-    select(-blank_corrected, -nsb_corrected, -b_b0_ratio)
+    dplyr::select(-blank_corrected, -nsb_corrected, -b_b0_ratio)
   
   # Add control well summary for QC
   attr(data_with_bb0, "control_summary") <- list(
