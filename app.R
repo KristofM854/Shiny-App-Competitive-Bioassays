@@ -16,8 +16,28 @@ source("utils_import_multiwavelength.R")
 source("utils_normalization.R")
 source("i18n.R")
 
-# Get output directory from environment (set by run_analysis.R)
-output_dir <- Sys.getenv("RBA_OUTPUT_DIR", ".")
+# Get output directory from environment (set by run_analysis_modular.R)
+# If not set (e.g. running via runGitHub), create a dated output folder
+output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+if (output_dir == "") {
+  app_root <- getwd()
+  base_output_dir <- file.path(app_root, format(Sys.Date(), "%Y-%m-%d"))
+  output_dir <- base_output_dir
+  if (dir.exists(output_dir)) {
+    existing <- list.dirs(app_root, full.names = FALSE, recursive = FALSE)
+    pattern <- paste0("^", format(Sys.Date(), "%Y-%m-%d"), "(_\\d+)?$")
+    n <- sum(grepl(pattern, existing))
+    output_dir <- paste0(base_output_dir, "_", n)
+  }
+  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+  csv_path <- file.path(output_dir, "long_data_output.csv")
+  Sys.setenv(RBA_OUTPUT_DIR = output_dir)
+  Sys.setenv(RBA_CSV_PATH = normalizePath(csv_path, winslash = "/", mustWork = FALSE))
+  Sys.setenv(RBA_FMT_JSON = normalizePath(file.path(output_dir, "selected_formats.json"), winslash = "/", mustWork = FALSE))
+  Sys.setenv(RBA_NOTES_FILE = normalizePath(file.path(output_dir, "notes.json"), winslash = "/", mustWork = FALSE))
+  message("Standalone mode - output directory: ", output_dir)
+}
+output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
 
 # ============================================================================
 # UI DEFINITION
@@ -1610,13 +1630,81 @@ server <- function(input, output, session) {
       
       incProgress(0.6)
       
-      showNotification(paste("Data saved to:", csv_path), 
+      showNotification(paste("Data saved to:", csv_path),
                        type = "message", duration = 5)
-      
+
+      incProgress(0.7)
+
+      # ----- Render reports inside the app -----
+      report_lang <- input$report_language %||% "en"
+      selected_formats <- input$export_formats
+      formats_map <- list(html = "html_document", pdf = "pdf_document", docx = "word_document")
+
+      # Determine template
+      is_mw <- isTRUE(rv$is_multiwavelength)
+      app_root <- if (file.exists("reports")) "." else dirname(Sys.getenv("RBA_CSV_PATH"))
+      template_dir <- file.path(app_root, "reports")
+      if (!dir.exists(template_dir)) template_dir <- "reports"
+
+      if (is_mw) {
+        report_template <- file.path(template_dir, "multiwavelength_analysis_template.Rmd")
+      } else {
+        report_template <- file.path(template_dir, "unified_analysis_template.Rmd")
+      }
+
+      if (file.exists(report_template)) {
+        report_template <- normalizePath(report_template, winslash = "/", mustWork = TRUE)
+        out_dir_abs <- normalizePath(output_dir, winslash = "/", mustWork = TRUE)
+
+        for (fmt in selected_formats) {
+          showNotification(sprintf("Rendering %s report...", toupper(fmt)), type = "message", duration = 3)
+
+          render_ok <- tryCatch({
+            render_params <- list(
+              output_dir = out_dir_abs,
+              lang = report_lang
+            )
+            if (is_mw) render_params$wavelengths <- rv$wavelengths
+
+            out_name <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
+
+            rmarkdown::render(
+              input = report_template,
+              output_format = formats_map[[fmt]],
+              output_file = out_name,
+              output_dir = out_dir_abs,
+              params = render_params,
+              knit_root_dir = dirname(report_template),
+              envir = new.env(parent = globalenv())
+            )
+            TRUE
+          }, error = function(e) {
+            showNotification(
+              sprintf("Report rendering failed (%s): %s", toupper(fmt), e$message),
+              type = "error", duration = 10
+            )
+            message(sprintf("Report render error (%s): %s", fmt, e$message))
+            FALSE
+          })
+
+          if (render_ok) {
+            showNotification(sprintf("%s report created!", toupper(fmt)), type = "message", duration = 5)
+          }
+        }
+
+        showNotification(
+          paste("Reports saved to:", out_dir_abs),
+          type = "message", duration = 8
+        )
+      } else {
+        showNotification("Report template not found - data saved but no report generated.", type = "warning", duration = 8)
+        message("Template not found at: ", report_template)
+      }
+
       incProgress(1)
-      
-      Sys.sleep(2)
-      stopApp()  # <-- App ends here. Rendering happens in run_analysis_modular.R
+
+      Sys.sleep(3)
+      stopApp()
     })
   })
       
