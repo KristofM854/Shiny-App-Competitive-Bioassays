@@ -1017,7 +1017,9 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       }
     ) %>%
     dplyr::select(-ci_lower_95, -ci_upper_95,
-                  -any_of(c("within_range", "range_flag")))
+                  -any_of(c("within_range", "range_flag"))) %>%
+    dplyr::relocate(ci_95, .before = cv_percent) %>%
+    dplyr::relocate(range_flag_display, .after = cv_percent)
   
   # Set column names
   conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
