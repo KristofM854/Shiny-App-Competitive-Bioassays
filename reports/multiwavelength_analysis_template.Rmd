@@ -24,6 +24,7 @@ library(dplyr)
 library(knitr)
 library(kableExtra)
 library(purrr)
+library(ggplot2)
 library(jsonlite)
 
 output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
@@ -77,6 +78,13 @@ write_json_safe <- function(x, file) {
   dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
   jsonlite::write_json(x, path = file, pretty = TRUE, auto_unbox = TRUE, null = "null")
 }
+
+# Load analysis settings
+analysis_config <- tryCatch({
+  cfg_file <- file.path(output_dir, "analysis_config.json")
+  if (file.exists(cfg_file)) jsonlite::fromJSON(cfg_file)
+  else list()
+}, error = function(e) list())
 
 preprocess_template_chunks <- function(template_path, label_prefix, temp_dir = tempdir()) {
   template_lines <- readLines(template_path, warn = FALSE)
@@ -141,7 +149,8 @@ for (i in seq_along(wavelengths)) {
   file.copy(from = csv_file, to = file.path(wl_output_dir, "long_data_output.csv"), overwrite = TRUE)
 
   config_files <- c("assay_config.json", "qc_params.json", "notes.json",
-                    "sample_processing_config.json", "tissue_weights.json", "excluded_wells.json")
+                    "sample_processing_config.json", "tissue_weights.json", "excluded_wells.json",
+                    "analysis_config.json")
   for (cfg_file in config_files) {
     src <- file.path(output_dir, cfg_file)
     if (file.exists(src)) file.copy(src, file.path(wl_output_dir, cfg_file), overwrite = TRUE)
@@ -272,6 +281,159 @@ if (length(summary_data) > 0) {
 
 }, error = function(e) {
   cat(sprintf("\n\n**Executive summary could not be generated:** %s\n\n", e$message))
+})
+```
+
+## `r tr("concordance_title", lang)`
+
+```{r concordance-analysis, results='asis', fig.width=10, fig.height=6, warning=FALSE, message=FALSE}
+tryCatch({
+  if (length(wavelengths) >= 2) {
+    cat(tr("concordance_desc", lang), "\n\n")
+
+    # Load sample results from each wavelength
+    wl_results <- list()
+    for (wl in wavelengths) {
+      wl_output_dir <- file.path(output_dir, wl)
+      summary_file <- file.path(wl_output_dir, "unknown_results_summary.csv")
+      if (file.exists(summary_file)) {
+        res <- tryCatch(read.csv(summary_file, stringsAsFactors = FALSE), error = function(e) NULL)
+        if (!is.null(res) && nrow(res) > 0 && "mean_concentration" %in% names(res)) {
+          wl_results[[wl]] <- res
+        }
+      }
+    }
+
+    if (length(wl_results) >= 2) {
+      # Lin's CCC function (no external package dependency)
+      lins_ccc <- function(x, y) {
+        n <- length(x)
+        if (n < 3) return(list(ccc = NA_real_, ci_lower = NA_real_, ci_upper = NA_real_))
+        mx <- mean(x); my <- mean(y)
+        sx <- sd(x); sy <- sd(y)
+        sxy <- sum((x - mx) * (y - my)) / (n - 1)
+        ccc <- (2 * sxy) / (sx^2 + sy^2 + (mx - my)^2)
+        # Fisher Z transform for CI
+        z <- 0.5 * log((1 + ccc) / (1 - ccc))
+        se_z <- sqrt(1 / (n - 3))
+        z_lower <- z - 1.96 * se_z
+        z_upper <- z + 1.96 * se_z
+        ci_lower <- (exp(2 * z_lower) - 1) / (exp(2 * z_lower) + 1)
+        ci_upper <- (exp(2 * z_upper) - 1) / (exp(2 * z_upper) + 1)
+        list(ccc = ccc, ci_lower = ci_lower, ci_upper = ci_upper)
+      }
+
+      wl_names <- names(wl_results)
+      pairs <- combn(wl_names, 2, simplify = FALSE)
+
+      concordance_results <- list()
+
+      for (pair in pairs) {
+        wl1 <- pair[1]; wl2 <- pair[2]
+        res1 <- wl_results[[wl1]]
+        res2 <- wl_results[[wl2]]
+
+        # Match by replicate group
+        merge_key <- if ("replicate_group" %in% names(res1)) "replicate_group" else "sample_ids"
+        if (!(merge_key %in% names(res1)) || !(merge_key %in% names(res2))) next
+
+        paired <- merge(
+          res1 %>% dplyr::select(all_of(merge_key), mean_concentration),
+          res2 %>% dplyr::select(all_of(merge_key), mean_concentration),
+          by = merge_key, suffixes = c("_1", "_2")
+        )
+        paired <- paired %>%
+          dplyr::filter(!is.na(mean_concentration_1) & !is.na(mean_concentration_2) &
+                        is.finite(mean_concentration_1) & is.finite(mean_concentration_2))
+
+        if (nrow(paired) >= 3) {
+          x <- as.numeric(paired$mean_concentration_1)
+          y <- as.numeric(paired$mean_concentration_2)
+
+          ccc_result <- lins_ccc(x, y)
+
+          # Bland-Altman
+          ba_mean <- (x + y) / 2
+          ba_diff <- x - y
+          bias <- mean(ba_diff)
+          loa_lower <- bias - 1.96 * sd(ba_diff)
+          loa_upper <- bias + 1.96 * sd(ba_diff)
+
+          concordance_results[[paste(wl1, "vs", wl2)]] <- list(
+            wl1 = wl1, wl2 = wl2,
+            n = nrow(paired),
+            ccc = ccc_result$ccc, ci_lower = ccc_result$ci_lower, ci_upper = ccc_result$ci_upper,
+            bias = bias, loa_lower = loa_lower, loa_upper = loa_upper,
+            paired = paired, ba_mean = ba_mean, ba_diff = ba_diff
+          )
+        }
+      }
+
+      if (length(concordance_results) > 0) {
+        # Summary table
+        conc_table <- data.frame(
+          Comparison = names(concordance_results),
+          n = sapply(concordance_results, function(x) x$n),
+          CCC = sapply(concordance_results, function(x) sprintf("%.4f", x$ccc)),
+          CI_95 = sapply(concordance_results, function(x) sprintf("[%.4f, %.4f]", x$ci_lower, x$ci_upper)),
+          Bias = sapply(concordance_results, function(x) format(x$bias, digits = 4)),
+          LoA = sapply(concordance_results, function(x) sprintf("[%.4f, %.4f]", x$loa_lower, x$loa_upper)),
+          Agreement = sapply(concordance_results, function(x) {
+            if (is.na(x$ccc)) "\u2014"
+            else if (x$ccc > 0.99) tr("concordance_excellent", lang)
+            else if (x$ccc > 0.95) tr("concordance_good", lang)
+            else if (x$ccc > 0.90) tr("concordance_moderate", lang)
+            else tr("concordance_poor", lang)
+          }),
+          stringsAsFactors = FALSE, row.names = NULL
+        )
+        names(conc_table) <- c("Comparison", "n", tr("concordance_ccc", lang), "95% CI", "Bias", "Limits of Agreement", "Agreement")
+
+        out_fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+        if (!is.null(out_fmt) && out_fmt %in% c("docx", "latex")) {
+          print(kable(conc_table, caption = tr("concordance_title", lang), format = "pandoc", row.names = FALSE))
+        } else {
+          print(kable(conc_table, caption = tr("concordance_title", lang), row.names = FALSE) %>%
+            kableExtra::kable_styling(full_width = FALSE, position = "center"))
+        }
+
+        # Bland-Altman plots for each pair
+        cat(sprintf("\n\n### %s\n\n", tr("concordance_bland_altman", lang)))
+
+        for (cr_name in names(concordance_results)) {
+          cr <- concordance_results[[cr_name]]
+          ba_df <- data.frame(mean_val = cr$ba_mean, diff_val = cr$ba_diff)
+
+          ba_plot <- ggplot2::ggplot(ba_df, ggplot2::aes(x = mean_val, y = diff_val)) +
+            ggplot2::geom_point(size = 3, alpha = 0.7, color = "#0072B2") +
+            ggplot2::geom_hline(yintercept = cr$bias, linetype = "dashed", color = "black") +
+            ggplot2::geom_hline(yintercept = cr$loa_lower, linetype = "dotted", color = "red") +
+            ggplot2::geom_hline(yintercept = cr$loa_upper, linetype = "dotted", color = "red") +
+            ggplot2::annotate("text", x = max(ba_df$mean_val), y = cr$bias,
+                              label = sprintf("Bias = %.3f", cr$bias), hjust = 1, vjust = -0.5) +
+            ggplot2::annotate("text", x = max(ba_df$mean_val), y = cr$loa_upper,
+                              label = sprintf("+1.96 SD = %.3f", cr$loa_upper), hjust = 1, vjust = -0.5, color = "red") +
+            ggplot2::annotate("text", x = max(ba_df$mean_val), y = cr$loa_lower,
+                              label = sprintf("-1.96 SD = %.3f", cr$loa_lower), hjust = 1, vjust = 1.5, color = "red") +
+            ggplot2::labs(
+              title = sprintf("Bland-Altman: %s", cr_name),
+              x = sprintf("Mean of %s and %s", cr$wl1, cr$wl2),
+              y = sprintf("Difference (%s - %s)", cr$wl1, cr$wl2)
+            ) +
+            ggplot2::theme_classic()
+
+          print(ba_plot)
+          cat("\n\n")
+        }
+      } else {
+        cat(tr("concordance_no_data", lang), "\n\n")
+      }
+    } else {
+      cat(tr("concordance_no_data", lang), "\n\n")
+    }
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Concordance analysis failed: %s*\n\n", e$message))
 })
 ```
 
