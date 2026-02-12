@@ -238,7 +238,32 @@ ui <- fluidPage(
       style = "padding-bottom: 100px;",
       
       uiOutput("step1_header"),
-      
+
+      # Layout import/save/load
+      div(
+        id = "layout_management_section",
+        style = "background-color: #F0F8FF; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; border-radius: 4px;",
+        fluidRow(
+          column(4,
+            fileInput("layout_import_file", "Import Layout (CSV/Excel):",
+                      accept = c(".csv", ".xlsx", ".xls"),
+                      width = "100%")
+          ),
+          column(4,
+            div(style = "margin-top: 25px;",
+              actionButton("layout_save", label = tagList(icon("save"), "Save Layout"),
+                          class = "btn btn-success btn-sm", style = "width: 100%;")
+            )
+          ),
+          column(4,
+            div(style = "margin-top: 25px;",
+              uiOutput("layout_load_ui")
+            )
+          )
+        )
+      ),
+      br(),
+
       # Type matrix
       div(
         id = "matrix_type_section",
@@ -393,7 +418,52 @@ ui <- fluidPage(
               style = "margin-top: 20px;", "Give Feedback")
       ),
       br(), br(),
-      
+
+      # Analysis settings
+      div(
+        id = "analysis_settings_section",
+        h4(id = "analysis_settings_title", "Analysis Settings"),
+
+        # Regression weighting
+        selectInput("regression_weight", "DRC regression weighting:",
+                   choices = c("Unweighted" = "none",
+                               "1/Y (moderate)" = "inv_y",
+                               "1/Y² (recommended for immunoassays)" = "inv_y2"),
+                   selected = "none",
+                   width = "100%"),
+
+        # Quantification range
+        fluidRow(
+          column(6,
+            numericInput("quant_range_min", "Lower %B/B0 bound:",
+                        value = 20, min = 5, max = 50, step = 5)
+          ),
+          column(6,
+            numericInput("quant_range_max", "Upper %B/B0 bound:",
+                        value = 80, min = 50, max = 95, step = 5)
+          )
+        ),
+        helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
+
+        hr(),
+
+        # Confidence interval method
+        radioButtons("ci_method", "Confidence interval method:",
+                    choices = c("t-distribution (default)" = "t_dist",
+                                "Bootstrap (1000 resamples)" = "bootstrap"),
+                    selected = "t_dist", inline = TRUE),
+
+        # Outlier detection
+        checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
+        conditionalPanel(
+          condition = "input.enable_outlier_detection == true",
+          numericInput("outlier_min_n", "Minimum replicates for outlier test:",
+                      value = 3, min = 3, max = 10, step = 1),
+          helpText("Dixon's Q-test for n=3-5, Grubbs' test for n≥6. Outliers are flagged, not removed.")
+        )
+      ),
+      br(),
+
       # Report generation
       div(
         id = "convert_section",
@@ -488,6 +558,12 @@ server <- function(input, output, session) {
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
     updateTextAreaInput(session, "notes", label = tr("notes_label", lang),
                        placeholder = tr("notes_placeholder", lang))
+    updateSelectInput(session, "regression_weight", label = tr("regression_weight_label", lang))
+    updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
+    updateNumericInput(session, "quant_range_max", label = tr("quant_range_max_label", lang))
+    updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang))
+    updateCheckboxInput(session, "enable_outlier_detection", label = tr("outlier_detection_label", lang))
+    updateNumericInput(session, "outlier_min_n", label = tr("outlier_min_n_label", lang))
   })
 
   output$assay_description <- renderUI({
@@ -874,6 +950,206 @@ server <- function(input, output, session) {
     matrix_replicate(create_replicate_matrix(assay))
   })
   
+  # --------------------------------------------------------------------------
+  # Plate Layout Import / Save / Load
+  # --------------------------------------------------------------------------
+
+  # Directory for saved layouts
+  layouts_dir <- file.path(path.expand("~"), ".bioassay_layouts")
+
+  # Save current layout
+  observeEvent(input$layout_save, {
+    dir.create(layouts_dir, recursive = TRUE, showWarnings = FALSE)
+
+    layout <- list(
+      type = as.data.frame(matrix_type()),
+      id = as.data.frame(matrix_id()),
+      dilution = as.data.frame(raw_matrix_dilution()),
+      replicate = as.data.frame(matrix_replicate()),
+      assay_type = input$assay_type %||% "rba",
+      num_standards = as.integer(input$num_standards),
+      saved_at = Sys.time()
+    )
+
+    # Generate filename from assay type + timestamp
+    fname <- paste0("layout_", input$assay_type, "_",
+                    format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
+    saveRDS(layout, file.path(layouts_dir, fname))
+
+    showNotification(tr("layout_saved_msg", input$app_language %||% "en"),
+                     type = "message", duration = 3)
+  })
+
+  # Dynamic UI for load button (shows saved layouts)
+  output$layout_load_ui <- renderUI({
+    # Trigger refresh on save
+    input$layout_save
+
+    if (dir.exists(layouts_dir)) {
+      saved_files <- list.files(layouts_dir, pattern = "\\.rds$", full.names = FALSE)
+      if (length(saved_files) > 0) {
+        # Show most recent first, display readable names
+        saved_files <- rev(sort(saved_files))
+        labels <- gsub("^layout_", "", gsub("\\.rds$", "", saved_files))
+        labels <- gsub("_", " ", labels)
+        names(saved_files) <- labels
+
+        tagList(
+          selectInput("layout_load_select", NULL,
+                      choices = saved_files, width = "100%"),
+          actionButton("layout_load", label = tagList(icon("folder-open"), "Load"),
+                       class = "btn btn-info btn-sm", style = "width: 100%;")
+        )
+      } else {
+        helpText(tr("layout_no_saved", input$app_language %||% "en"))
+      }
+    } else {
+      helpText(tr("layout_no_saved", input$app_language %||% "en"))
+    }
+  })
+
+  # Load saved layout
+  observeEvent(input$layout_load, {
+    req(input$layout_load_select)
+    fpath <- file.path(layouts_dir, input$layout_load_select)
+
+    if (file.exists(fpath)) {
+      layout <- tryCatch(readRDS(fpath), error = function(e) NULL)
+      if (!is.null(layout)) {
+        if (!is.null(layout$type)) matrix_type(enforce_plate_shape(layout$type))
+        if (!is.null(layout$id)) matrix_id(enforce_plate_shape(layout$id))
+        if (!is.null(layout$dilution)) {
+          raw_matrix_dilution(enforce_plate_shape(layout$dilution))
+          # Re-parse dilution values
+          raw <- enforce_plate_shape(layout$dilution)
+          parsed <- matrix(NA_real_, nrow = 8, ncol = 12)
+          validity <- matrix(TRUE, nrow = 8, ncol = 12)
+          for (r in 1:8) {
+            for (cc in 1:12) {
+              res <- parse_dilution_cell(raw[r, cc])
+              parsed[r, cc] <- res$value
+              validity[r, cc] <- res$valid
+            }
+          }
+          matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
+          dilution_validity(validity)
+          dilution_error(any(!validity))
+        }
+        if (!is.null(layout$replicate)) matrix_replicate(enforce_plate_shape(layout$replicate))
+
+        showNotification(tr("layout_loaded_msg", input$app_language %||% "en"),
+                         type = "message", duration = 3)
+      }
+    }
+  })
+
+  # Import layout from CSV/Excel file
+  observeEvent(input$layout_import_file, {
+    req(input$layout_import_file)
+    fpath <- input$layout_import_file$datapath
+    fname <- input$layout_import_file$name
+
+    tryCatch({
+      # Read file
+      if (grepl("\\.(xlsx|xls)$", fname, ignore.case = TRUE)) {
+        if (!requireNamespace("readxl", quietly = TRUE)) {
+          showNotification("Package 'readxl' needed for Excel import. Install it with install.packages('readxl').",
+                           type = "error", duration = 8)
+          return()
+        }
+        sheets <- readxl::excel_sheets(fpath)
+
+        # Expect sheets or columns: SampleType, SampleID, Dilution, Replicate
+        import_sheet <- function(sheet_name) {
+          if (sheet_name %in% sheets) {
+            d <- as.data.frame(readxl::read_excel(fpath, sheet = sheet_name, col_names = TRUE))
+            # Remove row names column if present
+            if (ncol(d) > 12) d <- d[, 1:12]
+            rownames(d) <- LETTERS[1:min(nrow(d), 8)]
+            colnames(d) <- as.character(1:ncol(d))
+            enforce_plate_shape(d)
+          } else NULL
+        }
+
+        type_imported <- import_sheet("SampleType")
+        id_imported <- import_sheet("SampleID")
+        dil_imported <- import_sheet("Dilution")
+        rep_imported <- import_sheet("Replicate")
+
+      } else {
+        # CSV: expect a specific format
+        # Try reading as a multi-section CSV (sections separated by blank lines)
+        raw_lines <- readLines(fpath, warn = FALSE)
+
+        # Parse CSV sections (look for headers: SampleType, SampleID, Dilution, Replicate)
+        sections <- list()
+        current_section <- NULL
+        current_lines <- c()
+
+        for (line in raw_lines) {
+          trimmed <- trimws(line)
+          if (trimmed %in% c("SampleType", "SampleID", "Dilution", "Replicate")) {
+            if (!is.null(current_section) && length(current_lines) > 0) {
+              sections[[current_section]] <- current_lines
+            }
+            current_section <- trimmed
+            current_lines <- c()
+          } else if (nchar(trimmed) > 0 && !is.null(current_section)) {
+            current_lines <- c(current_lines, line)
+          }
+        }
+        if (!is.null(current_section) && length(current_lines) > 0) {
+          sections[[current_section]] <- current_lines
+        }
+
+        parse_section <- function(lines) {
+          if (length(lines) == 0) return(NULL)
+          tc <- textConnection(paste(lines, collapse = "\n"))
+          d <- tryCatch(read.csv(tc, header = FALSE, stringsAsFactors = FALSE),
+                        error = function(e) NULL)
+          close(tc)
+          if (is.null(d)) return(NULL)
+          if (ncol(d) > 12) d <- d[, 1:12]
+          if (nrow(d) > 8) d <- d[1:8, ]
+          rownames(d) <- LETTERS[1:nrow(d)]
+          colnames(d) <- as.character(1:ncol(d))
+          enforce_plate_shape(d)
+        }
+
+        type_imported <- parse_section(sections[["SampleType"]])
+        id_imported <- parse_section(sections[["SampleID"]])
+        dil_imported <- parse_section(sections[["Dilution"]])
+        rep_imported <- parse_section(sections[["Replicate"]])
+      }
+
+      # Apply imported matrices
+      if (!is.null(type_imported)) matrix_type(type_imported)
+      if (!is.null(id_imported)) matrix_id(id_imported)
+      if (!is.null(dil_imported)) {
+        raw_matrix_dilution(dil_imported)
+        parsed <- matrix(NA_real_, nrow = 8, ncol = 12)
+        validity <- matrix(TRUE, nrow = 8, ncol = 12)
+        for (r in 1:8) {
+          for (cc in 1:12) {
+            res <- parse_dilution_cell(dil_imported[r, cc])
+            parsed[r, cc] <- res$value
+            validity[r, cc] <- res$valid
+          }
+        }
+        matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
+        dilution_validity(validity)
+        dilution_error(any(!validity))
+      }
+      if (!is.null(rep_imported)) matrix_replicate(rep_imported)
+
+      showNotification(tr("layout_import_success", input$app_language %||% "en"),
+                       type = "message", duration = 3)
+
+    }, error = function(e) {
+      showNotification(paste("Import error:", e$message), type = "error", duration = 8)
+    })
+  })
+
   # --------------------------------------------------------------------------
   # Tissue Weight Table (ELISA only)
   # --------------------------------------------------------------------------
@@ -1640,7 +1916,18 @@ server <- function(input, output, session) {
       }
       
       write_json_safe(assay_config, file.path(output_dir, "assay_config.json"))
-      
+
+      # Save analysis settings
+      analysis_config <- list(
+        regression_weight = input$regression_weight %||% "none",
+        quant_range_min = input$quant_range_min %||% 20,
+        quant_range_max = input$quant_range_max %||% 80,
+        ci_method = input$ci_method %||% "t_dist",
+        enable_outlier_detection = isTRUE(input$enable_outlier_detection),
+        outlier_min_n = input$outlier_min_n %||% 3
+      )
+      write_json_safe(analysis_config, file.path(output_dir, "analysis_config.json"))
+
       # Save tissue weights (ELISA only)
       if (input$assay_type == "elisa") {
         tw <- tissue_weights_rv()
