@@ -240,6 +240,81 @@ get_translations <- function() {
       col_ic50 = "IC50",
       col_mean_cv = "Mean CV%%",
       
+      # Analysis Settings (app UI)
+      analysis_settings_title = "Analysis Settings",
+      regression_weight_label = "DRC regression weighting:",
+      quant_range_min_label = "Lower %%B/B0 bound:",
+      quant_range_max_label = "Upper %%B/B0 bound:",
+      quant_range_help = "Samples outside this range are flagged as <LLOQ or >ULOQ.",
+      ci_method_label = "Confidence interval method:",
+      outlier_detection_label = "Enable outlier detection",
+      outlier_min_n_label = "Minimum replicates for outlier test:",
+      outlier_help = "Dixon's Q-test for n=3-5, Grubbs' test for n>=6. Outliers are flagged, not removed.",
+
+      # Traffic-light QC card (report)
+      qc_card_title = "Quality Control Summary",
+      qc_metric = "Metric",
+      qc_value = "Value",
+      qc_status = "Status",
+      qc_r2 = "R-squared",
+      qc_hill = "Hill slope",
+      qc_max_cv = "Max replicate CV",
+      qc_recovery = "Mean standard recovery",
+      qc_green = "Pass",
+      qc_amber = "Warning",
+      qc_red = "Fail",
+
+      # LLOQ/ULOQ determination (report)
+      lloq_uloq_title = "Limits of Quantification",
+      lloq_label = "LLOQ (Lower Limit of Quantification)",
+      uloq_label = "ULOQ (Upper Limit of Quantification)",
+      lloq_uloq_desc = "Determined by back-calculated standard accuracy (recovery 80-120%%, CV <20%%).",
+      lloq_uloq_none = "Could not determine quantification limits from available standards.",
+      backcalc_title = "Standard Back-Calculation",
+      col_accuracy = "Accuracy",
+
+      # Outlier detection (report)
+      outlier_title = "Outlier Detection",
+      outlier_desc = "Statistical outlier testing applied to replicate groups (n >= %d).",
+      outlier_none = "No outliers detected.",
+      outlier_found = "%d outlier(s) flagged across %d replicate group(s).",
+      outlier_method_dixon = "Dixon's Q-test (n=3-5)",
+      outlier_method_grubbs = "Grubbs' test (n>=6)",
+      outlier_flagged = "Flagged",
+
+      # Bootstrap CI (report)
+      ci_bootstrap_note = "95%% confidence intervals calculated using bootstrap resampling (1000 iterations).",
+      ci_tdist_note = "95%% confidence intervals calculated using t-distribution.",
+
+      # Plate heatmap (report)
+      heatmap_title = "Plate Heatmap",
+      heatmap_desc = "Visual representation of raw measurement values across the plate.",
+
+      # Cross-wavelength concordance (multi-WL report)
+      concordance_title = "Cross-Wavelength Concordance",
+      concordance_desc = "Comparison of sample concentrations estimated at different wavelengths.",
+      concordance_ccc = "Lin's Concordance Correlation Coefficient (CCC)",
+      concordance_ccc_value = "CCC = %.4f [95%% CI: %.4f - %.4f]",
+      concordance_bland_altman = "Bland-Altman Analysis",
+      concordance_bias = "Mean bias: %.4f",
+      concordance_loa = "Limits of agreement: [%.4f, %.4f]",
+      concordance_no_data = "Insufficient paired sample data for concordance analysis.",
+      concordance_excellent = "Excellent agreement (CCC > 0.99)",
+      concordance_good = "Good agreement (CCC 0.95-0.99)",
+      concordance_moderate = "Moderate agreement (CCC 0.90-0.95)",
+      concordance_poor = "Poor agreement (CCC < 0.90)",
+
+      # Plate layout import/save (app UI)
+      layout_import_title = "Import Plate Layout",
+      layout_import_desc = "Upload a CSV or Excel file with plate layout (SampleType, SampleID, Dilution, Replicate matrices).",
+      layout_import_btn = "Import Layout",
+      layout_save_btn = "Save Current Layout",
+      layout_load_btn = "Load Saved Layout",
+      layout_saved_msg = "Layout saved successfully.",
+      layout_loaded_msg = "Layout loaded successfully.",
+      layout_import_success = "Plate layout imported from file.",
+      layout_no_saved = "No saved layouts found.",
+
       # Omitted wells
       omitted_by_user = "Omitted from analysis by user"
     ),
@@ -477,6 +552,81 @@ get_translations <- function() {
       col_ic50 = "IC50",
       col_mean_cv = "CV%% Medio",
       
+      # Analysis Settings (app UI)
+      analysis_settings_title = "Configuraci\u00F3n de An\u00E1lisis",
+      regression_weight_label = "Ponderaci\u00F3n de regresi\u00F3n DRC:",
+      quant_range_min_label = "L\u00EDmite inferior %%B/B0:",
+      quant_range_max_label = "L\u00EDmite superior %%B/B0:",
+      quant_range_help = "Las muestras fuera de este rango se marcan como <LLOQ o >ULOQ.",
+      ci_method_label = "M\u00E9todo de intervalo de confianza:",
+      outlier_detection_label = "Activar detecci\u00F3n de valores at\u00EDpicos",
+      outlier_min_n_label = "R\u00E9plicas m\u00EDnimas para prueba de valores at\u00EDpicos:",
+      outlier_help = "Prueba Q de Dixon para n=3-5, prueba de Grubbs para n>=6. Los at\u00EDpicos se marcan, no se eliminan.",
+
+      # Traffic-light QC card (report)
+      qc_card_title = "Resumen de Control de Calidad",
+      qc_metric = "M\u00E9trica",
+      qc_value = "Valor",
+      qc_status = "Estado",
+      qc_r2 = "R-cuadrado",
+      qc_hill = "Pendiente de Hill",
+      qc_max_cv = "CV m\u00E1ximo de r\u00E9plicas",
+      qc_recovery = "Recuperaci\u00F3n media de est\u00E1ndares",
+      qc_green = "Aprobado",
+      qc_amber = "Advertencia",
+      qc_red = "Fallo",
+
+      # LLOQ/ULOQ determination (report)
+      lloq_uloq_title = "L\u00EDmites de Cuantificaci\u00F3n",
+      lloq_label = "LLOQ (L\u00EDmite Inferior de Cuantificaci\u00F3n)",
+      uloq_label = "ULOQ (L\u00EDmite Superior de Cuantificaci\u00F3n)",
+      lloq_uloq_desc = "Determinados por la precisi\u00F3n de los est\u00E1ndares retro-calculados (recuperaci\u00F3n 80-120%%, CV <20%%).",
+      lloq_uloq_none = "No se pudieron determinar los l\u00EDmites de cuantificaci\u00F3n a partir de los est\u00E1ndares disponibles.",
+      backcalc_title = "Retro-C\u00E1lculo de Est\u00E1ndares",
+      col_accuracy = "Precisi\u00F3n",
+
+      # Outlier detection (report)
+      outlier_title = "Detecci\u00F3n de Valores At\u00EDpicos",
+      outlier_desc = "Prueba estad\u00EDstica de valores at\u00EDpicos aplicada a grupos de r\u00E9plicas (n >= %d).",
+      outlier_none = "No se detectaron valores at\u00EDpicos.",
+      outlier_found = "%d valor(es) at\u00EDpico(s) marcado(s) en %d grupo(s) de r\u00E9plicas.",
+      outlier_method_dixon = "Prueba Q de Dixon (n=3-5)",
+      outlier_method_grubbs = "Prueba de Grubbs (n>=6)",
+      outlier_flagged = "Marcado",
+
+      # Bootstrap CI (report)
+      ci_bootstrap_note = "Intervalos de confianza del 95%% calculados mediante remuestreo bootstrap (1000 iteraciones).",
+      ci_tdist_note = "Intervalos de confianza del 95%% calculados mediante distribuci\u00F3n t.",
+
+      # Plate heatmap (report)
+      heatmap_title = "Mapa de Calor de Placa",
+      heatmap_desc = "Representaci\u00F3n visual de los valores de medici\u00F3n crudos en la placa.",
+
+      # Cross-wavelength concordance (multi-WL report)
+      concordance_title = "Concordancia entre Longitudes de Onda",
+      concordance_desc = "Comparaci\u00F3n de concentraciones de muestras estimadas a diferentes longitudes de onda.",
+      concordance_ccc = "Coeficiente de Correlaci\u00F3n de Concordancia de Lin (CCC)",
+      concordance_ccc_value = "CCC = %.4f [IC 95%%: %.4f - %.4f]",
+      concordance_bland_altman = "An\u00E1lisis de Bland-Altman",
+      concordance_bias = "Sesgo medio: %.4f",
+      concordance_loa = "L\u00EDmites de acuerdo: [%.4f, %.4f]",
+      concordance_no_data = "Datos pareados insuficientes para an\u00E1lisis de concordancia.",
+      concordance_excellent = "Excelente concordancia (CCC > 0.99)",
+      concordance_good = "Buena concordancia (CCC 0.95-0.99)",
+      concordance_moderate = "Concordancia moderada (CCC 0.90-0.95)",
+      concordance_poor = "Concordancia pobre (CCC < 0.90)",
+
+      # Plate layout import/save (app UI)
+      layout_import_title = "Importar Dise\u00F1o de Placa",
+      layout_import_desc = "Cargue un archivo CSV o Excel con el dise\u00F1o de placa (matrices de TipoMuestra, IDMuestra, Diluci\u00F3n, R\u00E9plica).",
+      layout_import_btn = "Importar Dise\u00F1o",
+      layout_save_btn = "Guardar Dise\u00F1o Actual",
+      layout_load_btn = "Cargar Dise\u00F1o Guardado",
+      layout_saved_msg = "Dise\u00F1o guardado exitosamente.",
+      layout_loaded_msg = "Dise\u00F1o cargado exitosamente.",
+      layout_import_success = "Dise\u00F1o de placa importado del archivo.",
+      layout_no_saved = "No se encontraron dise\u00F1os guardados.",
+
       # Omitted wells
       omitted_by_user = "Omitido del an\u00E1lisis por el usuario"
     )

@@ -118,6 +118,20 @@ assay_config <- tryCatch({
     toxin_standard_label = "Saxitoxin"
   )
 })
+
+# Load analysis settings
+analysis_config <- tryCatch({
+  cfg_file <- file.path(output_dir, "analysis_config.json")
+  if (file.exists(cfg_file)) {
+    jsonlite::fromJSON(cfg_file)
+  } else {
+    list(regression_weight = "none", quant_range_min = 20, quant_range_max = 80,
+         ci_method = "t_dist", enable_outlier_detection = FALSE, outlier_min_n = 3)
+  }
+}, error = function(e) {
+  list(regression_weight = "none", quant_range_min = 20, quant_range_max = 80,
+       ci_method = "t_dist", enable_outlier_detection = FALSE, outlier_min_n = 3)
+})
 ```
 
 ```{r load-data, include=FALSE}
@@ -283,22 +297,36 @@ standards_for_model <- data_long %>%
     !is.na(.data[[response_var]])  # Exclude NA response values
   )
 
+# Determine regression weights
+drm_weights <- NULL
+weight_desc <- "Unweighted"
+if (!is.null(analysis_config$regression_weight) && analysis_config$regression_weight != "none") {
+  resp_vals <- standards_for_model[[response_var]]
+  if (analysis_config$regression_weight == "inv_y") {
+    drm_weights <- ifelse(resp_vals > 0, 1 / resp_vals, 1)
+    weight_desc <- "1/Y weighted"
+  } else if (analysis_config$regression_weight == "inv_y2") {
+    drm_weights <- ifelse(resp_vals > 0, 1 / (resp_vals^2), 1)
+    weight_desc <- "1/Y\u00B2 weighted"
+  }
+}
+
 # Fit 4-parameter logistic model
-# For ELISA: constrain bottom >= 0 and top <= 100 (since %B/B0 is 0-100%)
 if (isTRUE(is_elisa)) {
   model_fit <- drc::drm(
     as.formula(paste(response_var, "~ concentration")),
     data = standards_for_model,
     fct = drc::LL.4(),
+    weights = drm_weights,
     lowerl = c(NA, 0, NA, NA),    # c(b=Hill, c=Bottom, d=Top, e=IC50): Bottom >= 0
     upperl = c(NA, NA, 100, NA)   # Top <= 100
   )
 } else {
-  # RBA: no constraints on response range
   model_fit <- drc::drm(
     as.formula(paste(response_var, "~ concentration")),
     data = standards_for_model,
-    fct = drc::LL.4()
+    fct = drc::LL.4(),
+    weights = drm_weights
   )
 }
 
@@ -327,8 +355,8 @@ model_fits$p <- predict(model_fit, newdata = model_fits)
 # For ELISA: classify by %B/B0 response value (20-80% is within range)
 # For RBA: classify by concentration (EC20-EC80 range)
 if (isTRUE(is_elisa)) {
-  bb0_lower <- 20  # Lower bound of reliable %B/B0 range (inclusive)
-  bb0_upper <- 80  # Upper bound of reliable %B/B0 range (inclusive)
+  bb0_lower <- analysis_config$quant_range_min %||% 20  # Lower bound of reliable %B/B0 range
+  bb0_upper <- analysis_config$quant_range_max %||% 80  # Upper bound of reliable %B/B0 range
   # Still compute EC20/EC80 concentrations for reference/reporting
   ec20 <- tryCatch({
     ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
@@ -407,6 +435,173 @@ if (nrow(high_var_standards) > 0) {
 } else {
   cat(tr("all_std_acceptable", lang), "\n\n")
 }
+```
+
+```{r qc-traffic-light, results='asis'}
+# Traffic-light QC summary card
+tryCatch({
+  # Gather metrics
+  coefs <- coef(model_fit)
+  hill_slope <- abs(coefs[1])  # b parameter (Hill slope)
+
+  # Standard back-calculation for recovery
+  std_backcalc <- tryCatch({
+    pred_conc <- predict(model_fit, newdata = data.frame(concentration = standards_for_model$concentration), type = "response")
+    data.frame(
+      nominal = standards_for_model$concentration,
+      predicted_response = pred_conc,
+      observed_response = standards_for_model[[response_var]]
+    )
+  }, error = function(e) NULL)
+
+  mean_recovery <- NA_real_
+  if (!is.null(std_backcalc)) {
+    # Back-calculate concentrations from observed responses
+    backcalc_conc <- tryCatch({
+      sapply(std_backcalc$observed_response, function(resp) {
+        tryCatch({
+          ed <- ED(model_fit, respLev = resp, type = "absolute", display = FALSE)
+          as.numeric(ed[1, 1])
+        }, error = function(e) NA_real_)
+      })
+    }, error = function(e) rep(NA_real_, nrow(std_backcalc)))
+
+    recovery_pct <- (backcalc_conc / std_backcalc$nominal) * 100
+    recovery_pct <- recovery_pct[is.finite(recovery_pct) & recovery_pct > 0 & recovery_pct < 500]
+    if (length(recovery_pct) > 0) mean_recovery <- mean(recovery_pct, na.rm = TRUE)
+  }
+
+  max_cv <- if (exists("replicate_stats") && nrow(replicate_stats) > 0 && "cv_percent" %in% names(replicate_stats)) {
+    max(replicate_stats$cv_percent, na.rm = TRUE)
+  } else NA_real_
+
+  # Define thresholds and classify
+  qc_items <- list(
+    list(metric = tr("qc_r2", lang), value = round(R2, 4),
+         status = if (R2 >= 0.99) "green" else if (R2 >= 0.95) "amber" else "red"),
+    list(metric = tr("qc_hill", lang), value = round(hill_slope, 3),
+         status = if (hill_slope >= 0.8 && hill_slope <= 1.5) "green"
+                  else if (hill_slope >= 0.5 && hill_slope <= 2.0) "amber" else "red")
+  )
+  if (!is.na(max_cv) && is.finite(max_cv)) {
+    qc_items[[length(qc_items) + 1]] <- list(
+      metric = tr("qc_max_cv", lang), value = paste0(round(max_cv, 1), "%"),
+      status = if (max_cv <= 15) "green" else if (max_cv <= 30) "amber" else "red")
+  }
+  if (!is.na(mean_recovery) && is.finite(mean_recovery)) {
+    qc_items[[length(qc_items) + 1]] <- list(
+      metric = tr("qc_recovery", lang), value = paste0(round(mean_recovery, 1), "%"),
+      status = if (mean_recovery >= 90 && mean_recovery <= 110) "green"
+               else if (mean_recovery >= 80 && mean_recovery <= 120) "amber" else "red")
+  }
+
+  # Build traffic light table
+  status_icon <- function(s) switch(s, green = "\U0001F7E2", amber = "\U0001F7E1", red = "\U0001F534", "\u2753")
+  status_label <- function(s) switch(s, green = tr("qc_green", lang), amber = tr("qc_amber", lang), red = tr("qc_red", lang), "?")
+
+  qc_df <- data.frame(
+    Metric = sapply(qc_items, function(x) x$metric),
+    Value = sapply(qc_items, function(x) as.character(x$value)),
+    Status = sapply(qc_items, function(x) paste(status_icon(x$status), status_label(x$status))),
+    stringsAsFactors = FALSE
+  )
+  names(qc_df) <- c(tr("qc_metric", lang), tr("qc_value", lang), tr("qc_status", lang))
+
+  cat(sprintf("\n\n### %s\n\n", tr("qc_card_title", lang)))
+  cat(sprintf("*%s: %s*\n\n", "Regression", weight_desc))
+  render_table(qc_df, caption = tr("qc_card_title", lang))
+
+}, error = function(e) {
+  cat("\n\n*QC summary could not be generated.*\n\n")
+})
+```
+
+```{r lloq-uloq, results='asis'}
+# Formal LLOQ/ULOQ determination by back-calculated standard accuracy
+tryCatch({
+  cat(sprintf("\n\n### %s\n\n", tr("lloq_uloq_title", lang)))
+  cat(tr("lloq_uloq_desc", lang), "\n\n")
+
+  # Back-calculate each standard point
+  backcalc_results <- data.frame(
+    nominal_conc = standards_for_model$concentration,
+    observed_response = standards_for_model[[response_var]],
+    stringsAsFactors = FALSE
+  )
+
+  backcalc_results$backcalc_conc <- sapply(seq_len(nrow(backcalc_results)), function(i) {
+    tryCatch({
+      resp <- backcalc_results$observed_response[i]
+      ed <- ED(model_fit, respLev = resp, type = "absolute", display = FALSE)
+      as.numeric(ed[1, 1])
+    }, error = function(e) NA_real_)
+  })
+
+  backcalc_results$recovery <- (backcalc_results$backcalc_conc / backcalc_results$nominal_conc) * 100
+
+  # Aggregate by nominal concentration
+  backcalc_summary <- backcalc_results %>%
+    group_by(nominal_conc) %>%
+    summarise(
+      n = n(),
+      mean_backcalc = mean(backcalc_conc, na.rm = TRUE),
+      mean_recovery = mean(recovery, na.rm = TRUE),
+      cv_backcalc = ifelse(n() >= 2, (sd(backcalc_conc, na.rm = TRUE) / mean(backcalc_conc, na.rm = TRUE)) * 100, NA_real_),
+      .groups = "drop"
+    ) %>%
+    filter(is.finite(mean_recovery) & mean_recovery > 0) %>%
+    mutate(
+      passes = (mean_recovery >= 80 & mean_recovery <= 120) & (is.na(cv_backcalc) | cv_backcalc < 20),
+      accuracy = ifelse(passes, tr("qc_green", lang), tr("qc_red", lang))
+    )
+
+  if (nrow(backcalc_summary) > 0) {
+    # Display back-calculation table
+    display_bc <- backcalc_summary %>%
+      dplyr::select(nominal_conc, mean_backcalc, mean_recovery, cv_backcalc, accuracy)
+
+    if (isTRUE(is_elisa)) {
+      display_bc$nominal_conc <- format(display_bc$nominal_conc, digits = 4, big.mark = ",")
+      display_bc$mean_backcalc <- format(display_bc$mean_backcalc, digits = 4, big.mark = ",")
+    } else {
+      display_bc$nominal_conc <- format(display_bc$nominal_conc, scientific = TRUE, digits = 3)
+      display_bc$mean_backcalc <- format(display_bc$mean_backcalc, scientific = TRUE, digits = 3)
+    }
+    display_bc$mean_recovery <- paste0(round(as.numeric(backcalc_summary$mean_recovery), 1), "%")
+    display_bc$cv_backcalc <- ifelse(is.na(backcalc_summary$cv_backcalc), "\u2014",
+                                      paste0(round(backcalc_summary$cv_backcalc, 1), "%"))
+
+    units_str <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
+    names(display_bc) <- c(
+      sprintf(tr("col_nominal", lang), units_str),
+      sprintf(tr("col_backcalc", lang), units_str),
+      tr("col_recovery", lang),
+      "CV%",
+      tr("col_accuracy", lang)
+    )
+    render_table(display_bc, caption = tr("backcalc_title", lang))
+
+    # Determine LLOQ and ULOQ from passing standards
+    passing_concs <- backcalc_summary %>% filter(passes) %>% pull(nominal_conc)
+    if (length(passing_concs) >= 2) {
+      formal_lloq <- min(passing_concs)
+      formal_uloq <- max(passing_concs)
+      cat(sprintf("\n\n**%s:** %s %s\n\n", tr("lloq_label", lang),
+                  if (isTRUE(is_elisa)) format(formal_lloq, digits = 4, big.mark = ",") else format(formal_lloq, scientific = TRUE, digits = 3),
+                  units_str))
+      cat(sprintf("**%s:** %s %s\n\n", tr("uloq_label", lang),
+                  if (isTRUE(is_elisa)) format(formal_uloq, digits = 4, big.mark = ",") else format(formal_uloq, scientific = TRUE, digits = 3),
+                  units_str))
+    } else {
+      cat(tr("lloq_uloq_none", lang), "\n\n")
+    }
+  } else {
+    cat(tr("lloq_uloq_none", lang), "\n\n")
+  }
+
+}, error = function(e) {
+  cat(sprintf("\n\n*LLOQ/ULOQ determination failed: %s*\n\n", e$message))
+})
 ```
 
 ```{r dose-response-plots, fig.width=12, fig.height=8}
@@ -535,7 +730,8 @@ model_stats <- list(
   ic50 = coef(model_fit)[4],
   hill_slope = coef(model_fit)[1],
   n_standards = nrow(standards_for_model),
-  n_unique_concs = length(unique(standards_data$StandardConc))
+  n_unique_concs = length(unique(standards_data$StandardConc)),
+  weight_method = weight_desc
 )
 
 # Also compute mean sample CV for the executive summary
@@ -696,47 +892,122 @@ if (nrow(samples_to_analyze) > 0) {
   # Combine all predictions
   sample_results <- do.call(rbind, sample_predictions_list)
   
-  # Calculate replicate group statistics
-  replicate_stats <- sample_results %>%
-    filter(!is.na(estimated_concentration)) %>%
+  # Outlier detection (applied before stats if enabled)
+  outlier_flags <- data.frame(Well = character(), Replicate = character(),
+                               is_outlier = logical(), method = character(),
+                               stringsAsFactors = FALSE)
+
+  if (isTRUE(analysis_config$enable_outlier_detection)) {
+    outlier_min <- analysis_config$outlier_min_n %||% 3
+
+    outlier_groups <- sample_results %>%
+      filter(!is.na(estimated_concentration)) %>%
+      group_by(Replicate) %>%
+      filter(n() >= outlier_min) %>%
+      ungroup()
+
+    if (nrow(outlier_groups) > 0) {
+      for (rep_grp in unique(outlier_groups$Replicate)) {
+        grp_data <- outlier_groups %>% filter(Replicate == rep_grp)
+        n_grp <- nrow(grp_data)
+        vals <- grp_data$estimated_concentration
+
+        if (n_grp >= 3 && n_grp <= 5) {
+          # Dixon's Q-test
+          sorted_vals <- sort(vals)
+          range_val <- max(sorted_vals) - min(sorted_vals)
+          if (range_val > 0) {
+            q_low <- (sorted_vals[2] - sorted_vals[1]) / range_val
+            q_high <- (sorted_vals[n_grp] - sorted_vals[n_grp - 1]) / range_val
+            # Critical values for Dixon's Q (alpha=0.05)
+            q_crit <- c(`3` = 0.970, `4` = 0.829, `5` = 0.710)
+            crit <- q_crit[as.character(n_grp)]
+            if (q_low > crit) {
+              outlier_flags <- rbind(outlier_flags, data.frame(
+                Well = grp_data$Well[which.min(vals)], Replicate = rep_grp,
+                is_outlier = TRUE, method = "Dixon Q", stringsAsFactors = FALSE))
+            }
+            if (q_high > crit) {
+              outlier_flags <- rbind(outlier_flags, data.frame(
+                Well = grp_data$Well[which.max(vals)], Replicate = rep_grp,
+                is_outlier = TRUE, method = "Dixon Q", stringsAsFactors = FALSE))
+            }
+          }
+        } else if (n_grp >= 6) {
+          # Grubbs' test (simplified)
+          mean_val <- mean(vals)
+          sd_val <- sd(vals)
+          if (sd_val > 0) {
+            g_stats <- abs(vals - mean_val) / sd_val
+            # Approximate Grubbs critical value using t-distribution
+            t_crit <- qt(1 - 0.05 / (2 * n_grp), n_grp - 2)
+            g_crit <- ((n_grp - 1) / sqrt(n_grp)) * sqrt(t_crit^2 / (n_grp - 2 + t_crit^2))
+            outlier_idx <- which(g_stats > g_crit)
+            if (length(outlier_idx) > 0) {
+              for (oi in outlier_idx) {
+                outlier_flags <- rbind(outlier_flags, data.frame(
+                  Well = grp_data$Well[oi], Replicate = rep_grp,
+                  is_outlier = TRUE, method = "Grubbs", stringsAsFactors = FALSE))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  # Mark outliers in sample_results
+  if (nrow(outlier_flags) > 0) {
+    sample_results$is_outlier <- sample_results$Well %in% outlier_flags$Well
+  } else {
+    sample_results$is_outlier <- FALSE
+  }
+
+  # Calculate replicate group statistics (excluding flagged outliers from mean/CI)
+  stats_data <- sample_results %>%
+    filter(!is.na(estimated_concentration) & !is_outlier)
+
+  replicate_stats <- stats_data %>%
     group_by(Replicate) %>%
     summarise(
       sampleID = paste(unique(SampleID), collapse = ","),
       sample_type = first(SampleType),
       n_replicates = n(),
-      # Mean of point estimates
       mean_conc = mean(estimated_concentration, na.rm = TRUE),
       sd_conc = sd(estimated_concentration, na.rm = TRUE),
       se_conc = sd_conc / sqrt(n_replicates),
-      # t-distribution based 95% CI on the mean concentration
-      ci_lower = if (n_replicates >= 2 && !is.na(sd_conc)) {
+      # Confidence intervals - method depends on config
+      ci_lower = if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
+        boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
+        quantile(boot_vals, 0.025)
+      } else if (n_replicates >= 2 && !is.na(sd_conc)) {
         mean_conc - qt(0.975, df = n_replicates - 1) * se_conc
       } else {
-        mean_conc  # single replicate: CI not meaningful
+        mean_conc
       },
-      ci_upper = if (n_replicates >= 2 && !is.na(sd_conc)) {
+      ci_upper = if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
+        boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
+        quantile(boot_vals, 0.975)
+      } else if (n_replicates >= 2 && !is.na(sd_conc)) {
         mean_conc + qt(0.975, df = n_replicates - 1) * se_conc
       } else {
         mean_conc
       },
-      # CV for quality assessment
       cv_percent = (sd_conc / mean_conc) * 100,
       .groups = "drop"
     ) %>%
     mutate(
-      # Ensure CI lower bound is not negative for concentrations
       ci_lower = pmax(ci_lower, 0),
-      # Format for display
       mean_conc_formatted = if (isTRUE(is_elisa)) {
         format(mean_conc, digits = 4, nsmall = 1, big.mark = ",")
       } else {
         format(mean_conc, scientific = TRUE, digits = 3)
       },
       ci_formatted = if (isTRUE(is_elisa)) {
-        paste0("[", format(ci_lower, digits = 3, nsmall = 1), " - ", 
+        paste0("[", format(ci_lower, digits = 3, nsmall = 1), " - ",
                format(ci_upper, digits = 3, nsmall = 1), "]")
       } else {
-        paste0("[", format(ci_lower, scientific = TRUE, digits = 2), " - ", 
+        paste0("[", format(ci_lower, scientific = TRUE, digits = 2), " - ",
                format(ci_upper, scientific = TRUE, digits = 2), "]")
       },
       cv_formatted = paste0(format(cv_percent, digits = 3, nsmall = 1), "%")
@@ -979,6 +1250,34 @@ tryCatch({
 })
 ```
 
+```{r outlier-results, results='asis'}
+if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") && nrow(outlier_flags) > 0) {
+  cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
+  cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
+
+  n_outliers <- nrow(outlier_flags)
+  n_groups <- length(unique(outlier_flags$Replicate))
+  cat(tr("outlier_found", lang, n_outliers, n_groups), "\n\n")
+
+  outlier_display <- outlier_flags %>%
+    dplyr::select(Well, Replicate, method)
+  names(outlier_display) <- c("Well", "Replicate Group", "Method")
+
+  render_table(outlier_display, caption = tr("outlier_title", lang))
+} else if (isTRUE(analysis_config$enable_outlier_detection)) {
+  cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
+  cat(tr("outlier_none", lang), "\n\n")
+}
+```
+
+```{r ci-method-note, results='asis'}
+if (isTRUE(analysis_config$ci_method == "bootstrap")) {
+  cat(sprintf("\n*%s*\n\n", tr("ci_bootstrap_note", lang)))
+} else {
+  cat(sprintf("\n*%s*\n\n", tr("ci_tdist_note", lang)))
+}
+```
+
 ## `r tr("detailed_summary", lang)`
 
 ```{r summary-results-table}
@@ -1126,6 +1425,44 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     }
   }
 }
+```
+
+## `r tr("heatmap_title", lang)`
+
+```{r plate-heatmap, fig.width=10, fig.height=6, warning=FALSE, message=FALSE}
+tryCatch({
+  cat(tr("heatmap_desc", lang), "\n\n")
+
+  # Reconstruct plate layout from long data
+  heatmap_data <- data_long %>%
+    dplyr::filter(!is.na(MeasurementValue)) %>%
+    dplyr::mutate(
+      Row = factor(Row, levels = LETTERS[1:8]),
+      Column = as.numeric(gsub("[^0-9]", "", as.character(Column)))
+    ) %>%
+    dplyr::filter(!is.na(Row) & !is.na(Column))
+
+  if (nrow(heatmap_data) > 0) {
+    heatmap_plot <- ggplot(heatmap_data, aes(x = factor(Column), y = Row, fill = MeasurementValue)) +
+      geom_tile(color = "white", size = 0.5) +
+      geom_text(aes(label = round(MeasurementValue, 0)), size = 2.5, color = "black") +
+      scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
+                           midpoint = median(heatmap_data$MeasurementValue, na.rm = TRUE),
+                           name = "Value") +
+      scale_y_discrete(limits = rev(levels(factor(heatmap_data$Row, levels = LETTERS[1:8])))) +
+      labs(x = "Column", y = "Row", title = tr("heatmap_title", lang)) +
+      theme_minimal() +
+      theme(
+        panel.grid = element_blank(),
+        axis.text = element_text(size = 10, face = "bold"),
+        plot.title = element_text(hjust = 0.5)
+      )
+
+    print(heatmap_plot)
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Heatmap could not be generated: %s*\n\n", e$message))
+})
 ```
 
 ## `r tr("drc_with_samples", lang)`
