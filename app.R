@@ -497,6 +497,10 @@ server <- function(input, output, session) {
   
   matrix_type <- reactiveVal()
   matrix_id <- reactiveVal()
+
+  # Track previous assay config to avoid unnecessary matrix resets
+  prev_assay_type <- reactiveVal(NULL)
+  prev_num_standards <- reactiveVal(NULL)
   matrix_dilution <- reactiveVal(create_dilution_matrix())
   matrix_measresults <- reactiveVal(create_plate_matrix())
   matrix_replicate <- reactiveVal(create_replicate_matrix("rba"))  # Initialize with RBA default
@@ -588,13 +592,23 @@ server <- function(input, output, session) {
   observeEvent(list(input$num_standards, input$assay_type), {
     n <- as.integer(input$num_standards)
     req(!is.na(n))
-    
+
     assay <- input$assay_type %||% "rba"
-    
+
+    # Only reset matrices when assay type or num_standards actually changed
+    # This prevents flickering from reactive invalidation cascades
+    if (identical(assay, isolate(prev_assay_type())) &&
+        identical(n, isolate(prev_num_standards()))) {
+      return()
+    }
+
+    prev_assay_type(assay)
+    prev_num_standards(n)
+
     type_mat <- create_type_matrix(assay, n)
     id_mat <- create_id_matrix(assay, n)
     replicate_mat <- create_replicate_matrix(assay)  # Pass assay type
-    
+
     matrix_type(type_mat)
     matrix_id(id_mat)
     matrix_replicate(replicate_mat)  # Update replicate matrix too
