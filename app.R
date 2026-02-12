@@ -1703,15 +1703,6 @@ server <- function(input, output, session) {
         for (fmt in selected_formats) {
           showNotification(sprintf("Rendering %s report...", toupper(fmt)), type = "message", duration = 3)
 
-          # Clean up per-wavelength child output from previous renders
-          # so each format render starts fresh (avoids stale JSON issues)
-          if (is_mw && !is.null(rv$wavelengths)) {
-            for (wl_clean in rv$wavelengths) {
-              wl_sub <- file.path(out_dir_abs, wl_clean)
-              if (dir.exists(wl_sub)) unlink(wl_sub, recursive = TRUE)
-            }
-          }
-
           render_ok <- tryCatch({
             render_params <- list(
               output_dir = out_dir_abs,
