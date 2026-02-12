@@ -1445,7 +1445,7 @@ tryCatch({
   if (nrow(heatmap_data) > 0) {
     heatmap_plot <- ggplot(heatmap_data, aes(x = factor(Column), y = Row, fill = MeasurementValue)) +
       geom_tile(color = "white", size = 0.5) +
-      geom_text(aes(label = round(MeasurementValue, 0)), size = 2.5, color = "black") +
+      geom_text(aes(label = sprintf("%.3f", MeasurementValue)), size = 2, color = "black") +
       scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
                            midpoint = median(heatmap_data$MeasurementValue, na.rm = TRUE),
                            name = "Value") +
