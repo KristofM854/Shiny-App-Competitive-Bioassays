@@ -399,6 +399,7 @@ tryCatch({
 
         # Bland-Altman plots for each pair
         cat(sprintf("\n\n### %s\n\n", tr("concordance_bland_altman", lang)))
+        cat(tr("bland_altman_explanation", lang), "\n\n")
 
         for (cr_name in names(concordance_results)) {
           cr <- concordance_results[[cr_name]]
