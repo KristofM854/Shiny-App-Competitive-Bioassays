@@ -1031,7 +1031,7 @@ if (nrow(samples_to_analyze) > 0) {
     )
   
   replicate_stats <- replicate_stats %>%
-    left_join(replicate_range %>% dplyr::select(Replicate, within_range, range_flag), by = "Replicate")
+    left_join(replicate_range %>% dplyr::select(Replicate, mean_response, within_range, range_flag), by = "Replicate")
   
   # Add tissue-weight-based concentration if applicable (ELISA only)
   if (isTRUE(is_elisa)) {
@@ -1100,7 +1100,7 @@ if (nrow(samples_to_analyze) > 0) {
     dplyr::select(
       Replicate, sampleID, sample_type, n_replicates,
       mean_conc, sd_conc, se_conc, ci_lower, ci_upper, cv_percent,
-      any_of(c("within_range", "range_flag", "TissueWeight_mg", "concentration_pg_per_g"))
+      any_of(c("mean_response", "within_range", "range_flag", "TissueWeight_mg", "concentration_pg_per_g"))
     ) %>%
     dplyr::rename(
       replicate_group = Replicate,
@@ -1313,12 +1313,18 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
         ifelse(is.na(range_flag) | range_flag == "", "\u2705", range_flag)
       } else {
         "\u2705"
+      },
+      mean_bb0 = if ("mean_response" %in% names(.)) {
+        ifelse(is.na(mean_response), "\u2014", paste0(round(as.numeric(mean_response), 2), "%"))
+      } else {
+        NULL
       }
     ) %>%
     dplyr::select(-ci_lower_95, -ci_upper_95,
-                  -any_of(c("within_range", "range_flag"))) %>%
+                  -any_of(c("within_range", "range_flag", "mean_response"))) %>%
     dplyr::relocate(ci_95, .before = cv_percent) %>%
-    dplyr::relocate(range_flag_display, .after = cv_percent)
+    dplyr::relocate(range_flag_display, .after = cv_percent) %>%
+    { if ("mean_bb0" %in% names(.)) dplyr::relocate(., mean_bb0, .before = range_flag_display) else . }
   
   # Set column names
   conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
@@ -1330,7 +1336,10 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
                   paste0("SE (", conc_unit, ")"),
                   "95% CI", "CV%")
   
-  # Add range flag column
+  # Add %B/B0 and range flag columns
+  if ("mean_bb0" %in% names(summary_display)) {
+    base_names <- c(base_names, "%B/B0")
+  }
   base_names <- c(base_names, "Range")
   
   # Add tissue concentration columns if present
@@ -1490,13 +1499,13 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                     color = high_variability), 
                 size = 3, alpha = 0.7) +
       geom_point(data = unknown_plot_data,
-                aes(x = concentration_diluted, y = response_value, 
+                aes(x = concentration_diluted, y = response_value,
                     shape = falls_within_range,
                     text = paste0(
                       "Sample: ", SampleID, "<br>",
                       "Replicate: ", Replicate, "<br>",
                       "Dilution: 1:", DilutionFactor, "<br>",
-                      "Actual Concentration: ", 
+                      "Actual Concentration: ",
                       if (isTRUE(is_elisa)) {
                         format(estimated_concentration, digits = 4, big.mark = ",")
                       } else {
@@ -1509,6 +1518,11 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                         scales::scientific(concentration_diluted, digits = 2)
                       }, "<br>",
                       labels$y_label, ": ", round(response_value, 2), "<br>",
+                      if ("concentration_pg_per_g" %in% names(unknown_plot_data) &&
+                          !is.na(concentration_pg_per_g)) {
+                        paste0("Conc. (pg/g tissue): ",
+                               format(concentration_pg_per_g, digits = 4, nsmall = 1, big.mark = ","), "<br>")
+                      } else { "" },
                       "Range Status: ", falls_within_range
                     )),
                 size = 3, color = "#E69F00") +
