@@ -58,18 +58,25 @@ if (standalone_mode) {
   base_name <- format(Sys.Date(), "%Y-%m-%d")
   base_output_dir <- file.path(app_root, base_name)
 
-  # Find next available suffix
-  existing <- list.dirs(app_root, full.names = FALSE, recursive = FALSE)
-  pattern <- paste0("^", base_name, "(_\\d+)?$")
-  matches <- existing[grepl(pattern, existing)]
-  if (length(matches) == 0 && !dir.exists(base_output_dir)) {
+  # Always create a unique directory - never reuse an existing one.
+  # Check if the base dir or any suffixed variant already exists.
+  if (!dir.exists(base_output_dir)) {
     output_dir <- base_output_dir
   } else {
-    # Extract existing suffix numbers
-    suffix_nums <- as.integer(sub(paste0("^", base_name, "_?(\\d*)$"), "\\1", matches))
-    suffix_nums[is.na(suffix_nums)] <- 0
-    next_suffix <- max(suffix_nums, 0) + 1
-    output_dir <- paste0(base_output_dir, "_", next_suffix)
+    # Find next available suffix by scanning existing directories
+    suffix <- 1
+    repeat {
+      candidate <- paste0(base_output_dir, "_", sprintf("%02d", suffix))
+      if (!dir.exists(candidate)) {
+        output_dir <- candidate
+        break
+      }
+      suffix <- suffix + 1
+      if (suffix > 999) {
+        output_dir <- paste0(base_output_dir, "_", format(Sys.time(), "%H%M%S"))
+        break
+      }
+    }
   }
 
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
@@ -1195,9 +1202,12 @@ server <- function(input, output, session) {
     req(input$assay_type == "elisa")
     groups <- replicate_groups()
     if (length(groups) == 0) return(NULL)
-    
+
     # Build data frame with current stored values
-    tw <- tissue_weights_rv()
+    # Use isolate() to avoid re-rendering when user edits a cell
+    # (the observer updates tissue_weights_rv, which would trigger re-render
+    #  and cause a feedback loop that truncates values)
+    tw <- isolate(tissue_weights_rv())
     df <- data.frame(
       Replicate = groups,
       Weight_mg = sapply(groups, function(g) {
@@ -1206,7 +1216,7 @@ server <- function(input, output, session) {
       }),
       stringsAsFactors = FALSE
     )
-    
+
     rhandsontable(df, rowHeaders = FALSE, width = 350) %>%
       hot_col("Replicate", readOnly = TRUE) %>%
       hot_col("Weight_mg", type = "numeric", format = "0.0")
