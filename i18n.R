@@ -286,6 +286,11 @@ get_translations <- function() {
       ci_bootstrap_note = "95%% confidence intervals calculated using bootstrap resampling (1000 iterations).",
       ci_tdist_note = "95%% confidence intervals calculated using t-distribution.",
 
+      # Weight comparison (report)
+      weight_comparison_title = "DRC Weighting Comparison",
+      weight_comparison_desc = "Comparison of dose-response curve fits using different regression weightings. The overlay plot and parameter table help identify which weighting best fits the data.",
+      weight_comparison_primary = "Sample concentrations in this report were calculated using the **%s** model (first selected).",
+
       # Plate heatmap (report)
       heatmap_title = "Plate Heatmap",
       heatmap_desc = "Visual representation of raw measurement values across the plate.",
@@ -598,6 +603,11 @@ get_translations <- function() {
       # Bootstrap CI (report)
       ci_bootstrap_note = "Intervalos de confianza del 95%% calculados mediante remuestreo bootstrap (1000 iteraciones).",
       ci_tdist_note = "Intervalos de confianza del 95%% calculados mediante distribuci\u00F3n t.",
+
+      # Weight comparison (report)
+      weight_comparison_title = "Comparaci\u00F3n de Ponderaci\u00F3n DRC",
+      weight_comparison_desc = "Comparaci\u00F3n de ajustes de curva dosis-respuesta usando diferentes ponderaciones de regresi\u00F3n. El gr\u00E1fico superpuesto y la tabla de par\u00E1metros ayudan a identificar qu\u00E9 ponderaci\u00F3n se ajusta mejor a los datos.",
+      weight_comparison_primary = "Las concentraciones de muestras en este reporte se calcularon usando el modelo **%s** (primer seleccionado).",
 
       # Plate heatmap (report)
       heatmap_title = "Mapa de Calor de Placa",
