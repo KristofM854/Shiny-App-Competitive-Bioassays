@@ -297,53 +297,78 @@ standards_for_model <- data_long %>%
     !is.na(.data[[response_var]])  # Exclude NA response values
   )
 
-# Determine regression weights
-drm_weights <- NULL
-weight_desc <- "Unweighted"
-if (!is.null(analysis_config$regression_weight) && analysis_config$regression_weight != "none") {
-  resp_vals <- standards_for_model[[response_var]]
-  if (analysis_config$regression_weight == "inv_y") {
-    drm_weights <- ifelse(resp_vals > 0, 1 / resp_vals, 1)
-    weight_desc <- "1/Y weighted"
-  } else if (analysis_config$regression_weight == "inv_y2") {
-    drm_weights <- ifelse(resp_vals > 0, 1 / (resp_vals^2), 1)
-    weight_desc <- "1/Y\u00B2 weighted"
+# Build list of weightings to fit
+weight_options <- list(
+  none = list(weights = NULL, label = "Unweighted"),
+  inv_y = list(label = "1/Y weighted"),
+  inv_y2 = list(label = "1/Y\u00B2 weighted")
+)
+
+# Compute weight vectors for the standard data
+resp_vals <- standards_for_model[[response_var]]
+weight_options$inv_y$weights <- ifelse(resp_vals > 0, 1 / resp_vals, 1)
+weight_options$inv_y2$weights <- ifelse(resp_vals > 0, 1 / (resp_vals^2), 1)
+
+# Which weightings did the user select?
+selected_weights <- analysis_config$regression_weight
+if (is.null(selected_weights) || length(selected_weights) == 0) selected_weights <- "none"
+# Backward compat: if a single string, wrap in vector
+if (is.character(selected_weights)) selected_weights <- as.character(selected_weights)
+
+multi_weight_mode <- length(selected_weights) > 1
+
+# Fit ALL selected models and store results
+all_models <- list()
+for (wt_key in selected_weights) {
+  wt_info <- weight_options[[wt_key]]
+  if (is.null(wt_info)) next
+
+  fit <- tryCatch({
+    if (isTRUE(is_elisa)) {
+      drc::drm(
+        as.formula(paste(response_var, "~ concentration")),
+        data = standards_for_model,
+        fct = drc::LL.4(),
+        weights = wt_info$weights,
+        lowerl = c(NA, 0, NA, NA),
+        upperl = c(NA, NA, 100, NA)
+      )
+    } else {
+      drc::drm(
+        as.formula(paste(response_var, "~ concentration")),
+        data = standards_for_model,
+        fct = drc::LL.4(),
+        weights = wt_info$weights
+      )
+    }
+  }, error = function(e) NULL)
+
+  if (!is.null(fit)) {
+    resid <- residuals(fit)
+    r2 <- 1 - sum(resid^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
+    rmse <- sqrt(mean(resid^2))
+    coefs <- coef(fit)
+
+    all_models[[wt_key]] <- list(
+      model = fit, label = wt_info$label,
+      R2 = r2, RMSE = rmse, coefs = coefs
+    )
   }
 }
 
-# Fit 4-parameter logistic model
-if (isTRUE(is_elisa)) {
-  model_fit <- drc::drm(
-    as.formula(paste(response_var, "~ concentration")),
-    data = standards_for_model,
-    fct = drc::LL.4(),
-    weights = drm_weights,
-    lowerl = c(NA, 0, NA, NA),    # c(b=Hill, c=Bottom, d=Top, e=IC50): Bottom >= 0
-    upperl = c(NA, NA, 100, NA)   # Top <= 100
-  )
-} else {
-  model_fit <- drc::drm(
-    as.formula(paste(response_var, "~ concentration")),
-    data = standards_for_model,
-    fct = drc::LL.4(),
-    weights = drm_weights
-  )
-}
-
-# Model statistics
-fitted_vals <- fitted(model_fit)
-residuals_vals <- residuals(model_fit)
-R2 <- 1 - sum(residuals_vals^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
-RMSE <- sqrt(mean(residuals_vals^2))
+# Primary model = first successfully fitted weighting (used for sample calculation)
+primary_key <- names(all_models)[1]
+model_fit <- all_models[[primary_key]]$model
+weight_desc <- all_models[[primary_key]]$label
+R2 <- all_models[[primary_key]]$R2
+RMSE <- all_models[[primary_key]]$RMSE
 
 # Generate predictions for plotting - use appropriate concentration range
 if (isTRUE(is_elisa)) {
-  # ELISA: Use pg/mL range based on actual standards
   conc_min <- min(standards_for_model$concentration, na.rm = TRUE) * 0.1
   conc_max <- max(standards_for_model$concentration, na.rm = TRUE) * 10
   conc_range <- exp(seq(log(conc_min), log(conc_max), length.out = 1000))
 } else {
-  # RBA: Use mol/L range
   conc_range <- seq(1e-12, 1e-5, length.out = 1000)
 }
 
@@ -514,6 +539,93 @@ tryCatch({
 }, error = function(e) {
   cat("\n\n*QC summary could not be generated.*\n\n")
 })
+```
+
+```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
+# Show comparison of multiple weighting methods if the user selected more than one
+if (multi_weight_mode && length(all_models) > 1) {
+  cat(sprintf("\n\n### %s\n\n", tr("weight_comparison_title", lang)))
+  cat(tr("weight_comparison_desc", lang), "\n\n")
+
+  # --- Comparison table: R², RMSE, parameters ---
+  comp_rows <- lapply(names(all_models), function(k) {
+    m <- all_models[[k]]
+    coefs <- m$coefs  # b (Hill), c (Bottom), d (Top), e (IC50)
+    data.frame(
+      Method = m$label,
+      R2 = round(m$R2, 5),
+      RMSE = round(m$RMSE, 3),
+      Hill = round(abs(coefs[1]), 4),
+      Bottom = round(coefs[2], 2),
+      Top = round(coefs[3], 2),
+      IC50 = if (isTRUE(is_elisa)) format(round(coefs[4], 2), big.mark = ",") else format(coefs[4], scientific = TRUE, digits = 3),
+      stringsAsFactors = FALSE
+    )
+  })
+  comp_df <- do.call(rbind, comp_rows)
+  names(comp_df) <- c(tr("qc_metric", lang), "R\u00B2", "RMSE",
+                       "Hill slope", "Bottom", "Top", "IC50")
+
+  render_table(comp_df, caption = tr("weight_comparison_title", lang))
+
+  # --- Overlay DRC curves ---
+  curve_colors <- c("none" = "#000000", "inv_y" = "#0072B2", "inv_y2" = "#D55E00")
+  curve_data_list <- list()
+  for (k in names(all_models)) {
+    pred_df <- data.frame(conc = conc_range)
+    pred_df$p <- predict(all_models[[k]]$model, newdata = pred_df)
+    pred_df$method <- all_models[[k]]$label
+    curve_data_list[[k]] <- pred_df
+  }
+  curve_data <- do.call(rbind, curve_data_list)
+
+  standards_plot <- data_long %>%
+    dplyr::filter(!is.na(concentration), SampleType == "Standard")
+
+  cmp_plot <- ggplot() +
+    geom_point(data = standards_plot,
+               aes(x = concentration, y = .data[[response_var]]),
+               size = 3, alpha = 0.6, color = "grey40") +
+    geom_line(data = curve_data,
+              aes(x = conc, y = p, color = method),
+              size = 1.1) +
+    scale_color_manual(
+      name = "Weighting",
+      values = setNames(
+        curve_colors[names(all_models)],
+        sapply(all_models, function(m) m$label)
+      )
+    ) +
+    theme_classic() +
+    theme(legend.position = "top",
+          axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = labels$x_label, y = labels$y_label,
+         title = tr("weight_comparison_title", lang))
+
+  if (isTRUE(is_elisa)) {
+    cmp_plot <- cmp_plot +
+      scale_x_log10(
+        labels = function(x) format(x, digits = 3, big.mark = ","),
+        breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
+      )
+  } else {
+    cmp_plot <- cmp_plot +
+      scale_x_log10(
+        limits = c(1e-12, 1e-5),
+        breaks = 10^seq(-12, -5, by = 1),
+        labels = scales::scientific_format(digits = 2)
+      )
+  }
+
+  if (knitr::is_html_output()) {
+    print(plotly::ggplotly(cmp_plot))
+  } else {
+    print(cmp_plot)
+  }
+
+  cat(sprintf("\n\n*%s*\n\n",
+      tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
+}
 ```
 
 ```{r lloq-uloq, results='asis'}
