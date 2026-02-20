@@ -431,13 +431,13 @@ ui <- fluidPage(
         id = "analysis_settings_section",
         h4(id = "analysis_settings_title", "Analysis Settings"),
 
-        # Regression weighting
-        selectInput("regression_weight", "DRC regression weighting:",
+        # Regression weighting (select one or more for comparison)
+        checkboxGroupInput("regression_weight", "DRC regression weighting:",
                    choices = c("Unweighted" = "none",
                                "1/Y (moderate)" = "inv_y",
-                               "1/Y² (recommended for immunoassays)" = "inv_y2"),
-                   selected = "none",
-                   width = "100%"),
+                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
+                   selected = "none"),
+        helpText("Select multiple weightings to compare results side by side."),
 
         # Quantification range
         fluidRow(
@@ -569,7 +569,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
     updateTextAreaInput(session, "notes", label = tr("notes_label", lang),
                        placeholder = tr("notes_placeholder", lang))
-    updateSelectInput(session, "regression_weight", label = tr("regression_weight_label", lang))
+    updateCheckboxGroupInput(session, "regression_weight", label = tr("regression_weight_label", lang))
     updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
     updateNumericInput(session, "quant_range_max", label = tr("quant_range_max_label", lang))
     updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang))
@@ -1942,8 +1942,11 @@ server <- function(input, output, session) {
       write_json_safe(assay_config, file.path(output_dir, "assay_config.json"))
 
       # Save analysis settings
+      # regression_weight is now a vector (user can select multiple for comparison)
+      sel_weights <- input$regression_weight
+      if (is.null(sel_weights) || length(sel_weights) == 0) sel_weights <- "none"
       analysis_config <- list(
-        regression_weight = input$regression_weight %||% "none",
+        regression_weight = sel_weights,
         quant_range_min = input$quant_range_min %||% 20,
         quant_range_max = input$quant_range_max %||% 80,
         ci_method = input$ci_method %||% "t_dist",
