@@ -560,8 +560,7 @@ server <- function(input, output, session) {
     lang <- input$app_language
     updateSelectInput(session, "report_language", selected = lang)
     updateActionButton(session, "start_tour", label = tr("start_tour", lang))
-    updateActionButton(session, "convert",
-                      label = tagList(icon("file-arrow-down"), tr("generate_report", lang)))
+    updateActionButton(session, "convert", label = tr("generate_report", lang))
     updateRadioButtons(session, "import_method", label = tr("upload_or_visual", lang),
                       choices = setNames(c("classic", "visual"),
                                         c(tr("import_classic", lang), tr("import_visual", lang))))
