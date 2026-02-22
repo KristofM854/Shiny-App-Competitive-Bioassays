@@ -74,9 +74,12 @@ if (!i18n_found) {
   tr <- function(key, lang = "en", ...) paste0("[", key, "]")
 }
 
-write_json_safe <- function(x, file) {
-  dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
-  jsonlite::write_json(x, path = file, pretty = TRUE, auto_unbox = TRUE, null = "null")
+# Reuse write_json_safe if already defined (from global.R), otherwise define it
+if (!exists("write_json_safe")) {
+  write_json_safe <- function(x, file) {
+    dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+    jsonlite::write_json(x, path = file, pretty = TRUE, auto_unbox = TRUE, null = "null")
+  }
 }
 
 # Load analysis settings

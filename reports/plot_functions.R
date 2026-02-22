@@ -131,7 +131,7 @@ create_dose_response_plot <- function(standards_data, model_fits, assay_config, 
   colors <- get_color_scheme(assay_config)
   theme <- get_plot_theme(assay_config)
   
-  ggplot(data = standards_data %>% filter(!is.na(concentration)),
+  ggplot(data = standards_data %>% dplyr::filter(!is.na(concentration)),
          aes(x = concentration, y = .data[[response_var]], color = high_variability)) +
     geom_point(aes(text = paste0(
       "Conc.: ", scales::scientific(concentration, digits = 2), "<br>",
@@ -168,7 +168,7 @@ create_standards_boxplot <- function(standards_data, assay_config, response_var 
   colors <- get_color_scheme(assay_config)
   theme <- get_plot_theme(assay_config)
   
-  ggplot(data = standards_data %>% filter(!is.na(concentration)),
+  ggplot(data = standards_data %>% dplyr::filter(!is.na(concentration)),
          aes(x = concentration, y = .data[[response_var]])) +
     geom_boxplot(aes(group = concentration), outlier.shape = NA) +
     geom_jitter(aes(color = high_variability,
@@ -241,7 +241,7 @@ create_samples_boxplot <- function(unknown_results, assay_config) {
   dynamic_margin <- 10 + max_label_len * 2
   
   ggplot(
-    data = unknown_results %>% filter(Dilution != "Missing"),
+    data = unknown_results %>% dplyr::filter(Dilution != "Missing"),
     aes(x = factor(sampleID_wrapped), y = estimated_concentration)
   ) +
     geom_boxplot() +
@@ -287,7 +287,7 @@ create_combined_drc_plot <- function(model_fits, unknown_results, assay_config, 
   
   # Prepare unknown data for plotting
   unknown_plot_data <- unknown_results %>%
-    filter(!is.na(estimated_concentration), is.finite(estimated_concentration))
+    dplyr::filter(!is.na(estimated_concentration), is.finite(estimated_concentration))
   
   ggplot() +
     geom_line(data = model_fits, aes(x = conc, y = p), color = "black") +
