@@ -1,6 +1,16 @@
 # ==============================================================================
 # Internationalization (i18n) Module
-# Purpose: Provide English and Spanish translations for the Shiny app and reports
+# Purpose: Bilingual translation keys (English/Spanish) for both the Shiny UI
+#          and the rendered Rmd reports.
+#
+# Contains 480+ translation keys covering:
+#   - App UI labels (buttons, inputs, tabs, guided tour)
+#   - Report sections (titles, captions, QC messages, statistical notes)
+#   - Analysis-specific terms (DRC, LLOQ/ULOQ, outlier, concordance)
+#
+# Usage:
+#   tr("key_name", lang)           -> translated string
+#   tr("key_with_%s", lang, value) -> formatted string via sprintf
 # ==============================================================================
 
 #' Get all UI and report translations
@@ -125,7 +135,9 @@ get_translations <- function() {
       tour_step1_extraction = "Set the extraction volume used in sample preparation. Default is 500 \u00B5L.",
       tour_step2_upload = "Step 2: Upload your plate reader data file (.xlsx, .csv, or .txt). The app auto-detects plate regions and multi-wavelength data.",
       tour_step2_visual = "Alternatively, use the Visual Plate Selector to preview the file and manually select plate regions by dragging over them.",
-      tour_step3 = "Step 3: Choose report format(s) and language, then generate the report. The analysis includes dose-response curve fitting, sample quantification, and quality assessment.",
+      tour_step2_notes = "Add optional notes about the experiment. These are included in the final report for documentation.",
+      tour_step2_analysis = "Configure analysis settings: select one or more DRC regression weightings for comparison, set the quantifiable %B/B0 range (LLOQ/ULOQ), choose the confidence interval method, and enable outlier detection.",
+      tour_step3 = "Step 3: Choose report format(s) (HTML and/or Word) and language, then click Generate Report. The analysis includes dose-response curve fitting, sample quantification, QC assessment, and optional weight comparison.",
       tour_language = "Switch between English and Spanish for the entire interface.",
       
       # ---- REPORT TRANSLATIONS ----
@@ -443,7 +455,9 @@ get_translations <- function() {
       tour_step1_extraction = "Establezca el volumen de extracci\u00F3n utilizado en la preparaci\u00F3n de muestras. El valor predeterminado es 500 \u00B5L.",
       tour_step2_upload = "Paso 2: Cargue su archivo de datos del lector de placas (.xlsx, .csv o .txt). La app detecta autom\u00E1ticamente las regiones de placa y datos multi-longitud de onda.",
       tour_step2_visual = "Alternativamente, use el Selector Visual de Placa para previsualizar el archivo y seleccionar manualmente las regiones de placa arrastrando sobre ellas.",
-      tour_step3 = "Paso 3: Elija formato(s) de reporte e idioma, luego genere el reporte. El an\u00E1lisis incluye ajuste de curva dosis-respuesta, cuantificaci\u00F3n de muestras y evaluaci\u00F3n de calidad.",
+      tour_step2_notes = "Agregue notas opcionales sobre el experimento. Estas se incluyen en el reporte final para documentaci\u00F3n.",
+      tour_step2_analysis = "Configure los ajustes de an\u00E1lisis: seleccione una o m\u00E1s ponderaciones de regresi\u00F3n DRC para comparar, establezca el rango cuantificable de %B/B0 (LLOQ/ULOQ), elija el m\u00E9todo de intervalo de confianza y active la detecci\u00F3n de valores at\u00EDpicos.",
+      tour_step3 = "Paso 3: Elija formato(s) de reporte (HTML y/o Word) e idioma, luego haga clic en Generar Reporte. El an\u00E1lisis incluye ajuste de curva dosis-respuesta, cuantificaci\u00F3n de muestras, evaluaci\u00F3n de calidad y comparaci\u00F3n opcional de ponderaciones.",
       tour_language = "Cambie entre ingl\u00E9s y espa\u00F1ol para toda la interfaz.",
       
       # ---- REPORT TRANSLATIONS ----

@@ -1,6 +1,20 @@
 # ==============================================================================
 # Normalization Strategies
-# Purpose: Apply assay-specific data transformations
+# Purpose: Apply assay-specific data transformations for ELISA and RBA.
+#
+# For ELISA: Calculates %B/B0 normalization using control wells:
+#   %B/B0 = (Sample - NSB) / (B0 - NSB) * 100
+#   where B0 and NSB are blank-corrected.
+#
+# For RBA: Returns raw measurement values (CPM/RFU) directly.
+#
+# Functions:
+#   get_normalization_strategy() - Factory: returns strategy functions
+#   extract_controls()           - Pull Blank/NSB/B0/TA control values
+#   validate_controls()          - QC check on control wells
+#   normalize_data()             - Main wrapper for normalization pipeline
+#
+# NOTE: Uses dplyr::filter() explicitly to avoid MASS::filter masking.
 # ==============================================================================
 
 #' Normalization Strategy Factory
@@ -101,19 +115,19 @@ extract_controls <- function(data_long) {
   
   controls <- list(
     Blank = data_long %>% 
-      filter(SampleType == "Blank") %>% 
+      dplyr::filter(SampleType == "Blank") %>% 
       pull(MeasurementValue),
     
     NSB = data_long %>% 
-      filter(SampleType == "NSB") %>% 
+      dplyr::filter(SampleType == "NSB") %>% 
       pull(MeasurementValue),
     
     B0 = data_long %>% 
-      filter(SampleType == "B0") %>% 
+      dplyr::filter(SampleType == "B0") %>% 
       pull(MeasurementValue),
     
     TotalActivity = data_long %>% 
-      filter(SampleType == "TotalActivity") %>% 
+      dplyr::filter(SampleType == "TotalActivity") %>% 
       pull(MeasurementValue)
   )
   

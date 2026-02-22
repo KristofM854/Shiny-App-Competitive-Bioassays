@@ -1,6 +1,19 @@
 # ==============================================================================
 # Global Configuration
-# Purpose: Shared libraries, constants, and app-wide settings
+# Purpose: Shared libraries, constants, and app-wide settings.
+#          Loaded once at app startup before app.R.
+#
+# Defines:
+#   - Package loading (all required CRAN packages)
+#   - Plate constants (PLATE_NROW, PLATE_NCOL, row/col names)
+#   - Default standard concentrations (RBA saxitoxin, ELISA cortisol)
+#   - Toxin variants, molecular weights, ELISA analyte list
+#   - QC thresholds (CV limits, Hill slope tolerance)
+#   - Helper functions (%||%, write_json_safe, theme_rba)
+#   - Color palettes for sample types and QC status
+#
+# NOTE: The drc package loads MASS, which masks dplyr::select().
+#       All select() calls throughout the codebase MUST use dplyr::select().
 # ==============================================================================
 
 # --- Package Loading ----------------------------------------------------------

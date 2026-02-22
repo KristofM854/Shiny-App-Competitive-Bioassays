@@ -1,7 +1,19 @@
 # ==============================================================================
-# Run Analysis Script (Modular Version)
-# Purpose: Entry point for RBA analysis workflow
-# Version: 2.0
+# Run Analysis Script
+# Purpose: Entry point for local execution of the analysis workflow.
+#          Sets up environment variables, launches the Shiny app, then renders
+#          the Rmd report(s) after the app closes.
+#
+# Workflow:
+#   1. Install/load required packages
+#   2. Set up output directory with date-based naming
+#   3. Export paths as environment variables (RBA_OUTPUT_DIR, etc.)
+#   4. Launch Shiny app (app.R) for data entry
+#   5. After app closes, detect single vs. multi-wavelength data
+#   6. Render report(s) in selected format(s) (HTML, DOCX)
+#
+# NOTE: For runGitHub() usage, app.R handles standalone mode directly.
+#       This script is only needed for local/scripted execution.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------

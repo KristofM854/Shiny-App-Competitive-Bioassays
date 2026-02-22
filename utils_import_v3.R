@@ -1,7 +1,15 @@
 # ==============================================================================
-# File Import Utilities (Production Version)
-# Purpose: Intelligently parse various plate reader output formats
-# Version: 3.0 - Handles labeled, unlabeled, and partial plates
+# File Import Utilities
+# Purpose: Intelligently parse plate reader output files (.xlsx, .csv, .txt).
+#
+# Uses two detection strategies to locate 8x12 plate data:
+#   Strategy 1: Look for row labels A-H in first column
+#   Strategy 2: Find largest contiguous 8xN numeric block (>=70% valid cells)
+#
+# Functions:
+#   detect_plate_location() - Find plate data region in file
+#   import_plate_data()     - Import and validate plate as 8x12 matrix
+#   preview_import()        - Quick validation preview
 # ==============================================================================
 
 #' Detect plate data location in Excel file
