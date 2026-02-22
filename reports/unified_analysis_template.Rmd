@@ -323,27 +323,28 @@ for (wt_key in selected_weights) {
   wt_info <- weight_options[[wt_key]]
   if (is.null(wt_info)) next
 
-  fit <- tryCatch({
+  tryCatch({
+    fml <- as.formula(paste(response_var, "~ concentration"))
+    # Don't pass weights argument when NULL (unweighted) - some drc versions
+    # treat explicit weights=NULL differently from omitting the argument
     if (isTRUE(is_elisa)) {
-      drc::drm(
-        as.formula(paste(response_var, "~ concentration")),
-        data = standards_for_model,
-        fct = drc::LL.4(),
-        weights = wt_info$weights,
-        lowerl = c(NA, 0, NA, NA),
-        upperl = c(NA, NA, 100, NA)
-      )
+      if (is.null(wt_info$weights)) {
+        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
+                        lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
+      } else {
+        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
+                        weights = wt_info$weights,
+                        lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
+      }
     } else {
-      drc::drm(
-        as.formula(paste(response_var, "~ concentration")),
-        data = standards_for_model,
-        fct = drc::LL.4(),
-        weights = wt_info$weights
-      )
+      if (is.null(wt_info$weights)) {
+        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4())
+      } else {
+        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
+                        weights = wt_info$weights)
+      }
     }
-  }, error = function(e) NULL)
 
-  if (!is.null(fit)) {
     resid <- residuals(fit)
     r2 <- 1 - sum(resid^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
     rmse <- sqrt(mean(resid^2))
@@ -353,11 +354,16 @@ for (wt_key in selected_weights) {
       model = fit, label = wt_info$label,
       R2 = r2, RMSE = rmse, coefs = coefs
     )
-  }
+  }, error = function(e) {
+    warning("Model fitting failed for weight '", wt_key, "': ", e$message)
+  })
 }
 
 # Primary model = first successfully fitted weighting (used for sample calculation)
-primary_key <- names(all_models)[1]
+if (length(all_models) == 0) {
+  stop("No dose-response models could be fitted. Check your standard curve data.")
+}
+primary_key <- names(all_models)[[1]]
 model_fit <- all_models[[primary_key]]$model
 weight_desc <- all_models[[primary_key]]$label
 R2 <- all_models[[primary_key]]$R2
