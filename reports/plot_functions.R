@@ -19,28 +19,33 @@ if (!exists("TABLE_CONFIG")) {
 #' @param digits Number of decimal places
 #' @return Formatted table (HTML or simple based on output format)
 render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits) {
-  
+
   if (knitr::is_html_output()) {
-    
+
     tbl <- if (is.null(col_names)) {
       knitr::kable(data, caption = caption, digits = digits)
     } else {
       knitr::kable(data, caption = caption, col.names = col_names, digits = digits)
     }
-    
+
+    # Use full_width = TRUE for wide tables (many columns) to prevent
+    # column clipping that silently truncates data values.
+    use_full_width <- ncol(data) > 8
+
     tbl %>%
       kableExtra::kable_styling(
-        bootstrap_options = TABLE_CONFIG$html_options,
-        full_width = TABLE_CONFIG$full_width,
+        bootstrap_options = c("striped", "hover", "responsive"),
+        full_width = use_full_width,
         position = TABLE_CONFIG$position
-      )
-      
+      ) %>%
+      kableExtra::column_spec(1:ncol(data), extra_css = "white-space: nowrap;")
+
   } else {
     # PDF/Word output - simple table
     if (is.null(col_names)) {
       knitr::kable(data, caption = caption, digits = digits)
     } else {
-      knitr::kable(data, caption = caption, col.names = col_names, digits = digits)  
+      knitr::kable(data, caption = caption, col.names = col_names, digits = digits)
     }
   }
 }
