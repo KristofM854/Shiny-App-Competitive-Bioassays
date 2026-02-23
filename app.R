@@ -1742,13 +1742,14 @@ server <- function(input, output, session) {
   
   observe({
     assay <- input$assay_type %||% "rba"
-    
-    # File upload required
-    file_ok <- !is.null(input$upload_counts)
-    
+
+    # Plate data must be confirmed/imported (not just file selected)
+    plate <- matrix_measresults()
+    plate_data_ok <- !is.null(plate) && any(!is.na(plate))
+
     # Dilution validity
     dilution_ok <- !dilution_error()
-    
+
     # QC validation - only required for RBA
     if (assay == "rba") {
       qc_ok <- !is.null(input$qc_conc) && input$qc_conc != "" &&
@@ -1760,9 +1761,9 @@ server <- function(input, output, session) {
       qc_ok <- TRUE
       hill_ok <- TRUE
     }
-    
+
     # Enable button if all conditions met
-    if (file_ok && dilution_ok && qc_ok && hill_ok) {
+    if (plate_data_ok && dilution_ok && qc_ok && hill_ok) {
       shinyjs::enable("convert")
     } else {
       shinyjs::disable("convert")
