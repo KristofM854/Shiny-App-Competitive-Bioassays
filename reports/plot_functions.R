@@ -17,20 +17,23 @@ if (!exists("TABLE_CONFIG")) {
 #' @param caption Table caption
 #' @param col_names Custom column names (optional)
 #' @param digits Number of decimal places
-#' @return Formatted table (HTML or simple based on output format)
+#' @return Formatted table (HTML or Word/PDF)
 render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits) {
 
+  tbl <- if (is.null(col_names)) {
+    knitr::kable(data, caption = caption, digits = digits)
+  } else {
+    knitr::kable(data, caption = caption, col.names = col_names, digits = digits)
+  }
+
+  ncols <- ncol(data)
+
   if (knitr::is_html_output()) {
-
-    tbl <- if (is.null(col_names)) {
-      knitr::kable(data, caption = caption, digits = digits)
-    } else {
-      knitr::kable(data, caption = caption, col.names = col_names, digits = digits)
-    }
-
-    # Use full_width = TRUE for wide tables (many columns) to prevent
-    # column clipping that silently truncates data values.
-    use_full_width <- ncol(data) > 8
+    # For wide tables use full page width; narrower tables stay centered.
+    # Every cell gets white-space:nowrap + a per-column min-width so content
+    # can never be squeezed below a readable size.
+    use_full_width <- ncols > 8
+    col_min_px <- if (ncols > 10) "65px" else "75px"
 
     tbl %>%
       kableExtra::kable_styling(
@@ -38,15 +41,32 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
         full_width = use_full_width,
         position = TABLE_CONFIG$position
       ) %>%
-      kableExtra::column_spec(1:ncol(data), extra_css = "white-space: nowrap;")
+      kableExtra::column_spec(
+        1:ncols,
+        extra_css = paste0("white-space: nowrap; min-width: ", col_min_px, ";")
+      )
 
   } else {
-    # PDF/Word output - simple table
-    if (is.null(col_names)) {
-      knitr::kable(data, caption = caption, digits = digits)
-    } else {
-      knitr::kable(data, caption = caption, col.names = col_names, digits = digits)
+    # Word / PDF output:
+    # kableExtra::kable_styling(full_width = TRUE) forces Word to stretch the
+    # table across the full text width so columns are not arbitrarily narrow.
+    # column_spec() with width = "Xcm" sets guaranteed minimum widths for
+    # the rightmost columns that contain long numeric values.
+    styled <- tbl %>%
+      kableExtra::kable_styling(full_width = TRUE)
+
+    # Widen the last two columns if the table is wide enough to have tissue data
+    if (ncols >= 11) {
+      styled <- styled %>%
+        kableExtra::column_spec(ncols - 1, width = "2.2cm") %>%  # Tissue Mass [mg]
+        kableExtra::column_spec(ncols,     width = "2.5cm")       # Conc. (pg/g)
+    } else if (ncols >= 9) {
+      # Narrow tables: just ensure the last column has room for numeric values
+      styled <- styled %>%
+        kableExtra::column_spec(ncols, width = "2.2cm")
     }
+
+    styled
   }
 }
 
