@@ -155,14 +155,14 @@ identify_high_variability_standards <- function(data_long, cv_limit = QC_THRESHO
   response_var <- if ("NormalizedValue" %in% names(data_long)) "NormalizedValue" else "MeasurementValue"
   
   high_var <- data_long %>%
-    filter(SampleType == "Standard", !is.na(StandardConc)) %>%
+    dplyr::filter(SampleType == "Standard", !is.na(StandardConc)) %>%
     group_by(StandardConc) %>%
     summarise(
       cv = coefficient_of_variation(.data[[response_var]]),
       n_replicates = n(),
       .groups = "drop"
     ) %>%
-    filter(cv >= cv_limit | n_replicates < 2)
+    dplyr::filter(cv >= cv_limit | n_replicates < 2)
   
   return(high_var)
 }
@@ -191,16 +191,16 @@ prepare_standards_for_modeling <- function(data_long, exclude_high_var = TRUE) {
             "Normal Variability"
           )
         ) %>%
-        filter(SampleType == "Standard", high_variability == "Normal Variability")
+        dplyr::filter(SampleType == "Standard", high_variability == "Normal Variability")
     } else {
       data_prepared <- data_prepared %>%
         mutate(high_variability = "Normal Variability") %>%
-        filter(SampleType == "Standard")
+        dplyr::filter(SampleType == "Standard")
     }
   } else {
     data_prepared <- data_prepared %>%
       mutate(high_variability = "Normal Variability") %>%
-      filter(SampleType == "Standard")  
+      dplyr::filter(SampleType == "Standard")  
   }
   
   return(data_prepared)
@@ -278,7 +278,7 @@ predict_sample_concentrations <- function(model, samples, assay_config) {
       if ("TissueWeight_mg" %in% names(samples)) {
         # Use sample-specific tissue weights from the enhanced dilution/tissue plate
         tissue_samples <- results %>%
-          filter(!is.na(TissueWeight_mg) & TissueWeight_mg > 0)
+          dplyr::filter(!is.na(TissueWeight_mg) & TissueWeight_mg > 0)
         
         if (nrow(tissue_samples) > 0) {
           # Get extraction volume from config (default 500 µL)
@@ -437,15 +437,15 @@ calculate_elisa_bb0 <- function(data_long, use_percent = TRUE) {
   
   # Step 1: Identify control wells and their values
   blank_wells <- data_long %>% 
-    filter(SampleType == "Blank") %>%
+    dplyr::filter(SampleType == "Blank") %>%
     pull(MeasurementValue)
   
   nsb_wells <- data_long %>%
-    filter(SampleType == "NSB") %>%
+    dplyr::filter(SampleType == "NSB") %>%
     pull(MeasurementValue)
   
   b0_wells <- data_long %>%
-    filter(SampleType == "B0" | SampleType == "MaximumBinding") %>%
+    dplyr::filter(SampleType == "B0" | SampleType == "MaximumBinding") %>%
     pull(MeasurementValue)
   
   if (length(blank_wells) == 0 || length(nsb_wells) == 0 || length(b0_wells) == 0) {

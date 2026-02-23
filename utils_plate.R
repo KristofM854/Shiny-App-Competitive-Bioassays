@@ -1,6 +1,20 @@
 # ==============================================================================
 # Plate Matrix Utilities
-# Purpose: Create and manipulate plate layout matrices
+# Purpose: Create and manipulate 96-well plate layout matrices.
+#
+# Functions:
+#   create_plate_matrix()     - Empty 8x12 matrix
+#   create_type_matrix()      - Pre-filled Sample Type layout (RBA/ELISA)
+#   create_id_matrix()        - Pre-filled Sample ID layout
+#   create_dilution_matrix()  - Dilution factor matrix (default 1)
+#   create_replicate_matrix() - Replicate group labels (paired wells)
+#   enforce_plate_shape()     - Pad/trim data frame to 8x12
+#   parse_dilution_cell()     - Parse "1:2" or "0.5" dilution formats
+#   matrix_to_long()          - Convert 4 plate matrices + measurements to
+#                               long format for downstream analysis
+#
+# NOTE: matrix_to_long() uses dplyr::select() explicitly to avoid
+#       MASS::select masking from the drc package.
 # ==============================================================================
 
 #' Create empty plate matrix

@@ -1,7 +1,16 @@
 # ==============================================================================
 # Multi-Wavelength File Import Utilities
-# Purpose: Parse plate reader files with multiple wavelength measurements
-# Version: 4.0 - Handles multiple wavelengths in single file
+# Purpose: Parse plate reader Excel files containing multiple wavelength plates.
+#          Detects "Raw Data (XXXnm)" markers and extracts each wavelength's
+#          8x12 plate data independently.
+#
+# Functions:
+#   detect_multiwavelength_plates() - Find all wavelength markers in file
+#   import_multiwavelength_plates() - Import all wavelength plates
+#   preview_multiwavelength_import() - Quick preview of detected wavelengths
+#
+# Falls back to single-plate import (utils_import_v3.R) if no wavelength
+# markers are found.
 # ==============================================================================
 
 #' Detect all wavelength plates in a file
@@ -119,7 +128,15 @@ import_multiwavelength_plates <- function(file_path, sheet = 1,
     # Fallback to single plate detection (backward compatibility)
     message("No multi-wavelength markers found. Attempting single plate import...")
     
-    source("/mnt/user-data/uploads/utils_import_v3.R")
+    # Find utils_import_v3.R relative to this file's location
+    v3_candidates <- c(
+      file.path(getwd(), "utils_import_v3.R"),
+      file.path(dirname(sys.frame(1)$ofile %||% ""), "utils_import_v3.R"),
+      "utils_import_v3.R"
+    )
+    v3_path <- Filter(file.exists, v3_candidates)[1]
+    if (is.na(v3_path)) stop("Cannot find utils_import_v3.R")
+    source(v3_path)
     single_plate <- import_plate_data(file_path, sheet, expected_rows, expected_cols)
     
     return(list(
