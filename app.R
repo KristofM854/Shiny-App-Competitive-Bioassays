@@ -1,7 +1,31 @@
 # ==============================================================================
-# RBA Analysis App (Modular Version)
-# Author: Arnold Molina Porras (UCR) & Kristof Moeller (IAEA)
-# Version: 2.0 - Modular architecture with smart import
+# Competitive Binding Assay Analysis App
+# Authors: Arnold Molina Porras (UCR) & Kristof Moeller (IAEA)
+# Version: 2.0
+#
+# Main Shiny application for RBA and ELISA competitive binding assay analysis.
+# Supports:
+#   - 96-well plate layout configuration (Sample Type, ID, Dilution, Replicates)
+#   - Smart plate reader file import (.xlsx, .csv, .txt) with auto-detection
+#   - Multi-wavelength data handling with concordance analysis
+#   - ELISA %B/B0 normalization (Blank, NSB, B0 control wells)
+#   - 4-parameter logistic (4PL) dose-response curve fitting
+#   - Multiple DRC regression weightings (unweighted, 1/Y, 1/Y^2) for comparison
+#   - Configurable quantification range (LLOQ/ULOQ) with %B/B0 bounds
+#   - Bootstrap and t-distribution confidence intervals
+#   - Outlier detection (Dixon's Q / Grubbs' test)
+#   - Tissue weight normalization for pg/g tissue calculations
+#   - Bilingual reports (EN/ES) in HTML and Word formats
+#   - Guided tour (rintrojs) and plate layout save/load
+#
+# Architecture:
+#   global.R              -> Shared packages, constants, theme
+#   utils_plate.R         -> Plate matrix creation and conversion
+#   utils_import_v3.R     -> Smart plate reader file import
+#   utils_import_multiwavelength.R -> Multi-wavelength Excel parsing
+#   utils_normalization.R -> ELISA %B/B0 normalization
+#   i18n.R                -> Bilingual translation keys (480+)
+#   reports/              -> Rmd templates, report functions, plot functions
 # ==============================================================================
 
 # IMPORTANT: Source global.R first (contains PLATE_NROW, etc.)
@@ -1472,17 +1496,6 @@ server <- function(input, output, session) {
     rv_file_preview$excluded_wells[[key]] <- !current
   })
 
-  # Well exclusion UI (kept for backwards compat but now integrated into grid)
-  output$visual_well_exclusion <- renderUI({
-    # The well exclusion is now handled by clickable grid cells above
-    NULL
-  })
-
-  output$visual_plate_selections <- renderUI({
-    # Plate selection is now integrated into the visual_file_preview above
-    NULL
-  })
-  
   # --------------------------------------------------------------------------
   # FILE UPLOAD (NEW: Smart Import)
   # --------------------------------------------------------------------------
@@ -1537,23 +1550,6 @@ server <- function(input, output, session) {
       })
       
       req(!is.null(plate))
-      
-      # Apply well exclusions if any were specified
-      excluded_input <- input$excluded_wells_input
-      if (!is.null(excluded_input) && nchar(trimws(excluded_input)) > 0) {
-        wells <- trimws(strsplit(excluded_input, ",")[[1]])
-        for (w in wells) {
-          w <- toupper(trimws(w))
-          if (grepl("^[A-H][0-9]{1,2}$", w)) {
-            row_idx <- match(substr(w, 1, 1), LETTERS[1:8])
-            col_idx <- as.integer(substr(w, 2, nchar(w)))
-            if (!is.na(row_idx) && !is.na(col_idx) && col_idx >= 1 && col_idx <= 12) {
-              plate[row_idx, col_idx] <- NA_real_
-            }
-          }
-        }
-        rv_file_preview$excluded_wells <- wells
-      }
       
       matrix_measresults(plate)
       info <- base::attr(plate, "import_info")
@@ -1798,7 +1794,7 @@ server <- function(input, output, session) {
           normalize_data(df_long, "elisa", detection_method)
         } else {
           # RBA: Direct measurement (CPM or RFU)
-          detection_method <- input$detection_method %||% "radioligand"
+          detection_method <- "radioligand"
           normalize_data(df_long, "rba", detection_method)
         }
         
@@ -1855,7 +1851,7 @@ server <- function(input, output, session) {
               detection_method <- "absorbance"
               normalize_data(df_long_wl, "elisa", detection_method)
             } else {
-              detection_method <- input$detection_method %||% "radioligand"
+              detection_method <- "radioligand"
               normalize_data(df_long_wl, "rba", detection_method)
             }
             
@@ -1902,7 +1898,7 @@ server <- function(input, output, session) {
           qc_concentration = input$qc_conc,
           expected_hill = input$expected_hill,
           assay_type = input$assay_type,
-          detection_method = input$detection_method,
+          detection_method = "radioligand",
           analyte = chosen_standard_label()
         )
       } else {
@@ -1933,7 +1929,7 @@ server <- function(input, output, session) {
           toxin_variant = input$toxin_variant %||% NA,
           toxin_standard_label = chosen_standard_label(),
           molecular_weight_g_mol = mw_g_mol(),
-          detection_method = input$detection_method,
+          detection_method = "radioligand",
           units = "mol/L"
         )
       }
@@ -2076,6 +2072,7 @@ server <- function(input, output, session) {
       element = c("#step0_section", "#matrix_type_section", "#matrix_id_section",
                   "#matrix_dilution_section", "#matrix_replicate_section",
                   "#tissue_weight_section", "#upload_section", "#visual_selector_section",
+                  "#notes_feedback_section", "#analysis_settings_section",
                   "#language_toggle_section", "#convert_section"),
       intro = c(
         tr("tour_step0", lang),
@@ -2086,6 +2083,8 @@ server <- function(input, output, session) {
         tr("tour_step1_tissue", lang),
         tr("tour_step2_upload", lang),
         tr("tour_step2_visual", lang),
+        tr("tour_step2_notes", lang),
+        tr("tour_step2_analysis", lang),
         tr("tour_language", lang),
         tr("tour_step3", lang)
       ),
