@@ -21,13 +21,14 @@
 # ------------------------------------------------------------------------------
 
 required_pkgs <- c(
-  "blastula", "digest", "drc", "dplyr", "fs", "glue",
-  "ggplot2", "ggrepel", "ggthemes", "ggtext", "htmltools", "htmlwidgets",
+  "digest", "drc", "dplyr", "glue",
+  "ggplot2", "ggrepel", "ggthemes", "ggtext", "htmltools",
   "jsonlite", "kableExtra", "knitr", "patchwork", "plotly", "purrr",
   "readr", "readxl", "rintrojs", "rmarkdown", "rhandsontable",
-  "scales", "shiny", "shinyBS", "shinyFeedback", "shinyjs",
-  "stringr", "tibble", "tidyr", "tinytex", "xfun", "zip"
+  "scales", "shiny", "shinyFeedback", "shinyjs",
+  "stringr", "tibble", "tidyr", "xfun"
 )
+# Removed unused packages: blastula, fs, htmlwidgets, shinyBS, tinytex, zip
 
 # Install missing packages
 missing_pkgs <- required_pkgs[!sapply(required_pkgs, requireNamespace, quietly = TRUE)]
