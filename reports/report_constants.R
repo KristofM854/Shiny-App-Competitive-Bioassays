@@ -6,10 +6,7 @@
 #          When rendering standalone, this file provides self-contained defaults.
 # ==============================================================================
 
-# Define %||% operator if not already available (global.R defines it)
-if (!exists("%||%")) {
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-}
+# %||% operator is defined in global.R (loaded before this file)
 
 # Molecular weights (g/mol) - used by report_functions.R for unit conversion.
 # Only define if not already set by global.R.
