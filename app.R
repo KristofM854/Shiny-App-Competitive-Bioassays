@@ -122,7 +122,7 @@ ui <- fluidPage(
   useShinyjs(),
   introjsUI(),
   shinyFeedback::useShinyFeedback(),
-  
+
   uiOutput("app_title_ui"),
   br(),
 
@@ -144,268 +144,325 @@ ui <- fluidPage(
                   width = "130px")
     )
   ),
-  
-  # ------------------------------
-  # Step 0: Assay Configuration
-  # ------------------------------
-  introBox(
-    div(
-      id = "step0_section",
-      column(12, uiOutput("step0_header")),
-      
-      fluidRow(
-        column(
-          width = 6,
-          
-          # NEW: Assay type selection
-          wellPanel(
-            style = "background-color: #E3F2FD; border-left: 4px solid #2196F3;",
-            h5(tags$b("Select Assay Type")),
-            selectInput(
-              "assay_type",
-              "Type of assay:",
-              choices = c(
-                "Receptor Binding Assay (RBA)" = "rba",
-                "ELISA (Enzyme-Linked Immunosorbent Assay)" = "elisa"
-              ),
-              selected = "rba"
-            ),
-            uiOutput("assay_description")
-          ),
-          
-          # Conditional: RBA-specific inputs
-          conditionalPanel(
-            condition = "input.assay_type == 'rba'",
-            
-            selectInput(
-              "toxin_class",
-              "Toxin standard used:",
-              choices = c("Saxitoxin", "Brevetoxin", "Ciguatoxin", "Custom"),
-              selected = "Saxitoxin"
-            ),
-            
-            uiOutput("toxin_variant_ui"),
-            
-            conditionalPanel(
-              condition = "input.toxin_class == 'Custom'",
-              textInput("toxin_custom_name", "Custom standard name:",
-                       placeholder = "e.g., GTX2/3 mix")
-            ),
-            
-            div(
-              style = "max-width: 420px;",
-              uiOutput("mw_box_ui")
-            )
-          ),
-          
-          # Conditional: ELISA-specific inputs
-          conditionalPanel(
-            condition = "input.assay_type == 'elisa'",
-            
-            selectInput(
-              "elisa_analyte",
-              "Analyte:",
-              choices = c(
-                "Cortisol" = "cortisol",
-                "Testosterone" = "testosterone",
-                "Custom" = "custom"
-              ),
-              selected = "cortisol"
-            ),
-            
-            conditionalPanel(
-              condition = "input.elisa_analyte == 'custom'",
-              textInput("elisa_custom_name", "Custom analyte name:",
-                       placeholder = "e.g., Estradiol")
-            ),
-            
-            # ELISA: Units are typically pg/mL or ng/mL
-            selectInput(
-              "elisa_units",
-              "Standard concentration units:",
-              choices = c(
-                "pg/mL" = "pg/mL",
-                "ng/mL" = "ng/ml",
-                "µg/mL" = "ug/ml"
-              ),
-              selected = "pg/mL"
-            )
-          ),
-          
-          # Standard concentrations (shown for both assay types)
-          hr(),
-          p(tags$b("Standard Concentrations")),
-          p("Specify the number of standards, then enter each concentration."),
-          
-          # Dynamic unit guidance
-          uiOutput("concentration_unit_guidance"),
-          
-          selectInput("num_standards", "Number of standards:",
-                     choices = 0:12, selected = 8),
-          
-          div(
-            style = "display:flex; flex-wrap: wrap; gap: 10px;",
-            uiOutput("std_inputs")
-          ),
-          
-          uiOutput("std_error_feedback")
-        ),
-        column(width = 6)
-      )
-    ),
-    data.step = 0,
-    data.intro = "Define your standard concentrations here."
-  ),
-  br(),
-  
-  # ------------------------------
-  # Main Content: Matrices + Upload
-  # ------------------------------
-  fluidRow(
-    # LEFT COLUMN: Matrices
-    column(
-      width = 6,
-      id = "step1_section",
-      style = "padding-bottom: 100px;",
-      
-      uiOutput("step1_header"),
 
-      # Layout import/save/load
-      div(
-        id = "layout_management_section",
-        style = "background-color: #F0F8FF; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; border-radius: 4px;",
-        fluidRow(
-          column(4,
-            fileInput("layout_import_file", "Import Layout (CSV/Excel):",
-                      accept = c(".csv", ".xlsx", ".xls"),
-                      width = "100%")
-          ),
-          column(4,
-            div(style = "margin-top: 25px;",
-              actionButton("layout_save", label = tagList(icon("save"), "Save Layout"),
-                          class = "btn btn-success btn-sm", style = "width: 100%;")
-            )
-          ),
-          column(4,
-            div(style = "margin-top: 25px;",
-              uiOutput("layout_load_ui")
-            )
+  # ==========================================================================
+  # WIZARD-STYLE TABBED INTERFACE
+  # ==========================================================================
+  tabsetPanel(
+    id = "wizard_tabs",
+    type = "pills",
+
+    # ======================================================================
+    # TAB 1: Assay Configuration
+    # ======================================================================
+    tabPanel(
+      "1. Configuration",
+      value = "tab_config",
+      br(),
+      introBox(
+        div(
+          id = "step0_section",
+          column(12, uiOutput("step0_header")),
+
+          fluidRow(
+            column(
+              width = 6,
+
+              wellPanel(
+                style = "background-color: #E3F2FD; border-left: 4px solid #2196F3;",
+                h5(tags$b("Select Assay Type")),
+                selectInput(
+                  "assay_type",
+                  "Type of assay:",
+                  choices = c(
+                    "Receptor Binding Assay (RBA)" = "rba",
+                    "ELISA (Enzyme-Linked Immunosorbent Assay)" = "elisa"
+                  ),
+                  selected = "rba"
+                ),
+                uiOutput("assay_description")
+              ),
+
+              # Conditional: RBA-specific inputs
+              conditionalPanel(
+                condition = "input.assay_type == 'rba'",
+
+                selectInput(
+                  "toxin_class",
+                  "Toxin standard used:",
+                  choices = c("Saxitoxin", "Brevetoxin", "Ciguatoxin", "Custom"),
+                  selected = "Saxitoxin"
+                ),
+
+                uiOutput("toxin_variant_ui"),
+
+                conditionalPanel(
+                  condition = "input.toxin_class == 'Custom'",
+                  textInput("toxin_custom_name", "Custom standard name:",
+                           placeholder = "e.g., GTX2/3 mix")
+                ),
+
+                div(
+                  style = "max-width: 420px;",
+                  uiOutput("mw_box_ui")
+                )
+              ),
+
+              # Conditional: ELISA-specific inputs
+              conditionalPanel(
+                condition = "input.assay_type == 'elisa'",
+
+                selectInput(
+                  "elisa_analyte",
+                  "Analyte:",
+                  choices = c(
+                    "Cortisol" = "cortisol",
+                    "Testosterone" = "testosterone",
+                    "Estradiol" = "estradiol",
+                    "Custom" = "custom"
+                  ),
+                  selected = "cortisol"
+                ),
+
+                conditionalPanel(
+                  condition = "input.elisa_analyte == 'custom'",
+                  textInput("elisa_custom_name", "Custom analyte name:",
+                           placeholder = "e.g., Estradiol")
+                ),
+
+                selectInput(
+                  "elisa_units",
+                  "Standard concentration units:",
+                  choices = c(
+                    "pg/mL" = "pg/mL",
+                    "ng/mL" = "ng/ml",
+                    "\u00b5g/mL" = "ug/ml"
+                  ),
+                  selected = "pg/mL"
+                )
+              ),
+
+              # Standard concentrations (shown for both assay types)
+              hr(),
+              p(tags$b("Standard Concentrations")),
+              p("Specify the number of standards, then enter each concentration."),
+
+              uiOutput("concentration_unit_guidance"),
+
+              selectInput("num_standards", "Number of standards:",
+                         choices = 0:12, selected = 8),
+
+              div(
+                style = "display:flex; flex-wrap: wrap; gap: 10px;",
+                uiOutput("std_inputs")
+              ),
+
+              uiOutput("std_error_feedback")
+            ),
+            column(width = 6)
           )
-        )
+        ),
+        data.step = 0,
+        data.intro = "Define your standard concentrations here."
       ),
       br(),
-
-      # Type matrix
       div(
-        id = "matrix_type_section",
-        h5("1. Sample Type (Standard, Sample, QC, Blank, Other)"),
-        
-        # ELISA helper panel
+        style = "text-align: right; padding: 15px;",
+        actionButton("next_to_layout", "Next: Plate Layout \u2192",
+                    class = "btn btn-primary btn-lg")
+      )
+    ),
+
+    # ======================================================================
+    # TAB 2: Plate Layout
+    # ======================================================================
+    tabPanel(
+      "2. Plate Layout",
+      value = "tab_layout",
+      br(),
+
+      div(
+        id = "step1_section",
+        style = "padding-bottom: 40px;",
+
+        uiOutput("step1_header"),
+
+        # Preset plate layouts
+        div(
+          id = "preset_layout_section",
+          style = "background-color: #E8F5E9; padding: 10px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
+          fluidRow(
+            column(4,
+              selectInput("preset_layout", "Load Preset Layout:",
+                         choices = c(
+                           "-- Select Preset --" = "",
+                           "RBA: STX 8 standards (triplicate)" = "rba_stx_triplicate",
+                           "ELISA: Cortisol (Cayman kit, 8-point, duplicate)" = "elisa_cortisol_cayman",
+                           "ELISA: Custom (blank template)" = "elisa_custom_blank"
+                         ),
+                         selected = "")
+            ),
+            column(8,
+              # Layout import/save/load
+              div(
+                id = "layout_management_section",
+                style = "background-color: #F0F8FF; padding: 10px; margin: 0; border-left: 4px solid #2196F3; border-radius: 4px;",
+                fluidRow(
+                  column(4,
+                    fileInput("layout_import_file", "Import Layout (CSV/Excel):",
+                              accept = c(".csv", ".xlsx", ".xls"),
+                              width = "100%")
+                  ),
+                  column(4,
+                    div(style = "margin-top: 25px;",
+                      actionButton("layout_save", label = tagList(icon("save"), "Save Layout"),
+                                  class = "btn btn-success btn-sm", style = "width: 100%;")
+                    )
+                  ),
+                  column(4,
+                    div(style = "margin-top: 25px;",
+                      uiOutput("layout_load_ui")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+        br(),
+
+        # Type matrix
+        div(
+          id = "matrix_type_section",
+          h5("1. Sample Type (Standard, Sample, QC, Blank, Other)"),
+
+          conditionalPanel(
+            condition = "input.assay_type == 'elisa'",
+            div(
+              style = "background-color: #FFF9E6; padding: 10px; margin: 10px 0; border-left: 4px solid #FFC107;",
+              tags$b("ELISA Control Wells:"),
+              tags$ul(
+                tags$li(tags$b("Blank:"), " No enzyme, no antibody (background absorbance)"),
+                tags$li(tags$b("NSB:"), " Non-specific binding (enzyme only, no antibody)"),
+                tags$li(tags$b("B0:"), " Maximum binding (no competing analyte)"),
+                tags$li(tags$b("TotalActivity:"), " Total enzyme activity (optional)")
+              )
+            )
+          ),
+
+          rHandsontableOutput("matrix_type")
+        ),
+        br(),
+
+        # ID matrix
+        div(
+          id = "matrix_id_section",
+          h5("2. Sample ID"),
+          actionButton("reset_id", "Reset to Default"),
+          rHandsontableOutput("matrix_id")
+        ),
+        br(),
+
+        # QC fields (RBA only)
+        conditionalPanel(
+          condition = "input.assay_type == 'rba'",
+          div(
+            id = "qc_section",
+            h5("3. Quality Control Parameters"),
+            uiOutput("qc_concentration_input"),
+            textInput("expected_hill", "Expected Hill slope:",
+                     value = "1", placeholder = "1"),
+            uiOutput("qc_warnings"),
+            uiOutput("hill_warning")
+          )
+        ),
+        br(),
+
+        # Dilution matrix with uniform shortcut
+        div(
+          id = "matrix_dilution_section",
+          h5("4. Dilution Factors"),
+          fluidRow(
+            column(4,
+              numericInput("uniform_dilution", "Set all dilutions to:", value = 1, min = 0, step = 0.1)
+            ),
+            column(4,
+              div(style = "margin-top: 25px;",
+                actionButton("apply_uniform_dilution", "Apply to All",
+                            class = "btn btn-sm btn-info")
+              )
+            ),
+            column(4,
+              div(style = "margin-top: 25px;",
+                checkboxInput("advanced_dilution", "Show per-well editor", value = TRUE)
+              )
+            )
+          ),
+          conditionalPanel(
+            condition = "input.advanced_dilution == true",
+            uiOutput("dilution_error_feedback"),
+            actionButton("reset_dilution", "Reset to Default"),
+            rHandsontableOutput("matrix_dilution")
+          )
+        ),
+        br(),
+
+        # Replicate matrix
+        div(
+          id = "matrix_replicate_section",
+          h5("5. Replicate Groups"),
+          actionButton("reset_replicate", "Reset to Default"),
+          rHandsontableOutput("matrix_replicate")
+        ),
+        br(),
+
+        # Tissue weight input (ELISA only)
         conditionalPanel(
           condition = "input.assay_type == 'elisa'",
           div(
-            style = "background-color: #FFF9E6; padding: 10px; margin: 10px 0; border-left: 4px solid #FFC107;",
-            tags$b("ELISA Control Wells:"),
-            tags$ul(
-              tags$li(tags$b("Blank:"), " No enzyme, no antibody (background absorbance)"),
-              tags$li(tags$b("NSB:"), " Non-specific binding (enzyme only, no antibody)"),
-              tags$li(tags$b("B0:"), " Maximum binding (no competing analyte)"),
-              tags$li(tags$b("TotalActivity:"), " Total enzyme activity (optional)")
+            id = "tissue_weight_section",
+            h5("6. Tissue Weights & Extraction Volume (optional)"),
+            div(
+              style = "background-color: #FFF3E0; padding: 10px; margin: 10px 0; border-left: 4px solid #FF9800;",
+              tags$small(
+                tags$b("Tissue-based calculation: "),
+                "Enter tissue weight (mg) per replicate group to calculate pg cortisol / g tissue. ",
+                "Leave blank if not applicable."
+              )
             ),
-            tags$p(
-              style = "margin-top: 10px; font-style: italic;",
-              "💡 Tip: Typically assign Blank/NSB/B0 in Column 1, rows A-G. Standards go in columns 2-3."
-            )
+            numericInput("extraction_volume", "Extraction volume (\u00b5L):",
+                        value = 500, min = 1, max = 10000, step = 50),
+            rHandsontableOutput("tissue_weight_table")
           )
-        ),
-        
-        rHandsontableOutput("matrix_type")
-      ),
-      br(),
-      
-      # ID matrix
-      div(
-        id = "matrix_id_section",
-        h5("2. Sample ID"),
-        actionButton("reset_id", "Reset to Default"),
-        rHandsontableOutput("matrix_id")
-      ),
-      br(),
-      
-      # QC fields (RBA only - ELISA uses different QC approach)
-      conditionalPanel(
-        condition = "input.assay_type == 'rba'",
-        div(
-          id = "qc_section",
-          h5("3. Quality Control Parameters"),
-          
-          # QC concentration input (units depend on assay type)
-          uiOutput("qc_concentration_input"),
-          
-          textInput("expected_hill", "Expected Hill slope:", 
-                   value = "1", placeholder = "1"),
-          uiOutput("qc_warnings"),
-          uiOutput("hill_warning")
         )
       ),
       br(),
-      
-      # Dilution matrix
       div(
-        id = "matrix_dilution_section",
-        h5("4. Dilution Factors (numeric or ratio like 1:2)"),
-        uiOutput("dilution_error_feedback"),
-        actionButton("reset_dilution", "Reset to Default"),
-        rHandsontableOutput("matrix_dilution")
-      ),
-      br(),
-      
-      # Replicate matrix
-      div(
-        id = "matrix_replicate_section",
-        h5("5. Replicate Groups"),
-        actionButton("reset_replicate", "Reset to Default"),
-        rHandsontableOutput("matrix_replicate")
-      ),
-      br(),
-      
-      # Tissue weight input (ELISA only)
-      conditionalPanel(
-        condition = "input.assay_type == 'elisa'",
-        div(
-          id = "tissue_weight_section",
-          h5("6. Tissue Weights & Extraction Volume (optional)"),
-          div(
-            style = "background-color: #FFF3E0; padding: 10px; margin: 10px 0; border-left: 4px solid #FF9800;",
-            tags$small(
-              tags$b("Tissue-based calculation: "),
-              "Enter tissue weight (mg) per replicate group to calculate pg cortisol / g tissue. ",
-              "Leave blank if not applicable."
-            )
-          ),
-          numericInput("extraction_volume", "Extraction volume (µL):",
-                      value = 500, min = 1, max = 10000, step = 50),
-          rHandsontableOutput("tissue_weight_table")
-        )
+        style = "display: flex; justify-content: space-between; padding: 15px;",
+        actionButton("back_to_config", "\u2190 Back: Configuration",
+                    class = "btn btn-default btn-lg"),
+        actionButton("next_to_upload", "Next: Upload & Preview \u2192",
+                    class = "btn btn-primary btn-lg")
       )
     ),
-    
-    # RIGHT COLUMN: Upload + Report
-    column(
-      width = 6,
-      style = "padding-bottom: 100px;",
-      
-      # Upload section
+
+    # ======================================================================
+    # TAB 3: Upload & Preview
+    # ======================================================================
+    tabPanel(
+      "3. Upload & Preview",
+      value = "tab_upload",
+      br(),
+
       div(
         id = "upload_section",
         uiOutput("step2_header"),
-        
-        # Import method toggle
+
         radioButtons("import_method", "Import method:",
-                    choices = c("Classic Import" = "classic", 
+                    choices = c("Classic Import" = "classic",
                                 "Visual Plate Selector" = "visual"),
                     selected = "classic", inline = TRUE),
-        
+
         div(
           style = "display:flex; gap:10px;",
           fileInput("upload_counts", "Upload Bioassay Results",
@@ -414,31 +471,40 @@ ui <- fluidPage(
                       title = "Remove file",
                       style = "margin-top: 30px; background-color:#f8d7da; border:none;")
         ),
-        
-        # Visual plate selector panel (shown when visual import selected)
+
+        # Visual plate selector panel
         conditionalPanel(
           condition = "input.import_method == 'visual'",
           div(
             id = "visual_selector_section",
             style = "border: 2px dashed #2196F3; padding: 15px; margin: 10px 0; border-radius: 8px;",
             h5(tags$b("Visual Plate Selector")),
-            p("After uploading a file, a preview will appear below. Click and drag to select 8×12 plate regions."),
+            p("After uploading a file, a preview will appear below. Click and drag to select 8\u00D712 plate regions."),
             uiOutput("visual_file_preview"),
             uiOutput("visual_plate_selections"),
             uiOutput("visual_well_exclusion")
           )
         ),
-        
-        actionButton("show_sample_layout", "📊 Show default plate layout",
+
+        actionButton("show_sample_layout", "Show default plate layout",
                     class = "btn btn-sm btn-secondary",
                     style = "margin-top: -10px;")
       ),
-      
-      div(id = "upload_preview_section", 
+
+      div(id = "upload_preview_section",
           uiOutput("upload_summary"),
           tableOutput("meas_preview")),
       br(),
-      
+
+      # Data heatmap preview
+      div(
+        id = "heatmap_preview_section",
+        h5("Plate Data Heatmap"),
+        p("Visual verification of uploaded plate data."),
+        plotOutput("plate_heatmap", height = "300px")
+      ),
+      br(),
+
       # Notes
       div(
         id = "notes_feedback_section",
@@ -448,69 +514,102 @@ ui <- fluidPage(
               target = "_blank", class = "btn btn-lg btn-info",
               style = "margin-top: 20px;", "Give Feedback")
       ),
-      br(), br(),
-
-      # Analysis settings
+      br(),
       div(
-        id = "analysis_settings_section",
-        h4(id = "analysis_settings_title", "Analysis Settings"),
+        style = "display: flex; justify-content: space-between; padding: 15px;",
+        actionButton("back_to_layout", "\u2190 Back: Plate Layout",
+                    class = "btn btn-default btn-lg"),
+        actionButton("next_to_report", "Next: Generate Report \u2192",
+                    class = "btn btn-primary btn-lg")
+      )
+    ),
 
-        # Regression weighting (select one or more for comparison)
-        checkboxGroupInput("regression_weight", "DRC regression weighting:",
-                   choices = c("Unweighted" = "none",
-                               "1/Y (moderate)" = "inv_y",
-                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
-                   selected = "none"),
-        helpText("Select multiple weightings to compare results side by side."),
+    # ======================================================================
+    # TAB 4: Generate Report
+    # ======================================================================
+    tabPanel(
+      "4. Generate Report",
+      value = "tab_report",
+      br(),
 
-        # Quantification range
-        fluidRow(
-          column(6,
-            numericInput("quant_range_min", "Lower %B/B0 bound:",
-                        value = 20, min = 5, max = 50, step = 5)
-          ),
-          column(6,
-            numericInput("quant_range_max", "Upper %B/B0 bound:",
-                        value = 80, min = 50, max = 95, step = 5)
+      fluidRow(
+        column(
+          width = 6,
+
+          # Analysis settings
+          div(
+            id = "analysis_settings_section",
+            h4(id = "analysis_settings_title", "Analysis Settings"),
+
+            checkboxGroupInput("regression_weight", "DRC regression weighting:",
+                       choices = c("Unweighted" = "none",
+                                   "1/Y (moderate)" = "inv_y",
+                                   "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
+                       selected = "none"),
+            helpText("Select multiple weightings to compare results side by side."),
+
+            fluidRow(
+              column(6,
+                numericInput("quant_range_min", "Lower %B/B0 bound:",
+                            value = 20, min = 5, max = 50, step = 5)
+              ),
+              column(6,
+                numericInput("quant_range_max", "Upper %B/B0 bound:",
+                            value = 80, min = 50, max = 95, step = 5)
+              )
+            ),
+            helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
+
+            hr(),
+
+            radioButtons("ci_method", "Confidence interval method:",
+                        choices = c("t-distribution (default)" = "t_dist",
+                                    "Bootstrap (1000 resamples)" = "bootstrap"),
+                        selected = "t_dist", inline = TRUE),
+
+            checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
+            conditionalPanel(
+              condition = "input.enable_outlier_detection == true",
+              numericInput("outlier_min_n", "Minimum replicates for outlier test:",
+                          value = 3, min = 3, max = 10, step = 1),
+              helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed.")
+            )
           )
         ),
-        helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
 
-        hr(),
+        column(
+          width = 6,
 
-        # Confidence interval method
-        radioButtons("ci_method", "Confidence interval method:",
-                    choices = c("t-distribution (default)" = "t_dist",
-                                "Bootstrap (1000 resamples)" = "bootstrap"),
-                    selected = "t_dist", inline = TRUE),
-
-        # Outlier detection
-        checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
-        conditionalPanel(
-          condition = "input.enable_outlier_detection == true",
-          numericInput("outlier_min_n", "Minimum replicates for outlier test:",
-                      value = 3, min = 3, max = 10, step = 1),
-          helpText("Dixon's Q-test for n=3-5, Grubbs' test for n≥6. Outliers are flagged, not removed.")
+          # Report generation
+          div(
+            id = "convert_section",
+            h4("Report Output"),
+            checkboxGroupInput("export_formats", "Report formats:",
+                              choices = c("HTML" = "html", "Word" = "docx"),
+                              selected = "html"),
+            selectInput("report_language", "Report language:",
+                       choices = c("English" = "en", "Espa\u00f1ol" = "es"),
+                       selected = "en",
+                       width = "200px"),
+            br(),
+            actionButton("convert",
+                        label = tagList(icon("file-arrow-down"),
+                                       "Generate Report"),
+                        class = "btn btn-primary btn-lg",
+                        style = "width: 100%; font-size: 20px; font-weight: 700;
+                                padding: 14px; border-radius: 12px;"),
+            br(), br(),
+            downloadButton("download_report", "Download Last Report",
+                          class = "btn btn-success btn-lg",
+                          style = "width: 100%;")
+          )
         )
       ),
       br(),
-
-      # Report generation
       div(
-        id = "convert_section",
-        checkboxGroupInput("export_formats", "Report formats:",
-                          choices = c("HTML" = "html", "Word" = "docx"),
-                          selected = "html"),
-        selectInput("report_language", "Report language:",
-                   choices = c("English" = "en", "Español" = "es"),
-                   selected = "en",
-                   width = "200px"),
-        actionButton("convert", 
-                    label = tagList(icon("file-arrow-down"), 
-                                   "Step 3: Generate Report"),
-                    class = "btn btn-primary btn-lg",
-                    style = "width: 100%; font-size: 20px; font-weight: 700; 
-                            padding: 14px; border-radius: 12px;")
+        style = "text-align: left; padding: 15px;",
+        actionButton("back_to_upload", "\u2190 Back: Upload & Preview",
+                    class = "btn btn-default btn-lg")
       )
     )
   )
@@ -545,15 +644,191 @@ server <- function(input, output, session) {
   mw_g_mol <- reactiveVal(299.29)  # Default: Saxitoxin
   
   rv <- reactiveValues(
-    plate_data = NULL,
-    plate_layout = NULL,
-    # NEW: Multi-wavelength variables
+    # Multi-wavelength variables
     is_multiwavelength = FALSE,
     wavelengths = NULL,
-    wavelength_plates = NULL,
-    # ... existing variables
+    wavelength_plates = NULL
   )
+
+  # Session-scoped paths (replaces Sys.setenv/getenv for concurrency safety)
+  session$userData$output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+  session$userData$csv_path <- Sys.getenv("RBA_CSV_PATH")
+  session$userData$fmt_json <- Sys.getenv("RBA_FMT_JSON")
+  session$userData$notes_file <- Sys.getenv("RBA_NOTES_FILE")
+
+  # --------------------------------------------------------------------------
+  # Session State Auto-Save (every 30 seconds)
+  # --------------------------------------------------------------------------
+
+  autoSaveTimer <- reactiveTimer(30000)
+  observe({
+    autoSaveTimer()
+    tryCatch({
+      temp_file <- file.path(tempdir(), paste0("bioassay_autosave_", session$token, ".rds"))
+      state <- list(
+        matrix_type = isolate(matrix_type()),
+        matrix_id = isolate(matrix_id()),
+        matrix_dilution = isolate(matrix_dilution()),
+        matrix_replicate = isolate(matrix_replicate()),
+        assay_type = isolate(input$assay_type),
+        num_standards = isolate(input$num_standards),
+        timestamp = Sys.time()
+      )
+      saveRDS(state, temp_file)
+    }, error = function(e) {
+      # Silent failure for auto-save — don't disrupt the user
+    })
+  })
   
+  # --------------------------------------------------------------------------
+  # Wizard Tab Navigation
+  # --------------------------------------------------------------------------
+
+  observeEvent(input$next_to_layout, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
+  })
+  observeEvent(input$back_to_config, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_config")
+  })
+  observeEvent(input$next_to_upload, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+  })
+  observeEvent(input$back_to_layout, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
+  })
+  observeEvent(input$next_to_report, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_report")
+  })
+  observeEvent(input$back_to_upload, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+  })
+
+  # --------------------------------------------------------------------------
+  # Preset Plate Layouts
+  # --------------------------------------------------------------------------
+
+  observeEvent(input$preset_layout, {
+    req(input$preset_layout != "")
+    preset_file <- file.path("presets", paste0(input$preset_layout, ".rds"))
+    if (file.exists(preset_file)) {
+      preset <- readRDS(preset_file)
+      if (!is.null(preset$type_matrix)) matrix_type(preset$type_matrix)
+      if (!is.null(preset$id_matrix)) matrix_id(preset$id_matrix)
+      if (!is.null(preset$dilution_matrix)) matrix_dilution(preset$dilution_matrix)
+      if (!is.null(preset$replicate_matrix)) matrix_replicate(preset$replicate_matrix)
+      showNotification("Preset layout loaded successfully.", type = "message", duration = 3)
+    } else {
+      showNotification("Preset file not found.", type = "warning", duration = 3)
+    }
+    # Reset dropdown to allow re-selection
+    updateSelectInput(session, "preset_layout", selected = "")
+  })
+
+  # --------------------------------------------------------------------------
+  # Uniform Dilution Shortcut
+  # --------------------------------------------------------------------------
+
+  observeEvent(input$apply_uniform_dilution, {
+    val <- input$uniform_dilution
+    req(is.numeric(val), val > 0)
+    new_dil <- matrix(val, nrow = PLATE_NROW, ncol = PLATE_NCOL)
+    rownames(new_dil) <- ROW_NAMES
+    colnames(new_dil) <- COL_NAMES
+    matrix_dilution(new_dil)
+    # Also update raw dilution strings
+    raw_dil <- matrix(as.character(val), nrow = PLATE_NROW, ncol = PLATE_NCOL)
+    rownames(raw_dil) <- ROW_NAMES
+    colnames(raw_dil) <- COL_NAMES
+    raw_matrix_dilution(raw_dil)
+    dilution_validity(matrix(TRUE, nrow = PLATE_NROW, ncol = PLATE_NCOL))
+    dilution_error(FALSE)
+    showNotification(paste("All dilutions set to", val), type = "message", duration = 2)
+  })
+
+  # --------------------------------------------------------------------------
+  # Auto-fill ID Matrix from Type Matrix
+  # --------------------------------------------------------------------------
+
+  observeEvent(matrix_type(), {
+    type_mat <- matrix_type()
+    req(type_mat)
+    id_mat <- matrix_id()
+    if (is.null(id_mat)) return()
+
+    # Auto-generate standard IDs where Type == "Standard"
+    std_count <- 0
+    changed <- FALSE
+    for (r in 1:nrow(type_mat)) {
+      for (c in 1:ncol(type_mat)) {
+        if (!is.na(type_mat[r, c]) && type_mat[r, c] == "Standard") {
+          std_count <- std_count + 1
+          new_id <- paste0("S", std_count)
+          # Only auto-fill if ID is empty or matches default pattern
+          if (is.na(id_mat[r, c]) || id_mat[r, c] == "" || grepl("^S[0-9]+$", id_mat[r, c])) {
+            id_mat[r, c] <- new_id
+            changed <- TRUE
+          }
+        }
+      }
+    }
+    if (changed) matrix_id(id_mat)
+  }, ignoreInit = TRUE)
+
+  # --------------------------------------------------------------------------
+  # Plate Heatmap Preview
+  # --------------------------------------------------------------------------
+
+  output$plate_heatmap <- renderPlot({
+    meas_mat <- matrix_measresults()
+    req(meas_mat)
+
+    # Convert matrix to long format for ggplot
+    vals <- as.numeric(meas_mat)
+    if (all(is.na(vals))) return(NULL)
+
+    hm_data <- expand.grid(
+      Row = factor(ROW_NAMES, levels = rev(ROW_NAMES)),
+      Col = factor(COL_NAMES, levels = COL_NAMES)
+    )
+    hm_data$Value <- as.numeric(t(meas_mat))
+
+    ggplot2::ggplot(hm_data, ggplot2::aes(x = Col, y = Row, fill = Value)) +
+      ggplot2::geom_tile(color = "white", linewidth = 0.5) +
+      ggplot2::scale_fill_gradient2(low = "#313695", mid = "#ffffbf", high = "#a50026",
+                                    midpoint = median(hm_data$Value, na.rm = TRUE),
+                                    na.value = "grey90") +
+      ggplot2::labs(x = "Column", y = "Row", fill = "Value") +
+      ggplot2::theme_minimal(base_size = 14) +
+      ggplot2::theme(panel.grid = ggplot2::element_blank(),
+                     axis.text = ggplot2::element_text(face = "bold"))
+  })
+
+  # --------------------------------------------------------------------------
+  # Download Report Handler
+  # --------------------------------------------------------------------------
+
+  output$download_report <- downloadHandler(
+    filename = function() {
+      fmt <- input$export_formats[1] %||% "html"
+      ext <- if (fmt == "docx") "docx" else "html"
+      paste0("bioassay_report_", format(Sys.Date(), "%Y%m%d"), ".", ext)
+    },
+    content = function(file) {
+      out_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+      # Find the most recent report file
+      fmt <- input$export_formats[1] %||% "html"
+      ext <- if (fmt == "docx") "docx" else "html"
+      report_files <- list.files(out_dir, pattern = paste0("\\.", ext, "$"), full.names = TRUE)
+      if (length(report_files) > 0) {
+        # Get most recent
+        newest <- report_files[which.max(file.info(report_files)$mtime)]
+        file.copy(newest, file)
+      } else {
+        showNotification("No report found. Generate a report first.", type = "warning")
+      }
+    }
+  )
+
   # --------------------------------------------------------------------------
   # Assay Type Configuration
   # --------------------------------------------------------------------------
@@ -1261,7 +1536,6 @@ server <- function(input, output, session) {
     raw_data = NULL,
     file_path = NULL,
     detected_plates = list(),
-    selected_plates = list(),
     excluded_wells = list()
   )
   
@@ -1289,6 +1563,8 @@ server <- function(input, output, session) {
       return(tags$p(style = "color: red;", "Could not read file for preview."))
     }
 
+    # Clear stale excluded wells from previous upload (BUG_005 fix)
+    rv_file_preview$excluded_wells <- list()
     rv_file_preview$raw_data <- raw
     rv_file_preview$file_path <- file_path
 
@@ -1785,7 +2061,23 @@ server <- function(input, output, session) {
       )
       
       incProgress(0.2)
-      
+
+      # Validate ELISA control wells exist before normalization
+      if (input$assay_type == "elisa") {
+        type_mat <- matrix_type()
+        well_types <- as.character(type_mat)
+        required_controls <- c("Blank", "NSB", "B0")
+        missing_controls <- required_controls[!required_controls %in% well_types]
+        if (length(missing_controls) > 0) {
+          showNotification(
+            paste("ELISA requires control wells:", paste(missing_controls, collapse = ", "),
+                  "- please assign them in the Type matrix before generating a report."),
+            type = "error", duration = 10
+          )
+          return()
+        }
+      }
+
       # Apply normalization based on assay type
       df_normalized <- tryCatch({
         
@@ -1819,7 +2111,7 @@ server <- function(input, output, session) {
       incProgress(0.4)
       
       # Save main CSV (for single wavelength OR first wavelength of multi-wavelength)
-      csv_path <- Sys.getenv("RBA_CSV_PATH")
+      csv_path <- session$userData$csv_path
       write.csv(df_normalized, csv_path, row.names = FALSE)
       
       # NEW: If multi-wavelength, save additional wavelength CSVs
@@ -1886,12 +2178,12 @@ server <- function(input, output, session) {
         )
       }
       
-      # Save formats
-      write_json_safe(input$export_formats, Sys.getenv("RBA_FMT_JSON"))
-      
+      # Save formats (use session-scoped paths for concurrency safety)
+      write_json_safe(input$export_formats, session$userData$fmt_json)
+
       # Save notes
-      write_json_safe(list(notes = input$notes %||% ""), 
-                      Sys.getenv("RBA_NOTES_FILE"))
+      write_json_safe(list(notes = input$notes %||% ""),
+                      session$userData$notes_file)
       
       # Save QC params (conditional based on assay type)
       qc_params <- if (input$assay_type == "rba") {
@@ -1967,15 +2259,6 @@ server <- function(input, output, session) {
         )
         write_json_safe(processing_config, 
                        file.path(output_dir, "sample_processing_config.json"))
-      }
-      
-      # Save excluded wells
-      excluded_input <- input$excluded_wells_input
-      if (!is.null(excluded_input) && nchar(trimws(excluded_input)) > 0) {
-        wells <- trimws(strsplit(excluded_input, ",")[[1]])
-        wells <- toupper(wells)
-        write_json_safe(list(excluded_wells = wells),
-                       file.path(output_dir, "excluded_wells.json"))
       }
       
       # Save report language preference
@@ -2057,8 +2340,7 @@ server <- function(input, output, session) {
 
       incProgress(1)
 
-      Sys.sleep(3)
-      stopApp()
+      # stopApp() removed: let users iterate without restarting the app
     })
   })
       

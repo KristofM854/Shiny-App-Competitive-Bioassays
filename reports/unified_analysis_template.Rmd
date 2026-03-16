@@ -31,8 +31,7 @@ library(htmltools)
 library(tibble)
 library(jsonlite)
 
-# Define %||% operator (null coalescing)
-`%||%` <- function(x, y) if (is.null(x)) y else x
+# %||% operator is defined in global.R (loaded before rendering)
 
 # Validate output directory
 output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
@@ -309,6 +308,10 @@ resp_vals <- standards_for_model[[response_var]]
 weight_options$inv_y$weights <- ifelse(resp_vals > 0, 1 / resp_vals, 1)
 weight_options$inv_y2$weights <- ifelse(resp_vals > 0, 1 / (resp_vals^2), 1)
 
+# Defensive check: weight vectors must match filtered standards (BUG_003 guard)
+stopifnot(length(weight_options$inv_y$weights) == nrow(standards_for_model))
+stopifnot(length(weight_options$inv_y2$weights) == nrow(standards_for_model))
+
 # Which weightings did the user select?
 selected_weights <- analysis_config$regression_weight
 if (is.null(selected_weights) || length(selected_weights) == 0) selected_weights <- "none"
@@ -323,51 +326,107 @@ for (wt_key in selected_weights) {
   wt_info <- weight_options[[wt_key]]
   if (is.null(wt_info)) next
 
-  tryCatch({
-    fml <- as.formula(paste(response_var, "~ concentration"))
-    # Don't pass weights argument when NULL (unweighted) - some drc versions
-    # treat explicit weights=NULL differently from omitting the argument
+  # DRC fallback chain: LL.4() -> LL.3() -> log-linear interpolation
+  fml <- as.formula(paste(response_var, "~ concentration"))
+  fit <- NULL
+  fit_method <- "LL.4"
+
+  # Tier 1: Try LL.4() (4-parameter logistic)
+  fit <- tryCatch({
     if (isTRUE(is_elisa)) {
       if (is.null(wt_info$weights)) {
-        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
-                        lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
+        drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
+                 lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
       } else {
-        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
-                        weights = wt_info$weights,
-                        lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
+        drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
+                 weights = wt_info$weights,
+                 lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
       }
     } else {
       if (is.null(wt_info$weights)) {
-        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4())
+        drc::drm(fml, data = standards_for_model, fct = drc::LL.4())
       } else {
-        fit <- drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
-                        weights = wt_info$weights)
+        drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
+                 weights = wt_info$weights)
       }
     }
+  }, error = function(e) {
+    warning("LL.4() failed for weight '", wt_key, "': ", e$message, ". Trying LL.3()...")
+    NULL
+  })
 
+  # Tier 2: Try LL.3() (3-parameter, fixed bottom = 0)
+  if (is.null(fit)) {
+    fit_method <- "LL.3"
+    fit <- tryCatch({
+      if (is.null(wt_info$weights)) {
+        drc::drm(fml, data = standards_for_model, fct = drc::LL.3())
+      } else {
+        drc::drm(fml, data = standards_for_model, fct = drc::LL.3(),
+                 weights = wt_info$weights)
+      }
+    }, error = function(e) {
+      warning("LL.3() also failed for weight '", wt_key, "': ", e$message, ". Falling back to log-linear interpolation.")
+      NULL
+    })
+  }
+
+  if (!is.null(fit)) {
     resid <- residuals(fit)
     r2 <- 1 - sum(resid^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
     rmse <- sqrt(mean(resid^2))
     coefs <- coef(fit)
 
     all_models[[wt_key]] <- list(
-      model = fit, label = wt_info$label,
-      R2 = r2, RMSE = rmse, coefs = coefs
+      model = fit, label = paste0(wt_info$label, " (", fit_method, ")"),
+      R2 = r2, RMSE = rmse, coefs = coefs,
+      fit_method = fit_method
     )
-  }, error = function(e) {
-    warning("Model fitting failed for weight '", wt_key, "': ", e$message)
-  })
+  } else {
+    # Tier 3: Log-linear interpolation fallback
+    tryCatch({
+      std_means <- standards_for_model %>%
+        dplyr::group_by(concentration) %>%
+        dplyr::summarise(mean_resp = mean(.data[[response_var]], na.rm = TRUE), .groups = "drop") %>%
+        dplyr::filter(is.finite(mean_resp), concentration > 0) %>%
+        dplyr::arrange(concentration)
+      if (nrow(std_means) >= 2) {
+        interp_fun <- approxfun(log10(std_means$concentration), std_means$mean_resp, rule = 2)
+        warning("Using log-linear interpolation fallback for weight '", wt_key, "'.")
+        all_models[[wt_key]] <- list(
+          model = NULL,
+          interp_fun = interp_fun,
+          interp_data = std_means,
+          label = paste0(wt_info$label, " (log-linear interpolation)"),
+          R2 = NA_real_, RMSE = NA_real_, coefs = NULL,
+          fit_method = "interpolation"
+        )
+      } else {
+        warning("Insufficient data for interpolation fallback for weight '", wt_key, "'.")
+      }
+    }, error = function(e) {
+      warning("All fitting methods failed for weight '", wt_key, "': ", e$message)
+    })
+  }
 }
 
 # Primary model = first successfully fitted weighting (used for sample calculation)
-if (length(all_models) == 0) {
-  stop("No dose-response models could be fitted. Check your standard curve data.")
+drc_failed_completely <- (length(all_models) == 0)
+if (drc_failed_completely) {
+  warning("No dose-response models could be fitted. Report will show standards data only.")
 }
-primary_key <- names(all_models)[[1]]
-model_fit <- all_models[[primary_key]]$model
-weight_desc <- all_models[[primary_key]]$label
-R2 <- all_models[[primary_key]]$R2
-RMSE <- all_models[[primary_key]]$RMSE
+if (!drc_failed_completely) {
+  primary_key <- names(all_models)[[1]]
+  model_fit <- all_models[[primary_key]]$model
+  weight_desc <- all_models[[primary_key]]$label
+  R2 <- all_models[[primary_key]]$R2
+  RMSE <- all_models[[primary_key]]$RMSE
+} else {
+  model_fit <- NULL
+  weight_desc <- "None (all models failed)"
+  R2 <- NA_real_
+  RMSE <- NA_real_
+}
 
 # Generate predictions for plotting - use appropriate concentration range
 if (isTRUE(is_elisa)) {
@@ -852,21 +911,10 @@ model_stats <- list(
   weight_method = weight_desc
 )
 
-# Also compute mean sample CV for the executive summary
-if (exists("replicate_stats") && !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
-  model_stats$mean_sample_cv <- mean(replicate_stats$cv_percent, na.rm = TRUE)
-} else {
-  model_stats$mean_sample_cv <- NA_real_
-}
+# Note: mean_sample_cv is computed later in save-sample-stats chunk
+# after replicate_stats is available (BUG_008 fix)
 
-# Reuse write_json_safe if already defined (from global.R), otherwise define it
-if (!exists("write_json_safe")) {
-  write_json_safe <- function(x, file) {
-    dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
-    jsonlite::write_json(x, path = file, pretty = TRUE, auto_unbox = TRUE, null = "null")
-  }
-}
-
+# write_json_safe is defined in global.R (loaded before rendering)
 write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 ```
 
@@ -1396,6 +1444,20 @@ if (isTRUE(analysis_config$ci_method == "bootstrap")) {
   cat(sprintf("\n*%s*\n\n", tr("ci_bootstrap_note", lang)))
 } else {
   cat(sprintf("\n*%s*\n\n", tr("ci_tdist_note", lang)))
+}
+```
+
+```{r save-sample-stats, include=FALSE}
+# BUG_008 fix: Update model_stats with mean_sample_cv now that replicate_stats exists
+if (exists("model_stats") && exists("replicate_stats") &&
+    !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
+  model_stats$mean_sample_cv <- mean(replicate_stats$cv_percent, na.rm = TRUE)
+} else if (exists("model_stats")) {
+  model_stats$mean_sample_cv <- NA_real_
+}
+# Re-save model_stats with the updated mean_sample_cv
+if (exists("model_stats") && exists("write_json_safe")) {
+  write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 }
 ```
 
