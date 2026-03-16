@@ -16,6 +16,13 @@
 #       All select() calls throughout the codebase MUST use dplyr::select().
 # ==============================================================================
 
+# --- R Version Check ----------------------------------------------------------
+if (getRversion() < "4.2.0") {
+  warning("This application requires R >= 4.2.0 (for native pipe operator support). ",
+          "You are running R ", as.character(getRversion()), ". ",
+          "Some features may not work correctly.", call. = FALSE)
+}
+
 # --- Package Loading ----------------------------------------------------------
 required_pkgs <- c(
   "shiny", "shinyjs", "shinyFeedback", "rintrojs", "rhandsontable",

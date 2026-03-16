@@ -178,13 +178,34 @@ detect_plate_location <- function(file_path, sheet = 1) {
 import_plate_data <- function(file_path, sheet = 1, 
                              expected_rows = 8, expected_cols = 12) {
   
-  # Detect plate location
+  # Detect plate location (with multi-sheet fallback for Excel)
   location <- detect_plate_location(file_path, sheet)
-  
+  used_sheet <- sheet
+
+  if (is.null(location)) {
+    ext <- tools::file_ext(file_path)
+    if (ext %in% c("xlsx", "xls")) {
+      # Try all other sheets
+      all_sheets <- readxl::excel_sheets(file_path)
+      for (s in seq_along(all_sheets)) {
+        if (s == sheet) next
+        location <- tryCatch(
+          detect_plate_location(file_path, sheet = s),
+          error = function(e) NULL
+        )
+        if (!is.null(location)) {
+          used_sheet <- s
+          message("Plate data found on sheet '", all_sheets[s], "' (sheet ", s, ").")
+          break
+        }
+      }
+    }
+  }
+
   if (is.null(location)) {
     stop(
       "Could not detect plate data in file.\n",
-      "Expected: 8 rows × 4+ columns of numeric data.\n",
+      "Expected: 8 rows \u00D7 4+ columns of numeric data.\n",
       "Check that your file contains a data table with measurements.\n",
       "Supported formats:\n",
       "  - With row labels (A-H) in first column\n",
@@ -193,11 +214,11 @@ import_plate_data <- function(file_path, sheet = 1,
     )
   }
   
-  # Read raw data again
+  # Read raw data again (using the sheet where plate was found)
   ext <- tools::file_ext(file_path)
   raw <- if (ext %in% c("xlsx", "xls")) {
     suppressMessages(
-      readxl::read_excel(file_path, sheet = sheet, col_names = FALSE,
+      readxl::read_excel(file_path, sheet = used_sheet, col_names = FALSE,
                         .name_repair = "minimal")
     )
   } else if (ext == "csv") {
@@ -209,9 +230,38 @@ import_plate_data <- function(file_path, sheet = 1,
   # Extract plate region
   row_indices <- location$start_row:(location$start_row + location$nrows - 1)
   col_indices <- location$start_col:(location$start_col + location$ncols - 1)
-  
+
   plate_data <- raw[row_indices, col_indices, drop = FALSE]
-  
+
+  # Handle overflow/saturation markers before numeric conversion
+  overflow_markers <- c("#SAT", "OVER", "ERR", "****", "Overfl", "Sat")
+  overflow_count <- 0
+  for (r in 1:nrow(plate_data)) {
+    for (cc in 1:ncol(plate_data)) {
+      cell_val <- trimws(as.character(plate_data[r, cc]))
+      if (toupper(cell_val) %in% toupper(overflow_markers)) {
+        plate_data[r, cc] <- NA
+        overflow_count <- overflow_count + 1
+      }
+    }
+  }
+  if (overflow_count > 0) {
+    warning(overflow_count, " well(s) contained overflow/saturation markers and were set to NA.")
+  }
+
+  # Locale-aware decimal parsing: detect comma decimals (European format)
+  all_cells <- as.character(unlist(plate_data))
+  has_comma_decimal <- any(grepl("[0-9],[0-9]", all_cells), na.rm = TRUE)
+  has_dot_decimal <- any(grepl("[0-9]\\.[0-9]", all_cells), na.rm = TRUE)
+  if (has_comma_decimal && !has_dot_decimal) {
+    # European locale: swap comma for period
+    plate_data <- as.data.frame(
+      apply(plate_data, 2, function(col) gsub(",", ".", as.character(col))),
+      stringsAsFactors = FALSE
+    )
+    warning("Detected European decimal format (comma separator). Values converted automatically.")
+  }
+
   # Convert to numeric matrix
   plate_numeric <- suppressWarnings(
     as.data.frame(
