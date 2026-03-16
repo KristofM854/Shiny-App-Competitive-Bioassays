@@ -76,6 +76,30 @@ DEFAULT_CORTISOL_CONC <- c(
   6.6     # S8
 )
 
+# --- Default ELISA Standard Concentrations (Testosterone pg/mL) ---------------
+DEFAULT_TESTOSTERONE_CONC <- c(
+  10000,  # S1
+  4000,   # S2
+  1600,   # S3
+  640,    # S4
+  256,    # S5
+  102.4,  # S6
+  41.0,   # S7
+  16.4    # S8
+)
+
+# --- Default ELISA Standard Concentrations (Estradiol pg/mL) -----------------
+DEFAULT_ESTRADIOL_CONC <- c(
+  2000,   # S1
+  800,    # S2
+  320,    # S3
+  128,    # S4
+  51.2,   # S5
+  20.5,   # S6
+  8.2,    # S7
+  3.3     # S8
+)
+
 # --- Toxin Variants -----------------------------------------------------------
 CTX_VARIANTS <- c(
   "CTX1B (Caribbean ciguatoxin-1)" = "CTX1B",
