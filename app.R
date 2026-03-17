@@ -501,7 +501,7 @@ ui <- fluidPage(
         id = "heatmap_preview_section",
         h5("Plate Data Heatmap"),
         p("Visual verification of uploaded plate data."),
-        plotOutput("plate_heatmap", height = "300px")
+        plotly::plotlyOutput("plate_heatmap", height = "300px")
       ),
       br(),
 
@@ -660,11 +660,65 @@ server <- function(input, output, session) {
   # Session State Auto-Save (every 30 seconds)
   # --------------------------------------------------------------------------
 
+  autosave_path <- file.path(tempdir(), paste0("bioassay_autosave_", session$token, ".rds"))
+
+  # Check for a previous auto-save and offer to restore
+  observe({
+    # Run once on startup — look for any recent autosave (< 2 hours old)
+    candidates <- list.files(tempdir(), pattern = "^bioassay_autosave_.*\\.rds$", full.names = TRUE)
+    if (length(candidates) > 0) {
+      # Find the most recent file that is less than 2 hours old
+      info <- file.info(candidates)
+      recent <- candidates[difftime(Sys.time(), info$mtime, units = "hours") < 2]
+      if (length(recent) > 0) {
+        newest <- recent[which.max(file.info(recent)$mtime)]
+        saved <- tryCatch(readRDS(newest), error = function(e) NULL)
+        if (!is.null(saved) && !is.null(saved$timestamp)) {
+          showModal(modalDialog(
+            title = "Restore Previous Session?",
+            paste0("An auto-saved session from ",
+                   format(saved$timestamp, "%Y-%m-%d %H:%M:%S"),
+                   " was found. Would you like to restore the plate layout?"),
+            footer = tagList(
+              actionButton("restore_autosave", "Restore", class = "btn-primary"),
+              modalButton("Start Fresh")
+            ),
+            easyClose = TRUE
+          ))
+          session$userData$pending_restore <- saved
+        }
+      }
+    }
+  }) |> bindEvent(session$clientData$url_protocol, once = TRUE)
+
+  observeEvent(input$restore_autosave, {
+    saved <- session$userData$pending_restore
+    if (!is.null(saved)) {
+      if (!is.null(saved$matrix_type)) matrix_type(saved$matrix_type)
+      if (!is.null(saved$matrix_id)) matrix_id(saved$matrix_id)
+      if (!is.null(saved$matrix_dilution)) matrix_dilution(saved$matrix_dilution)
+      if (!is.null(saved$matrix_replicate)) matrix_replicate(saved$matrix_replicate)
+      if (!is.null(saved$std_concentrations)) {
+        for (i in seq_along(saved$std_concentrations)) {
+          updateTextInput(session, paste0("std", i), value = saved$std_concentrations[i])
+        }
+      }
+      showNotification("Session restored successfully.", type = "message", duration = 3)
+    }
+    session$userData$pending_restore <- NULL
+    removeModal()
+  })
+
   autoSaveTimer <- reactiveTimer(30000)
   observe({
     autoSaveTimer()
     tryCatch({
-      temp_file <- file.path(tempdir(), paste0("bioassay_autosave_", session$token, ".rds"))
+      # Collect standard concentrations
+      n_std <- as.integer(isolate(input$num_standards) %||% 0)
+      std_vals <- if (n_std > 0) {
+        sapply(seq_len(n_std), function(i) isolate(input[[paste0("std", i)]]) %||% "")
+      } else character(0)
+
       state <- list(
         matrix_type = isolate(matrix_type()),
         matrix_id = isolate(matrix_id()),
@@ -672,9 +726,12 @@ server <- function(input, output, session) {
         matrix_replicate = isolate(matrix_replicate()),
         assay_type = isolate(input$assay_type),
         num_standards = isolate(input$num_standards),
+        std_concentrations = std_vals,
+        elisa_analyte = isolate(input$elisa_analyte),
+        toxin_class = isolate(input$toxin_class),
         timestamp = Sys.time()
       )
-      saveRDS(state, temp_file)
+      saveRDS(state, autosave_path)
     }, error = function(e) {
       # Silent failure for auto-save — don't disrupt the user
     })
@@ -778,29 +835,39 @@ server <- function(input, output, session) {
   # Plate Heatmap Preview
   # --------------------------------------------------------------------------
 
-  output$plate_heatmap <- renderPlot({
+  output$plate_heatmap <- plotly::renderPlotly({
     meas_mat <- matrix_measresults()
     req(meas_mat)
 
-    # Convert matrix to long format for ggplot
     vals <- as.numeric(meas_mat)
     if (all(is.na(vals))) return(NULL)
 
-    hm_data <- expand.grid(
-      Row = factor(ROW_NAMES, levels = rev(ROW_NAMES)),
-      Col = factor(COL_NAMES, levels = COL_NAMES)
-    )
-    hm_data$Value <- as.numeric(t(meas_mat))
+    # Build numeric matrix with rows reversed so A is at top
+    num_mat <- matrix(as.numeric(t(meas_mat)), nrow = PLATE_NROW, ncol = PLATE_NCOL, byrow = TRUE)
+    rownames(num_mat) <- ROW_NAMES
+    colnames(num_mat) <- COL_NAMES
 
-    ggplot2::ggplot(hm_data, ggplot2::aes(x = Col, y = Row, fill = Value)) +
-      ggplot2::geom_tile(color = "white", linewidth = 0.5) +
-      ggplot2::scale_fill_gradient2(low = "#313695", mid = "#ffffbf", high = "#a50026",
-                                    midpoint = median(hm_data$Value, na.rm = TRUE),
-                                    na.value = "grey90") +
-      ggplot2::labs(x = "Column", y = "Row", fill = "Value") +
-      ggplot2::theme_minimal(base_size = 14) +
-      ggplot2::theme(panel.grid = ggplot2::element_blank(),
-                     axis.text = ggplot2::element_text(face = "bold"))
+    # Hover text: show well ID and value
+    hover_text <- outer(ROW_NAMES, COL_NAMES, function(r, c) {
+      paste0(r, c, "<br>Value: ",
+             round(num_mat[match(r, ROW_NAMES), match(c, COL_NAMES)], 3))
+    })
+
+    plotly::plot_ly(
+      z = num_mat[rev(seq_len(PLATE_NROW)), ],
+      x = COL_NAMES,
+      y = rev(ROW_NAMES),
+      text = hover_text[rev(seq_len(PLATE_NROW)), ],
+      hoverinfo = "text",
+      type = "heatmap",
+      colorscale = list(c(0, "#313695"), c(0.5, "#ffffbf"), c(1, "#a50026")),
+      showscale = TRUE
+    ) %>%
+      plotly::layout(
+        xaxis = list(title = "Column", dtick = 1),
+        yaxis = list(title = "Row", dtick = 1),
+        margin = list(l = 40, r = 10, t = 10, b = 40)
+      )
   })
 
   # --------------------------------------------------------------------------
@@ -814,7 +881,7 @@ server <- function(input, output, session) {
       paste0("bioassay_report_", format(Sys.Date(), "%Y%m%d"), ".", ext)
     },
     content = function(file) {
-      out_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+      out_dir <- session$userData$output_dir
       # Find the most recent report file
       fmt <- input$export_formats[1] %||% "html"
       ext <- if (fmt == "docx") "docx" else "html"
@@ -1077,11 +1144,13 @@ server <- function(input, output, session) {
     
     # Choose defaults based on assay type
     defaults <- if (assay == "elisa") {
-      if (input$elisa_analyte == "cortisol") {
-        DEFAULT_CORTISOL_CONC[1:n]
+      analyte <- input$elisa_analyte %||% "cortisol"
+      if (analyte == "testosterone") {
+        DEFAULT_TESTOSTERONE_CONC[1:n]
+      } else if (analyte == "estradiol") {
+        DEFAULT_ESTRADIOL_CONC[1:n]
       } else {
-        # Generic ELISA defaults (adjust for other analytes)
-        c(4000, 1600, 640, 256, 102.4, 41.0, 16.4, 6.6)[1:n]
+        DEFAULT_CORTISOL_CONC[1:n]
       }
     } else {
       DEFAULT_STX_CONC[1:n]
@@ -1122,14 +1191,21 @@ server <- function(input, output, session) {
     n <- as.integer(input$num_standards)
     assay <- input$assay_type %||% "rba"
     
-    if (is.null(n) || n == 0) {
-      return(if (assay == "elisa") DEFAULT_CORTISOL_CONC[1:8] else DEFAULT_STX_CONC[1:8])
+    elisa_defaults <- function() {
+      analyte <- input$elisa_analyte %||% "cortisol"
+      if (analyte == "testosterone") DEFAULT_TESTOSTERONE_CONC
+      else if (analyte == "estradiol") DEFAULT_ESTRADIOL_CONC
+      else DEFAULT_CORTISOL_CONC
     }
-    
+
+    if (is.null(n) || n == 0) {
+      return(if (assay == "elisa") elisa_defaults()[1:8] else DEFAULT_STX_CONC[1:8])
+    }
+
     sapply(seq_len(n), function(i) {
       val <- input[[paste0("std", i)]]
       if (is.null(val) || val == "") {
-        if (assay == "elisa") DEFAULT_CORTISOL_CONC[i] else DEFAULT_STX_CONC[i]
+        if (assay == "elisa") elisa_defaults()[i] else DEFAULT_STX_CONC[i]
       } else {
         as.numeric(val)
       }
@@ -2082,9 +2158,15 @@ server <- function(input, output, session) {
       df_normalized <- tryCatch({
         
         if (input$assay_type == "elisa") {
-          # ELISA: Apply %B/B0 normalization
+          # ELISA normalization (%B/B0) is handled by the Rmd template via
+          # calculate_elisa_bb0(), which follows the Cayman protocol with
+          # proper Blank correction. Pass through raw absorbance here.
           detection_method <- "absorbance"
-          normalize_data(df_long, "elisa", detection_method)
+          df_long %>%
+            dplyr::mutate(
+              NormalizedValue = MeasurementValue,
+              ResponseUnit = "Raw Absorbance"
+            )
         } else {
           # RBA: Direct measurement (CPM or RFU)
           detection_method <- "radioligand"
@@ -2279,7 +2361,7 @@ server <- function(input, output, session) {
 
       # Determine template
       is_mw <- isTRUE(rv$is_multiwavelength)
-      app_root <- if (file.exists("reports")) "." else dirname(Sys.getenv("RBA_CSV_PATH"))
+      app_root <- if (file.exists("reports")) "." else dirname(session$userData$csv_path)
       template_dir <- file.path(app_root, "reports")
       if (!dir.exists(template_dir)) template_dir <- "reports"
 
