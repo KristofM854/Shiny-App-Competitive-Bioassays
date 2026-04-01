@@ -23,7 +23,7 @@ get_translations <- function() {
       start_tour = "\U0001F680 Start Guided Tour",
       
       # Step 0: Assay Configuration
-      step0_title = "Step 0: Assay Configuration",
+      step0_title = "Step 1: Assay Configuration",
       select_assay_type = "Select Assay Type",
       assay_type_label = "Type of assay:",
       assay_rba = "Receptor Binding Assay (RBA)",
@@ -49,7 +49,7 @@ get_translations <- function() {
       elisa_tip = "\U0001F4A1 Tip: Typically assign Blank/NSB/B0 in Column 1, rows A-G. Standards go in columns 2-3.",
       
       # Step 1: Matrices
-      step1_title = "Step 1: Edit Microplate Matrices & QC Parameters",
+      step1_title = "Step 2: Plate Layout & QC Parameters",
       type_matrix = "1. Sample Type (Standard, Sample, QC, Blank, Other)",
       id_matrix = "2. Sample ID",
       qc_params = "3. Quality Control Parameters",
@@ -61,7 +61,7 @@ get_translations <- function() {
       reset_default = "Reset to Default",
       
       # Step 2: Upload
-      step2_title = "Step 2: Upload Plate Data",
+      step2_title = "Step 3: Upload Plate Data",
       upload_label = "Upload Bioassay Results",
       upload_or_visual = "Import method:",
       import_classic = "Classic Import",
@@ -343,7 +343,7 @@ get_translations <- function() {
       start_tour = "\U0001F680 Iniciar Gu\u00EDa Interactiva",
       
       # Step 0: Assay Configuration
-      step0_title = "Paso 0: Configuraci\u00F3n del Ensayo",
+      step0_title = "Paso 1: Configuraci\u00F3n del Ensayo",
       select_assay_type = "Seleccionar Tipo de Ensayo",
       assay_type_label = "Tipo de ensayo:",
       assay_rba = "Ensayo de Uni\u00F3n a Receptor (RBA)",
@@ -369,7 +369,7 @@ get_translations <- function() {
       elisa_tip = "\U0001F4A1 Consejo: Normalmente asigne Blanco/NSB/B0 en la Columna 1, filas A-G. Est\u00E1ndares en columnas 2-3.",
       
       # Step 1: Matrices
-      step1_title = "Paso 1: Editar Matrices de Microplaca y Par\u00E1metros QC",
+      step1_title = "Paso 2: Dise\u00F1o de Placa y Par\u00E1metros QC",
       type_matrix = "1. Tipo de Muestra (Est\u00E1ndar, Muestra, QC, Blanco, Otro)",
       id_matrix = "2. ID de Muestra",
       qc_params = "3. Par\u00E1metros de Control de Calidad",
@@ -381,7 +381,7 @@ get_translations <- function() {
       reset_default = "Restablecer Valores",
       
       # Step 2: Upload
-      step2_title = "Paso 2: Cargar Datos de Placa",
+      step2_title = "Paso 3: Cargar Datos de Placa",
       upload_label = "Cargar Resultados de Bioensayo",
       upload_or_visual = "M\u00E9todo de importaci\u00F3n:",
       import_classic = "Importaci\u00F3n Cl\u00E1sica",
