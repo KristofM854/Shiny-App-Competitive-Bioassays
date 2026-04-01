@@ -1,0 +1,59 @@
+/* Report-specific overrides */
+
+body {
+  max-width: 1100px;
+  margin: 0 auto;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Executive summary box */
+.exec-summary {
+  background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%);
+  padding: 16px 20px;
+  border-radius: 8px;
+  border-left: 4px solid #4CAF50;
+  margin: 15px 0 25px 0;
+}
+
+/* Table styling */
+table {
+  font-size: 13px;
+}
+
+.table-striped > tbody > tr:nth-child(odd) {
+  background-color: #F8FAFB;
+}
+
+/* QC traffic light emojis: ensure they render at proper size */
+td:last-child {
+  white-space: nowrap;
+}
+
+/* TOC styling */
+.tocify {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.tocify-header {
+  font-size: 13px;
+}
+
+/* Plot captions */
+.figure {
+  margin: 20px 0;
+}
+
+.figure .caption {
+  font-style: italic;
+  color: #666;
+  margin-top: 8px;
+}
+
+/* Reduce excessive spacing in kable tables */
+.table > thead > tr > th {
+  border-bottom: 2px solid #1976D2;
+  font-weight: 600;
+}

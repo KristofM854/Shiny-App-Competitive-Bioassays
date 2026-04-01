@@ -1,0 +1,109 @@
+/* ============================================
+   Bioassay Analysis Suite — Custom Styles
+   ============================================ */
+
+/* --- Global --- */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #333;
+  background-color: #FAFAFA;
+}
+
+/* --- Wizard Tab Pills --- */
+.nav-pills > li > a {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 20px;
+  color: #555;
+  border: 1px solid #DDD;
+  margin-right: 8px;
+  transition: all 0.2s ease;
+}
+
+.nav-pills > li > a:hover {
+  background-color: #E3F2FD;
+  border-color: #2196F3;
+  color: #1565C0;
+}
+
+.nav-pills > li.active > a,
+.nav-pills > li.active > a:hover,
+.nav-pills > li.active > a:focus {
+  background-color: #1976D2;
+  border-color: #1976D2;
+  color: white;
+}
+
+/* --- Navigation Buttons --- */
+.btn-primary {
+  background-color: #1976D2;
+  border-color: #1565C0;
+}
+
+.btn-primary:hover {
+  background-color: #1565C0;
+  border-color: #0D47A1;
+}
+
+.btn-success {
+  background-color: #388E3C;
+  border-color: #2E7D32;
+}
+
+/* --- Well Panels --- */
+.well {
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* --- Handsontable Tweaks --- */
+.handsontable td {
+  font-size: 12px !important;
+}
+
+.handsontable th {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  background-color: #F5F5F5 !important;
+}
+
+/* --- Section Headers --- */
+h4 {
+  color: #1565C0;
+  border-bottom: 2px solid #E3F2FD;
+  padding-bottom: 8px;
+  margin-top: 10px;
+}
+
+h5 {
+  color: #37474F;
+  font-weight: 600;
+}
+
+/* --- Quick Start Cards --- */
+#quickstart_section .btn {
+  transition: all 0.2s ease;
+}
+
+#quickstart_section .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* --- Details/Summary (Advanced Options) --- */
+details summary {
+  user-select: none;
+}
+
+details[open] summary {
+  margin-bottom: 10px;
+}
+
+/* --- Responsive: Prevent overflow on small screens --- */
+@media (max-width: 992px) {
+  .nav-pills > li > a {
+    font-size: 13px;
+    padding: 8px 16px;
+  }
+}

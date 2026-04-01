@@ -129,6 +129,9 @@ ui <- fluidPage(
   useShinyjs(),
   introjsUI(),
   shinyFeedback::useShinyFeedback(),
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+  ),
 
   uiOutput("app_title_ui"),
   br(),
@@ -166,6 +169,31 @@ ui <- fluidPage(
       "1. Configuration",
       value = "tab_config",
       br(),
+
+      # Quick Start panel
+      div(
+        id = "quickstart_section",
+        style = "background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px;",
+        h4(style = "margin-top: 0;", "Quick Start"),
+        p("Choose a preset to auto-configure the assay type, plate layout, and standard concentrations:"),
+        fluidRow(
+          column(4,
+            actionButton("qs_rba_stx", label = tagList(icon("flask"), " RBA Saxitoxin"),
+                        class = "btn btn-lg btn-primary", style = "width: 100%; margin-bottom: 8px;")
+          ),
+          column(4,
+            actionButton("qs_elisa_cortisol", label = tagList(icon("vial"), " ELISA Cortisol"),
+                        class = "btn btn-lg btn-success", style = "width: 100%; margin-bottom: 8px;")
+          ),
+          column(4,
+            actionButton("qs_elisa_custom", label = tagList(icon("cog"), " ELISA Custom"),
+                        class = "btn btn-lg btn-default",
+                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #9C27B0; color: #9C27B0;")
+          )
+        ),
+        tags$small(style = "color: #666;", "Or configure manually below.")
+      ),
+
       introBox(
         div(
           id = "step0_section",
@@ -548,6 +576,7 @@ ui <- fluidPage(
             id = "analysis_settings_section",
             h4(id = "analysis_settings_title", "Analysis Settings"),
 
+            # Primary setting (always visible)
             checkboxGroupInput("regression_weight", "DRC regression weighting:",
                        choices = c("Unweighted" = "none",
                                    "1/Y (moderate)" = "inv_y",
@@ -555,31 +584,39 @@ ui <- fluidPage(
                        selected = "none"),
             helpText("Select multiple weightings to compare results side by side."),
 
-            fluidRow(
-              column(6,
-                numericInput("quant_range_min", "Lower %B/B0 bound:",
-                            value = 20, min = 5, max = 50, step = 5)
+            # Advanced options (collapsed by default)
+            tags$details(
+              style = "margin-top: 15px; padding: 10px; background: #FAFAFA; border-radius: 4px;",
+              tags$summary(style = "cursor: pointer; font-weight: bold; color: #666;",
+                           "Advanced Options"),
+              br(),
+
+              fluidRow(
+                column(6,
+                  numericInput("quant_range_min", "Lower %B/B0 bound:",
+                              value = 20, min = 5, max = 50, step = 5)
+                ),
+                column(6,
+                  numericInput("quant_range_max", "Upper %B/B0 bound:",
+                              value = 80, min = 50, max = 95, step = 5)
+                )
               ),
-              column(6,
-                numericInput("quant_range_max", "Upper %B/B0 bound:",
-                            value = 80, min = 50, max = 95, step = 5)
+              helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
+
+              hr(),
+
+              radioButtons("ci_method", "Confidence interval method:",
+                          choices = c("t-distribution (default)" = "t_dist",
+                                      "Bootstrap (1000 resamples)" = "bootstrap"),
+                          selected = "t_dist", inline = TRUE),
+
+              checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
+              conditionalPanel(
+                condition = "input.enable_outlier_detection == true",
+                numericInput("outlier_min_n", "Minimum replicates for outlier test:",
+                            value = 3, min = 3, max = 10, step = 1),
+                helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed.")
               )
-            ),
-            helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
-
-            hr(),
-
-            radioButtons("ci_method", "Confidence interval method:",
-                        choices = c("t-distribution (default)" = "t_dist",
-                                    "Bootstrap (1000 resamples)" = "bootstrap"),
-                        selected = "t_dist", inline = TRUE),
-
-            checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
-            conditionalPanel(
-              condition = "input.enable_outlier_detection == true",
-              numericInput("outlier_min_n", "Minimum replicates for outlier test:",
-                          value = 3, min = 3, max = 10, step = 1),
-              helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed.")
             )
           )
         ),
@@ -611,6 +648,15 @@ ui <- fluidPage(
                           style = "width: 100%;")
           )
         )
+      ),
+      br(),
+
+      # Pre-Flight Check panel
+      div(
+        id = "preflight_section",
+        style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
+        h5(style = "margin-top: 0;", "Pre-Flight Check"),
+        uiOutput("preflight_checks")
       ),
       br(),
       div(
@@ -746,6 +792,63 @@ server <- function(input, output, session) {
   
   # --------------------------------------------------------------------------
   # Wizard Tab Navigation
+  # --------------------------------------------------------------------------
+
+  # --------------------------------------------------------------------------
+  # Quick Start Buttons
+  # --------------------------------------------------------------------------
+
+  observeEvent(input$qs_rba_stx, {
+    updateSelectInput(session, "assay_type", selected = "rba")
+    updateSelectInput(session, "preset_layout", selected = "rba_stx_triplicate")
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+    showNotification("RBA Saxitoxin preset loaded. Upload your plate data.", type = "message", duration = 5)
+  })
+
+  observeEvent(input$qs_elisa_cortisol, {
+    updateSelectInput(session, "assay_type", selected = "elisa")
+    updateSelectInput(session, "preset_layout", selected = "elisa_cortisol_cayman")
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+    showNotification("ELISA Cortisol preset loaded. Upload your plate data.", type = "message", duration = 5)
+  })
+
+  observeEvent(input$qs_elisa_custom, {
+    updateSelectInput(session, "assay_type", selected = "elisa")
+    updateSelectInput(session, "preset_layout", selected = "elisa_custom_blank")
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
+    showNotification("ELISA custom template loaded. Configure your plate layout.", type = "message", duration = 5)
+  })
+
+  # --------------------------------------------------------------------------
+  # Welcome Modal (shown once on first launch)
+  # --------------------------------------------------------------------------
+
+  observe({
+    showModal(modalDialog(
+      title = tagList(icon("flask"), " Competitive Binding Assay Analysis Suite"),
+      size = "l",
+      easyClose = TRUE,
+      div(
+        style = "font-size: 14px;",
+        p("Analyze RBA and ELISA plate reader data with 4-parameter logistic curve fitting."),
+        hr(),
+        tags$b("Quick Start:"),
+        tags$ol(
+          tags$li("Choose an assay type above, or click a Quick Start button"),
+          tags$li("Upload your plate reader file (.xlsx, .csv, .txt)"),
+          tags$li("Click Generate Report")
+        ),
+        hr(),
+        p(style = "color: #666; font-size: 12px;",
+          "Example datasets are included in the ", tags$code("examples/"), " folder. ",
+          "For questions: kr.moeller@iaea.org")
+      ),
+      footer = modalButton("Get Started")
+    ))
+  }) |> bindEvent(session$clientData$url_protocol, once = TRUE)
+
+  # --------------------------------------------------------------------------
+  # Tab Navigation
   # --------------------------------------------------------------------------
 
   observeEvent(input$next_to_layout, {
@@ -2153,9 +2256,66 @@ server <- function(input, output, session) {
   })
   
   # --------------------------------------------------------------------------
+  # Pre-Flight Check Panel
+  # --------------------------------------------------------------------------
+
+  output$preflight_checks <- renderUI({
+    assay <- input$assay_type %||% "rba"
+    checks <- list()
+
+    # Check 1: Plate data uploaded
+    plate <- matrix_measresults()
+    plate_ok <- !is.null(plate) && any(!is.na(as.numeric(unlist(plate))))
+    checks[[length(checks) + 1]] <- if (plate_ok) {
+      tags$div(style = "color: #388E3C;", icon("check-circle"), " Plate data uploaded")
+    } else {
+      tags$div(style = "color: #D32F2F;", icon("times-circle"), " No plate data - go to Upload tab")
+    }
+
+    # Check 2: Standards defined
+    type_mat <- matrix_type()
+    n_std <- if (!is.null(type_mat)) sum(unlist(type_mat) == "Standard", na.rm = TRUE) else 0
+    checks[[length(checks) + 1]] <- if (n_std >= 4) {
+      tags$div(style = "color: #388E3C;", icon("check-circle"), paste(" ", n_std, "standard wells defined"))
+    } else {
+      tags$div(style = "color: #D32F2F;", icon("times-circle"), paste(" Only", n_std, "standard wells (need >= 4)"))
+    }
+
+    # Check 3: ELISA controls
+    if (assay == "elisa" && !is.null(type_mat)) {
+      well_types <- as.character(unlist(type_mat))
+      has_blank <- "Blank" %in% well_types
+      has_nsb <- "NSB" %in% well_types
+      has_b0 <- "B0" %in% well_types
+      if (has_blank && has_nsb && has_b0) {
+        checks[[length(checks) + 1]] <- tags$div(
+          style = "color: #388E3C;", icon("check-circle"), " ELISA controls present (Blank, NSB, B0)")
+      } else {
+        missing <- c()
+        if (!has_blank) missing <- c(missing, "Blank")
+        if (!has_nsb) missing <- c(missing, "NSB")
+        if (!has_b0) missing <- c(missing, "B0")
+        checks[[length(checks) + 1]] <- tags$div(
+          style = "color: #D32F2F;", icon("times-circle"),
+          paste(" Missing ELISA controls:", paste(missing, collapse = ", ")))
+      }
+    }
+
+    # Check 4: Dilution validity
+    dil_ok <- !dilution_error()
+    checks[[length(checks) + 1]] <- if (dil_ok) {
+      tags$div(style = "color: #388E3C;", icon("check-circle"), " Dilution factors valid")
+    } else {
+      tags$div(style = "color: #FF9800;", icon("exclamation-triangle"), " Some dilution entries are invalid")
+    }
+
+    do.call(tagList, checks)
+  })
+
+  # --------------------------------------------------------------------------
   # Convert Button Enable/Disable
   # --------------------------------------------------------------------------
-  
+
   observe({
     assay <- input$assay_type %||% "rba"
 
@@ -2200,7 +2360,7 @@ server <- function(input, output, session) {
         matrix_replicate(), matrix_measresults(), std_conc()
       )
       
-      incProgress(0.2)
+      incProgress(0.2, detail = "Validating data...")
 
       # Validate ELISA control wells exist before normalization
       if (input$assay_type == "elisa") {
@@ -2254,7 +2414,7 @@ server <- function(input, output, session) {
           )
       })
       
-      incProgress(0.4)
+      incProgress(0.4, detail = "Saving data files...")
       
       # Save main CSV (for single wavelength OR first wavelength of multi-wavelength)
       csv_path <- session$userData$csv_path
@@ -2417,12 +2577,12 @@ server <- function(input, output, session) {
       write_json_safe(list(lang = input$report_language %||% "en"),
                      file.path(output_dir, "report_language.json"))
       
-      incProgress(0.6)
-      
+      incProgress(0.6, detail = "Saving configuration...")
+
       showNotification(paste("Data saved to:", csv_path),
                        type = "message", duration = 5)
 
-      incProgress(0.7)
+      incProgress(0.7, detail = "Rendering report (this may take a minute)...")
 
       # ----- Render reports inside the app -----
       report_lang <- input$report_language %||% "en"
@@ -2490,7 +2650,7 @@ server <- function(input, output, session) {
         message("Template not found at: ", report_template)
       }
 
-      incProgress(1)
+      incProgress(1, detail = "Done!")
 
       # stopApp() removed: let users iterate without restarting the app
     })
