@@ -40,6 +40,13 @@ source("utils_import_multiwavelength.R")
 source("utils_normalization.R")
 source("i18n.R")
 
+# Auto-generate preset .rds files if they don't exist
+if (!file.exists("presets/rba_stx_triplicate.rds")) {
+  tryCatch(source("presets/generate_presets.R"), error = function(e) {
+    message("Could not generate presets: ", e$message)
+  })
+}
+
 # Get output directory from environment (set by run_analysis_modular.R)
 # If not set OR if set by a previous standalone run, create a fresh dated folder
 standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
@@ -288,11 +295,12 @@ ui <- fluidPage(
         uiOutput("step1_header"),
 
         # Preset plate layouts
+        # Preset plate layouts + layout management
         div(
           id = "preset_layout_section",
-          style = "background-color: #E8F5E9; padding: 10px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
+          style = "background-color: #E8F5E9; padding: 12px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
           fluidRow(
-            column(4,
+            column(3,
               selectInput("preset_layout", "Load Preset Layout:",
                          choices = c(
                            "-- Select Preset --" = "",
@@ -302,29 +310,20 @@ ui <- fluidPage(
                          ),
                          selected = "")
             ),
-            column(8,
-              # Layout import/save/load
-              div(
-                id = "layout_management_section",
-                style = "background-color: #F0F8FF; padding: 10px; margin: 0; border-left: 4px solid #2196F3; border-radius: 4px;",
-                fluidRow(
-                  column(4,
-                    fileInput("layout_import_file", "Import Layout (CSV/Excel):",
-                              accept = c(".csv", ".xlsx", ".xls"),
-                              width = "100%")
-                  ),
-                  column(4,
-                    div(style = "margin-top: 25px;",
-                      actionButton("layout_save", label = tagList(icon("save"), "Save Layout"),
-                                  class = "btn btn-success btn-sm", style = "width: 100%;")
-                    )
-                  ),
-                  column(4,
-                    div(style = "margin-top: 25px;",
-                      uiOutput("layout_load_ui")
-                    )
-                  )
-                )
+            column(3,
+              fileInput("layout_import_file", "Import Layout (CSV/Excel):",
+                        accept = c(".csv", ".xlsx", ".xls"),
+                        width = "100%")
+            ),
+            column(2,
+              div(style = "margin-top: 25px;",
+                actionButton("layout_save", label = tagList(icon("save"), "Save Layout"),
+                            class = "btn btn-success btn-sm", style = "width: 100%;")
+              )
+            ),
+            column(4,
+              div(style = "margin-top: 25px;",
+                uiOutput("layout_load_ui")
               )
             )
           )
@@ -333,6 +332,8 @@ ui <- fluidPage(
 
         # Type matrix
         div(
+          style = "max-width: 850px;",
+          div(
           id = "matrix_type_section",
           h5("1. Sample Type (Standard, Sample, QC, Blank, Other)"),
 
@@ -351,16 +352,18 @@ ui <- fluidPage(
           ),
 
           rHandsontableOutput("matrix_type")
-        ),
+        )),
         br(),
 
         # ID matrix
         div(
-          id = "matrix_id_section",
-          h5("2. Sample ID"),
-          actionButton("reset_id", "Reset to Default"),
-          rHandsontableOutput("matrix_id")
-        ),
+          style = "max-width: 850px;",
+          div(
+            id = "matrix_id_section",
+            h5("2. Sample ID"),
+            actionButton("reset_id", "Reset to Default"),
+            rHandsontableOutput("matrix_id")
+        )),
         br(),
 
         # QC fields (RBA only)
@@ -380,40 +383,44 @@ ui <- fluidPage(
 
         # Dilution matrix with uniform shortcut
         div(
-          id = "matrix_dilution_section",
-          h5("4. Dilution Factors"),
-          fluidRow(
-            column(4,
-              numericInput("uniform_dilution", "Set all dilutions to:", value = 1, min = 0, step = 0.1)
-            ),
-            column(4,
-              div(style = "margin-top: 25px;",
-                actionButton("apply_uniform_dilution", "Apply to All",
-                            class = "btn btn-sm btn-info")
+          style = "max-width: 850px;",
+          div(
+            id = "matrix_dilution_section",
+            h5("4. Dilution Factors"),
+            fluidRow(
+              column(4,
+                numericInput("uniform_dilution", "Set all dilutions to:", value = 1, min = 0, step = 0.1)
+              ),
+              column(4,
+                div(style = "margin-top: 25px;",
+                  actionButton("apply_uniform_dilution", "Apply to All",
+                              class = "btn btn-sm btn-info")
+                )
+              ),
+              column(4,
+                div(style = "margin-top: 25px;",
+                  checkboxInput("advanced_dilution", "Show per-well editor", value = TRUE)
+                )
               )
             ),
-            column(4,
-              div(style = "margin-top: 25px;",
-                checkboxInput("advanced_dilution", "Show per-well editor", value = TRUE)
-              )
+            conditionalPanel(
+              condition = "input.advanced_dilution == true",
+              uiOutput("dilution_error_feedback"),
+              actionButton("reset_dilution", "Reset to Default"),
+              rHandsontableOutput("matrix_dilution")
             )
-          ),
-          conditionalPanel(
-            condition = "input.advanced_dilution == true",
-            uiOutput("dilution_error_feedback"),
-            actionButton("reset_dilution", "Reset to Default"),
-            rHandsontableOutput("matrix_dilution")
-          )
-        ),
+        )),
         br(),
 
         # Replicate matrix
         div(
-          id = "matrix_replicate_section",
-          h5("5. Replicate Groups"),
-          actionButton("reset_replicate", "Reset to Default"),
-          rHandsontableOutput("matrix_replicate")
-        ),
+          style = "max-width: 850px;",
+          div(
+            id = "matrix_replicate_section",
+            h5("5. Replicate Groups"),
+            actionButton("reset_replicate", "Reset to Default"),
+            rHandsontableOutput("matrix_replicate")
+        )),
         br(),
 
         # Tissue weight input (ELISA only)
@@ -754,6 +761,43 @@ server <- function(input, output, session) {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
   })
   observeEvent(input$next_to_report, {
+    # Validate ELISA prerequisites before allowing report tab
+    if (input$assay_type == "elisa") {
+      type_mat <- matrix_type()
+      if (!is.null(type_mat)) {
+        well_types <- as.character(unlist(type_mat))
+        required_controls <- c("Blank", "NSB", "B0")
+        missing_controls <- required_controls[!required_controls %in% well_types]
+
+        if (length(missing_controls) > 0) {
+          showModal(modalDialog(
+            title = "Missing ELISA Control Wells",
+            paste0(
+              "Your plate layout is missing required control wells: ",
+              paste(missing_controls, collapse = ", "), ". ",
+              "Please go back to Plate Layout and assign these ",
+              "well types in the Type matrix."
+            ),
+            footer = modalButton("OK"),
+            easyClose = TRUE
+          ))
+          return()
+        }
+      }
+    }
+
+    # Check that plate data has been uploaded
+    plate <- matrix_measresults()
+    if (is.null(plate) || !any(!is.na(as.numeric(unlist(plate))))) {
+      showModal(modalDialog(
+        title = "No Plate Data",
+        "Please upload plate reader data before generating a report.",
+        footer = modalButton("OK"),
+        easyClose = TRUE
+      ))
+      return()
+    }
+
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_report")
   })
   observeEvent(input$back_to_upload, {
@@ -812,22 +856,36 @@ server <- function(input, output, session) {
     id_mat <- matrix_id()
     if (is.null(id_mat)) return()
 
-    # Auto-generate standard IDs where Type == "Standard"
-    std_count <- 0
+    # Auto-generate standard IDs: all Standard wells in the same row
+    # get the same S{n} label (replicates of one concentration level)
+    std_row_count <- 0
     changed <- FALSE
+
     for (r in 1:nrow(type_mat)) {
+      row_has_standard <- FALSE
       for (c in 1:ncol(type_mat)) {
         if (!is.na(type_mat[r, c]) && type_mat[r, c] == "Standard") {
-          std_count <- std_count + 1
-          new_id <- paste0("S", std_count)
-          # Only auto-fill if ID is empty or matches default pattern
-          if (is.na(id_mat[r, c]) || id_mat[r, c] == "" || grepl("^S[0-9]+$", id_mat[r, c])) {
-            id_mat[r, c] <- new_id
-            changed <- TRUE
+          row_has_standard <- TRUE
+          break
+        }
+      }
+
+      if (row_has_standard) {
+        std_row_count <- std_row_count + 1
+        new_id <- paste0("S", std_row_count)
+
+        for (c in 1:ncol(type_mat)) {
+          if (!is.na(type_mat[r, c]) && type_mat[r, c] == "Standard") {
+            # Only auto-fill if ID is empty or matches default S-pattern
+            if (is.na(id_mat[r, c]) || id_mat[r, c] == "" || grepl("^S[0-9]+$", id_mat[r, c])) {
+              id_mat[r, c] <- new_id
+              changed <- TRUE
+            }
           }
         }
       }
     }
+
     if (changed) matrix_id(id_mat)
   }, ignoreInit = TRUE)
 
@@ -839,13 +897,15 @@ server <- function(input, output, session) {
     meas_mat <- matrix_measresults()
     req(meas_mat)
 
-    vals <- as.numeric(meas_mat)
-    if (all(is.na(vals))) return(NULL)
-
-    # Build numeric matrix with rows reversed so A is at top
-    num_mat <- matrix(as.numeric(t(meas_mat)), nrow = PLATE_NROW, ncol = PLATE_NCOL, byrow = TRUE)
+    # Safe numeric conversion: data.frame -> matrix (column-by-column)
+    num_mat <- matrix(NA_real_, nrow = PLATE_NROW, ncol = PLATE_NCOL)
+    for (cc in 1:PLATE_NCOL) {
+      num_mat[, cc] <- suppressWarnings(as.numeric(as.character(meas_mat[[cc]])))
+    }
     rownames(num_mat) <- ROW_NAMES
     colnames(num_mat) <- COL_NAMES
+
+    if (all(is.na(num_mat))) return(NULL)
 
     # Hover text: show well ID and value
     hover_text <- outer(ROW_NAMES, COL_NAMES, function(r, c) {
@@ -1228,7 +1288,8 @@ server <- function(input, output, session) {
       c("Standard", "Sample", "QC", "Blank", "Other")
     }
     
-    rhandsontable(mat, rowHeaderWidth = 60, rowHeaders = ROW_NAMES) %>%
+    rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
+                  height = 250, stretchH = "all", overflow = "hidden") %>%
       hot_col(col = 1:12, type = "dropdown",
               source = type_choices) %>%
       hot_col(col = 1:12, renderer = "
@@ -1252,7 +1313,8 @@ server <- function(input, output, session) {
     req(matrix_id())
     mat <- matrix_id()
     mat[] <- lapply(mat, as.character)
-    rhandsontable(mat, rowHeaderWidth = 60, rowHeaders = ROW_NAMES)
+    rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
+                  height = 250, stretchH = "all", overflow = "hidden")
   })
   
   output$matrix_dilution <- renderRHandsontable({
@@ -1260,7 +1322,8 @@ server <- function(input, output, session) {
     df <- raw_matrix_dilution()
     val <- dilution_validity()
     
-    rhandsontable(df, rowHeaderWidth = 60, rowHeaders = ROW_NAMES) %>%
+    rhandsontable(df, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
+                  height = 250, stretchH = "all", overflow = "hidden") %>%
       hot_col(col = 1:12, type = "text",
               renderer = htmlwidgets::JS(sprintf(
                 "function(instance, td, row, col, prop, value, cellProperties) {
@@ -1274,7 +1337,8 @@ server <- function(input, output, session) {
   output$matrix_replicate <- renderRHandsontable({
     mat <- matrix_replicate()
     mat[] <- lapply(mat, as.character)
-    rhandsontable(mat, rowHeaderWidth = 60, rowHeaders = ROW_NAMES)
+    rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
+                  height = 250, stretchH = "all", overflow = "hidden")
   })
   
   # --------------------------------------------------------------------------
@@ -2219,12 +2283,18 @@ server <- function(input, output, session) {
             std_conc = std_conc()
           )
           
-          # Apply normalization if ELISA
+          # Apply normalization
           df_normalized_wl <- tryCatch({
-            
+
             if (input$assay_type == "elisa") {
-              detection_method <- "absorbance"
-              normalize_data(df_long_wl, "elisa", detection_method)
+              # Pass raw absorbance — normalization (%B/B0) is performed by
+              # calculate_elisa_bb0() in the Rmd template, which is the single
+              # source of truth for ELISA normalization.
+              df_long_wl %>%
+                dplyr::mutate(
+                  NormalizedValue = MeasurementValue,
+                  ResponseUnit = "Raw Absorbance"
+                )
             } else {
               detection_method <- "radioligand"
               normalize_data(df_long_wl, "rba", detection_method)
@@ -2432,29 +2502,45 @@ server <- function(input, output, session) {
 
   observeEvent(input$start_tour, {
     lang <- input$app_language %||% "en"
+    assay <- input$assay_type %||% "rba"
 
+    # Base tour steps (always shown)
     tour_steps <- data.frame(
       element = c("#step0_section", "#matrix_type_section", "#matrix_id_section",
-                  "#matrix_dilution_section", "#matrix_replicate_section",
-                  "#tissue_weight_section", "#upload_section", "#visual_selector_section",
-                  "#notes_feedback_section", "#analysis_settings_section",
-                  "#language_toggle_section", "#convert_section"),
+                  "#matrix_dilution_section", "#matrix_replicate_section"),
       intro = c(
         tr("tour_step0", lang),
         tr("tour_step1_type", lang),
         tr("tour_step1_id", lang),
         tr("tour_step1_dilution", lang),
-        tr("tour_step1_replicate", lang),
-        tr("tour_step1_tissue", lang),
+        tr("tour_step1_replicate", lang)
+      ),
+      stringsAsFactors = FALSE
+    )
+
+    # ELISA-only: tissue weight section
+    if (assay == "elisa") {
+      tour_steps <- rbind(tour_steps, data.frame(
+        element = "#tissue_weight_section",
+        intro = tr("tour_step1_tissue", lang),
+        stringsAsFactors = FALSE
+      ))
+    }
+
+    # Remaining common steps
+    tour_steps <- rbind(tour_steps, data.frame(
+      element = c("#upload_section", "#notes_feedback_section",
+                  "#analysis_settings_section",
+                  "#language_toggle_section", "#convert_section"),
+      intro = c(
         tr("tour_step2_upload", lang),
-        tr("tour_step2_visual", lang),
         tr("tour_step2_notes", lang),
         tr("tour_step2_analysis", lang),
         tr("tour_language", lang),
         tr("tour_step3", lang)
       ),
       stringsAsFactors = FALSE
-    )
+    ))
 
     introjs(session, options = list(
       steps = tour_steps,

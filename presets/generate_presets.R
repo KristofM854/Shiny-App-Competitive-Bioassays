@@ -1,5 +1,7 @@
 # Script to generate preset .rds files for plate layouts
-# Run once to create presets, then delete this file
+# Run from the repo root: source("presets/generate_presets.R")
+
+dir.create("presets", showWarnings = FALSE)
 
 PLATE_NROW <- 8
 PLATE_NCOL <- 12
@@ -39,7 +41,7 @@ saveRDS(list(
   id_matrix = rba_id,
   dilution_matrix = as.data.frame(matrix(1, nrow = 8, ncol = 12, dimnames = list(ROW_NAMES, COL_NAMES))),
   replicate_matrix = rba_rep
-), "rba_stx_triplicate.rds")
+), file.path("presets", "rba_stx_triplicate.rds"))
 
 # ===== Preset 2: ELISA Cortisol Cayman kit =====
 elisa_type <- make_mat("Sample")
@@ -49,10 +51,12 @@ elisa_rep <- make_mat("")
 # Column 1: Controls
 control_pattern <- c("Blank", "Blank", "NSB", "NSB", "B0", "B0", "B0", "TotalActivity")
 control_ids <- c("Blank", "Blank", "NSB", "NSB", "B0", "B0", "B0", "TA")
+ctrl_rep_ids <- c("Ctrl_Blank", "Ctrl_Blank", "Ctrl_NSB", "Ctrl_NSB",
+                  "Ctrl_B0", "Ctrl_B0", "Ctrl_B0", "Ctrl_TA")
 for (r in 1:8) {
   elisa_type[r, 1] <- control_pattern[r]
   elisa_id[r, 1] <- control_ids[r]
-  elisa_rep[r, 1] <- control_ids[r]
+  elisa_rep[r, 1] <- ctrl_rep_ids[r]
 }
 
 # Columns 2-3: Standards (duplicate)
@@ -81,7 +85,7 @@ saveRDS(list(
   id_matrix = elisa_id,
   dilution_matrix = as.data.frame(matrix(1, nrow = 8, ncol = 12, dimnames = list(ROW_NAMES, COL_NAMES))),
   replicate_matrix = elisa_rep
-), "elisa_cortisol_cayman.rds")
+), file.path("presets", "elisa_cortisol_cayman.rds"))
 
 # ===== Preset 3: ELISA Custom (blank template) =====
 custom_type <- make_mat("Sample")
@@ -92,7 +96,7 @@ custom_rep <- make_mat("")
 for (r in 1:8) {
   custom_type[r, 1] <- control_pattern[r]
   custom_id[r, 1] <- control_ids[r]
-  custom_rep[r, 1] <- control_ids[r]
+  custom_rep[r, 1] <- ctrl_rep_ids[r]
 }
 
 saveRDS(list(
@@ -100,6 +104,6 @@ saveRDS(list(
   id_matrix = custom_id,
   dilution_matrix = as.data.frame(matrix(1, nrow = 8, ncol = 12, dimnames = list(ROW_NAMES, COL_NAMES))),
   replicate_matrix = custom_rep
-), "elisa_custom_blank.rds")
+), file.path("presets", "elisa_custom_blank.rds"))
 
 cat("Presets generated successfully!\n")
