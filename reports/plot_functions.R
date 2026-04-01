@@ -21,9 +21,9 @@ if (!exists("TABLE_CONFIG")) {
 render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits) {
 
   tbl <- if (is.null(col_names)) {
-    knitr::kable(data, caption = caption, digits = digits)
+    knitr::kable(data, caption = caption, digits = digits, row.names = FALSE)
   } else {
-    knitr::kable(data, caption = caption, col.names = col_names, digits = digits)
+    knitr::kable(data, caption = caption, col.names = col_names, digits = digits, row.names = FALSE)
   }
 
   ncols <- ncol(data)
