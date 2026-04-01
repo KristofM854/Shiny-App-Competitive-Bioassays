@@ -183,11 +183,12 @@ create_replicate_matrix <- function(assay_type = "rba") {
     # Cols 2-3: Standards S1-S8 duplicated
     # Cols 4+: Sample pattern following your specification
     
-    # Column 1: Generic control IDs (user assigns Blank/NSB/B0/TA in TYPE matrix)
-    control_pattern <- c("Blank", "Blank", "NSB", "NSB", "B0", "B0", "B0", "TotalActivity")
+    # Column 1: Control replicate groups (prefixed to distinguish from sample groups)
+    control_pattern <- c("Ctrl_Blank", "Ctrl_Blank", "Ctrl_NSB", "Ctrl_NSB",
+                         "Ctrl_B0", "Ctrl_B0", "Ctrl_B0", "Ctrl_TA")
     for (r in 1:PLATE_NROW) {
       mat[r, 1] <- control_pattern[r]
-      }
+    }
       
     # Columns 2-3: Standards S1-S8 duplicated
     for (r in 1:PLATE_NROW) {
