@@ -5,8 +5,15 @@ output:
   html_document:
     df_print: paged
     self_contained: true
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: flatly
+    css: report_style.css
+  word_document:
+    toc: true
   pdf_document: default
-  word_document: default
 params:
   output_dir: NULL
   lang: "en"
@@ -505,6 +512,42 @@ flag_range <- function(response_val, conc_val, is_elisa_assay) {
 }
 ```
 
+```{r exec-summary-box, results='asis'}
+# Executive summary box — only shown if model fitting succeeded
+if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
+
+  overall_status <- if (R2 >= 0.99) "\U0001F7E2 Excellent"
+                    else if (R2 >= 0.95) "\U0001F7E1 Acceptable"
+                    else "\U0001F534 Review needed"
+
+  if (knitr::is_html_output()) {
+    cat('<div style="background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%); ',
+        'padding: 16px 20px; border-radius: 8px; border-left: 4px solid #4CAF50; ',
+        'margin: 15px 0 25px 0; font-size: 14px;">\n\n')
+  } else {
+    cat("---\n\n")
+  }
+
+  cat(sprintf("**Curve fit:** R\u00B2 = %.4f | RMSE = %.3f | %s\n\n", R2, RMSE, overall_status))
+  cat(sprintf("**Standards:** %d wells used (of %d unique concentrations) | Method: %s\n\n",
+              nrow(standards_for_model), length(unique(standards_data$StandardConc)), weight_desc))
+
+  if (isTRUE(is_elisa) && exists("control_summary") && !is.null(control_summary)) {
+    cat(sprintf("**Controls:** Blank=%.3f | NSB=%.3f | B0=%.3f | Hierarchy: %s\n\n",
+                as.numeric(control_summary$blank_avg),
+                as.numeric(control_summary$nsb_avg),
+                as.numeric(control_summary$b0_avg),
+                if (control_summary$hierarchy_valid) "Valid" else "**INVALID**"))
+  }
+
+  if (knitr::is_html_output()) {
+    cat('</div>\n\n')
+  } else {
+    cat("---\n\n")
+  }
+}
+```
+
 ```{r variability-info, results='asis'}
 if (nrow(high_var_standards) > 0) {
   cat("**", tr("high_var_standards", lang), "**\n\n", sep = "")
@@ -920,6 +963,9 @@ write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 
 ### `r tr("std_backcalc_title", lang)`
 
+<details>
+<summary>Click to expand detailed back-calculation results</summary>
+
 ```{r standard-backcalculation, results='asis'}
 # Back-calculate concentrations for each standard well using the fitted model
 # and compute % recovery vs nominal concentration
@@ -991,6 +1037,8 @@ if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
   cat(tr("recovery_outside", lang), "\n\n")
 }
 ```
+
+</details>
 
 ## `r tr("sample_results", lang)`
 
@@ -1463,6 +1511,9 @@ if (exists("model_stats") && exists("write_json_safe")) {
 
 ## `r tr("detailed_summary", lang)`
 
+<details>
+<summary>Click to expand detailed results table</summary>
+
 ```{r summary-results-table}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
   
@@ -1543,10 +1594,12 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
   
   names(summary_display) <- base_names[1:ncol(summary_display)]
   
-  render_table(summary_display, 
+  render_table(summary_display,
               caption = tr("detailed_caption", lang))
 }
 ```
+
+</details>
 
 ## `r tr("sample_variability", lang)`
 
@@ -1601,14 +1654,26 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                   min(sample_plot_data$estimated_concentration, na.rm = TRUE)
     
     if (!isTRUE(is_elisa) || conc_range > 100) {
-      sample_box <- sample_box + 
+      sample_box <- sample_box +
         scale_y_log10(labels = if (isTRUE(is_elisa)) {
           function(x) format(x, big.mark = ",")
         } else {
           scales::scientific_format(digits = 2)
         })
     }
-  
+
+    # Dynamic font sizing based on number of groups
+    n_groups <- length(unique(sample_plot_data$Replicate_wrapped))
+    x_font_size <- if (n_groups > 20) 7 else if (n_groups > 10) 9 else 11
+    sample_box <- sample_box +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = x_font_size))
+
+    # For very large experiments, split into faceted panels
+    if (n_groups > 30) {
+      sample_plot_data$panel <- ceiling(as.numeric(factor(sample_plot_data$Replicate)) / 15)
+      sample_box <- sample_box + facet_wrap(~panel, scales = "free_x", ncol = 1)
+    }
+
     # Render plot - same pattern as working standard DRC
     if (knitr::is_html_output()) {
       plotly::ggplotly(sample_box, tooltip = "text")
@@ -1620,6 +1685,9 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 ```
 
 ## `r tr("heatmap_title", lang)`
+
+<details>
+<summary>Click to expand plate heatmap</summary>
 
 ```{r plate-heatmap, fig.width=10, fig.height=6, warning=FALSE, message=FALSE}
 tryCatch({
@@ -1656,6 +1724,8 @@ tryCatch({
   cat(sprintf("\n\n*Heatmap could not be generated: %s*\n\n", e$message))
 })
 ```
+
+</details>
 
 ## `r tr("drc_with_samples", lang)`
 
