@@ -382,6 +382,7 @@ ui <- fluidPage(
 
             div(
               id = "matrix_dilution_section",
+              class = "matrix-bottom-cell",
               h5("3. Dilution Factors"),
               div(
                 style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
@@ -402,7 +403,8 @@ ui <- fluidPage(
                 condition = "input.advanced_dilution == true",
                 uiOutput("dilution_error_feedback"),
                 actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
-                rHandsontableOutput("matrix_dilution")
+                div(class = "matrix-table-anchor",
+                  rHandsontableOutput("matrix_dilution"))
               )
             )
           ),
@@ -419,12 +421,11 @@ ui <- fluidPage(
 
             div(
               id = "matrix_replicate_section",
+              class = "matrix-bottom-cell",
               h5("4. Replicate Groups"),
-              # Spacer to match the "Set all to / Apply / Per-well" controls
-              # row on the left column above the Dilution matrix
-              div(style = "height: 90px;"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
-              rHandsontableOutput("matrix_replicate")
+              div(class = "matrix-table-anchor",
+                rHandsontableOutput("matrix_replicate"))
             )
           )
         ),
