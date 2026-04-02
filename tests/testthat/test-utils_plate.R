@@ -109,3 +109,21 @@ test_that("matrix_to_long produces correct long format", {
   sample_rows <- result[result$SampleType == "Sample", ]
   expect_true(all(is.na(sample_rows$StandardConc)))
 })
+
+test_that("RBA preset cols 4-12 match create_id_matrix defaults", {
+  skip_if(!file.exists("presets/rba_stx_triplicate.rds"))
+  preset <- readRDS("presets/rba_stx_triplicate.rds")
+  default_id <- create_id_matrix("rba", 8)
+  default_rep <- create_replicate_matrix("rba")
+  expect_identical(preset$id_matrix[, 4:12], default_id[, 4:12])
+  expect_identical(preset$replicate_matrix[, 4:12], default_rep[, 4:12])
+})
+
+test_that("ELISA preset cols 4-12 match create_id/replicate_matrix defaults", {
+  skip_if(!file.exists("presets/elisa_cortisol_cayman.rds"))
+  preset <- readRDS("presets/elisa_cortisol_cayman.rds")
+  default_id <- create_id_matrix("elisa", 8)
+  default_rep <- create_replicate_matrix("elisa")
+  expect_identical(preset$id_matrix[, 4:12], default_id[, 4:12])
+  expect_identical(preset$replicate_matrix[, 4:12], default_rep[, 4:12])
+})
