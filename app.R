@@ -365,6 +365,7 @@ ui <- fluidPage(
             div(
               id = "matrix_type_section",
               h5("1. Sample Type"),
+              actionButton("reset_type", "Reset", class = "btn btn-xs"),
 
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
@@ -382,21 +383,13 @@ ui <- fluidPage(
             div(
               id = "matrix_dilution_section",
               h5("3. Dilution Factors"),
-              fluidRow(
-                column(5,
+              div(
+                style = "display: flex; align-items: flex-end; gap: 10px; margin-bottom: 8px;",
+                div(style = "width: 120px;",
                   numericInput("uniform_dilution", "Set all to:", value = 1, min = 0, step = 0.1)
                 ),
-                column(4,
-                  div(style = "margin-top: 25px;",
-                    actionButton("apply_uniform_dilution", "Apply",
-                                class = "btn btn-sm btn-info")
-                  )
-                ),
-                column(3,
-                  div(style = "margin-top: 25px;",
-                    checkboxInput("advanced_dilution", "Per-well", value = TRUE)
-                  )
-                )
+                actionButton("apply_uniform_dilution", "Apply", class = "btn btn-sm btn-info"),
+                checkboxInput("advanced_dilution", "Per-well", value = TRUE)
               ),
               conditionalPanel(
                 condition = "input.advanced_dilution == true",
@@ -526,7 +519,7 @@ ui <- fluidPage(
         id = "heatmap_preview_section",
         h5("Plate Data Heatmap"),
         p("Visual verification of uploaded plate data."),
-        plotly::plotlyOutput("plate_heatmap", height = "300px")
+        plotly::plotlyOutput("plate_heatmap", height = "150px")
       ),
       br(),
 
@@ -1016,7 +1009,13 @@ server <- function(input, output, session) {
       text = hover_text[rev(seq_len(PLATE_NROW)), ],
       hoverinfo = "text",
       type = "heatmap",
-      colorscale = list(c(0, "#313695"), c(0.5, "#ffffbf"), c(1, "#a50026")),
+      colorscale = list(
+        c(0, "#4575b4"),
+        c(0.25, "#91bfdb"),
+        c(0.5, "#fee090"),
+        c(0.75, "#fc8d59"),
+        c(1, "#d73027")
+      ),
       showscale = TRUE
     ) %>%
       plotly::layout(
@@ -1488,9 +1487,16 @@ server <- function(input, output, session) {
   })
   
   # Reset buttons
+  observeEvent(input$reset_type, {
+    assay <- input$assay_type %||% "rba"
+    n <- as.integer(input$num_standards %||% 8)
+    matrix_type(create_type_matrix(assay, n))
+  })
+
   observeEvent(input$reset_id, {
-    n <- as.integer(input$num_standards)
-    matrix_id(create_id_matrix("rba", n))
+    assay <- input$assay_type %||% "rba"
+    n <- as.integer(input$num_standards %||% 8)
+    matrix_id(create_id_matrix(assay, n))
   })
   
   observeEvent(input$reset_dilution, {
