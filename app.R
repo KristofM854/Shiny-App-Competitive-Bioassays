@@ -420,8 +420,9 @@ ui <- fluidPage(
             div(
               id = "matrix_replicate_section",
               h5("4. Replicate Groups"),
-              # Spacer to match the dilution controls row height on the left
-              div(style = "height: 68px;"),
+              # Spacer to match the "Set all to / Apply / Per-well" controls
+              # row on the left column above the Dilution matrix
+              div(style = "height: 90px;"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               rHandsontableOutput("matrix_replicate")
             )
