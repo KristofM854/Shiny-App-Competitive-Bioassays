@@ -384,11 +384,18 @@ ui <- fluidPage(
               id = "matrix_dilution_section",
               h5("3. Dilution Factors"),
               div(
-                style = "display: flex; align-items: flex-end; gap: 10px; margin-bottom: 8px;",
-                div(style = "width: 120px;",
-                  numericInput("uniform_dilution", "Set all to:", value = 1, min = 0, step = 0.1)
+                style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
+                div(
+                  style = "display: flex; align-items: center; gap: 6px;",
+                  tags$label("Set all to:", `for` = "uniform_dilution",
+                             style = "margin: 0; white-space: nowrap;"),
+                  tags$input(type = "number", id = "uniform_dilution", value = "1",
+                             min = "0", step = "0.1", class = "form-control",
+                             style = "width: 70px; height: 30px; padding: 2px 6px;")
                 ),
-                actionButton("apply_uniform_dilution", "Apply", class = "btn btn-sm btn-info"),
+                actionButton("apply_uniform_dilution", "Apply",
+                             class = "btn btn-sm btn-info",
+                             style = "height: 30px; padding: 2px 12px;"),
                 checkboxInput("advanced_dilution", "Per-well", value = TRUE)
               ),
               conditionalPanel(
@@ -413,6 +420,8 @@ ui <- fluidPage(
             div(
               id = "matrix_replicate_section",
               h5("4. Replicate Groups"),
+              # Spacer to match the dilution controls row height on the left
+              div(style = "height: 38px;"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               rHandsontableOutput("matrix_replicate")
             )
@@ -426,10 +435,11 @@ ui <- fluidPage(
           div(
             id = "qc_section",
             h5("5. Quality Control Parameters"),
-            fluidRow(
-              column(4, uiOutput("qc_concentration_input")),
-              column(4, textInput("expected_hill", "Expected Hill slope:",
-                                  value = "1", placeholder = "1"))
+            div(
+              style = "display: flex; gap: 20px; align-items: flex-start;",
+              div(style = "flex: 0 0 220px;", uiOutput("qc_concentration_input")),
+              div(style = "flex: 0 0 220px;", textInput("expected_hill", "Expected Hill slope:",
+                                                         value = "1", placeholder = "1"))
             ),
             uiOutput("qc_warnings"),
             uiOutput("hill_warning")
@@ -517,9 +527,10 @@ ui <- fluidPage(
       # Data heatmap preview
       div(
         id = "heatmap_preview_section",
+        style = "max-width: 700px;",
         h5("Plate Data Heatmap"),
         p("Visual verification of uploaded plate data."),
-        plotly::plotlyOutput("plate_heatmap", height = "150px")
+        plotly::plotlyOutput("plate_heatmap", height = "300px")
       ),
       br(),
 
