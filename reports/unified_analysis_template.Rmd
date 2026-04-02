@@ -1269,33 +1269,42 @@ if (nrow(samples_to_analyze) > 0) {
     }
     
     if (!is.null(tissue_weights) && length(tissue_weights) > 0) {
-      # Convert tissue weights list to data frame
+      # Parse tissue weights — supports both old format (flat numeric)
+      # and new format (list with weight + extraction_uL per group)
       tw_df <- data.frame(
         Replicate = names(tissue_weights),
-        TissueWeight_mg = as.numeric(unlist(tissue_weights)),
         stringsAsFactors = FALSE
       )
+      tw_df$TissueWeight_mg <- sapply(tissue_weights, function(x) {
+        if (is.list(x)) as.numeric(x$weight) else as.numeric(x)
+      })
+      tw_df$Extraction_uL <- sapply(tissue_weights, function(x) {
+        if (is.list(x) && !is.null(x$extraction_uL)) as.numeric(x$extraction_uL)
+        else processing_config$extraction_volume_ul %||% 500
+      })
       tw_df <- tw_df %>% filter(!is.na(TissueWeight_mg) & TissueWeight_mg > 0)
-      
+
       if (nrow(tw_df) > 0) {
-        extraction_vol_ul <- processing_config$extraction_volume_ul %||% 500
-        
         replicate_stats <- replicate_stats %>%
           left_join(tw_df, by = "Replicate") %>%
           mutate(
-            total_amount_pg = mean_conc * (extraction_vol_ul / 1000),
+            effective_ext_uL = ifelse(!is.na(Extraction_uL), Extraction_uL,
+                                      processing_config$extraction_volume_ul %||% 500),
+            total_amount_pg = mean_conc * (effective_ext_uL / 1000),
             concentration_pg_per_g = ifelse(
               !is.na(TissueWeight_mg) & TissueWeight_mg > 0,
               total_amount_pg / (TissueWeight_mg / 1000),
               NA_real_
             )
           )
-        
+
         # Also add to sample_results for individual well reporting
         sample_results <- sample_results %>%
           left_join(tw_df, by = "Replicate") %>%
           mutate(
-            total_amount_pg = estimated_concentration * (extraction_vol_ul / 1000),
+            effective_ext_uL = ifelse(!is.na(Extraction_uL), Extraction_uL,
+                                      processing_config$extraction_volume_ul %||% 500),
+            total_amount_pg = estimated_concentration * (effective_ext_uL / 1000),
             concentration_pg_per_g = ifelse(
               !is.na(TissueWeight_mg) & TissueWeight_mg > 0,
               total_amount_pg / (TissueWeight_mg / 1000),
