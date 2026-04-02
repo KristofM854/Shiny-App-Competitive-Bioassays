@@ -358,116 +358,106 @@ ui <- fluidPage(
         ),
         br(),
 
-        # Type matrix
-        div(
-          style = "max-width: 850px;",
-          div(
-          id = "matrix_type_section",
-          h5("1. Sample Type (Standard, Sample, QC, Blank, Other)"),
-
-          conditionalPanel(
-            condition = "input.assay_type == 'elisa'",
+        # ---- 2x2 MATRIX GRID ----
+        fluidRow(
+          # LEFT COLUMN: Type + Dilution
+          column(6,
             div(
-              style = "background-color: #FFF9E6; padding: 10px; margin: 10px 0; border-left: 4px solid #FFC107;",
-              tags$b("ELISA Control Wells:"),
-              tags$ul(
-                tags$li(tags$b("Blank:"), " No enzyme, no antibody (background absorbance)"),
-                tags$li(tags$b("NSB:"), " Non-specific binding (enzyme only, no antibody)"),
-                tags$li(tags$b("B0:"), " Maximum binding (no competing analyte)"),
-                tags$li(tags$b("TotalActivity:"), " Total enzyme activity (optional)")
+              id = "matrix_type_section",
+              h5("1. Sample Type"),
+
+              conditionalPanel(
+                condition = "input.assay_type == 'elisa'",
+                div(
+                  style = "background-color: #FFF9E6; padding: 8px; margin: 8px 0; border-left: 4px solid #FFC107; font-size: 12px;",
+                  tags$b("ELISA Controls: "),
+                  "Blank | NSB | B0 | TotalActivity (col 1)"
+                )
+              ),
+
+              rHandsontableOutput("matrix_type")
+            ),
+            br(),
+
+            div(
+              id = "matrix_dilution_section",
+              h5("3. Dilution Factors"),
+              fluidRow(
+                column(5,
+                  numericInput("uniform_dilution", "Set all to:", value = 1, min = 0, step = 0.1)
+                ),
+                column(4,
+                  div(style = "margin-top: 25px;",
+                    actionButton("apply_uniform_dilution", "Apply",
+                                class = "btn btn-sm btn-info")
+                  )
+                ),
+                column(3,
+                  div(style = "margin-top: 25px;",
+                    checkboxInput("advanced_dilution", "Per-well", value = TRUE)
+                  )
+                )
+              ),
+              conditionalPanel(
+                condition = "input.advanced_dilution == true",
+                uiOutput("dilution_error_feedback"),
+                actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
+                rHandsontableOutput("matrix_dilution")
               )
             )
           ),
 
-          rHandsontableOutput("matrix_type")
-        )),
+          # RIGHT COLUMN: ID + Replicate
+          column(6,
+            div(
+              id = "matrix_id_section",
+              h5("2. Sample ID"),
+              actionButton("reset_id", "Reset", class = "btn btn-xs"),
+              rHandsontableOutput("matrix_id")
+            ),
+            br(),
+
+            div(
+              id = "matrix_replicate_section",
+              h5("4. Replicate Groups"),
+              actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
+              rHandsontableOutput("matrix_replicate")
+            )
+          )
+        ),
         br(),
 
-        # ID matrix
-        div(
-          style = "max-width: 850px;",
-          div(
-            id = "matrix_id_section",
-            h5("2. Sample ID"),
-            actionButton("reset_id", "Reset to Default"),
-            rHandsontableOutput("matrix_id")
-        )),
-        br(),
-
-        # QC fields (RBA only)
+        # QC fields (RBA only) — below the matrix grid
         conditionalPanel(
           condition = "input.assay_type == 'rba'",
           div(
             id = "qc_section",
-            h5("3. Quality Control Parameters"),
-            uiOutput("qc_concentration_input"),
-            textInput("expected_hill", "Expected Hill slope:",
-                     value = "1", placeholder = "1"),
+            h5("5. Quality Control Parameters"),
+            fluidRow(
+              column(4, uiOutput("qc_concentration_input")),
+              column(4, textInput("expected_hill", "Expected Hill slope:",
+                                  value = "1", placeholder = "1"))
+            ),
             uiOutput("qc_warnings"),
             uiOutput("hill_warning")
           )
         ),
         br(),
 
-        # Dilution matrix with uniform shortcut
-        div(
-          style = "max-width: 850px;",
-          div(
-            id = "matrix_dilution_section",
-            h5("4. Dilution Factors"),
-            fluidRow(
-              column(4,
-                numericInput("uniform_dilution", "Set all dilutions to:", value = 1, min = 0, step = 0.1)
-              ),
-              column(4,
-                div(style = "margin-top: 25px;",
-                  actionButton("apply_uniform_dilution", "Apply to All",
-                              class = "btn btn-sm btn-info")
-                )
-              ),
-              column(4,
-                div(style = "margin-top: 25px;",
-                  checkboxInput("advanced_dilution", "Show per-well editor", value = TRUE)
-                )
-              )
-            ),
-            conditionalPanel(
-              condition = "input.advanced_dilution == true",
-              uiOutput("dilution_error_feedback"),
-              actionButton("reset_dilution", "Reset to Default"),
-              rHandsontableOutput("matrix_dilution")
-            )
-        )),
-        br(),
-
-        # Replicate matrix
-        div(
-          style = "max-width: 850px;",
-          div(
-            id = "matrix_replicate_section",
-            h5("5. Replicate Groups"),
-            actionButton("reset_replicate", "Reset to Default"),
-            rHandsontableOutput("matrix_replicate")
-        )),
-        br(),
-
-        # Tissue weight input (ELISA only)
+        # Tissue weight + extraction volume (ELISA only)
         conditionalPanel(
           condition = "input.assay_type == 'elisa'",
           div(
             id = "tissue_weight_section",
             h5("6. Tissue Weights & Extraction Volume (optional)"),
             div(
-              style = "background-color: #FFF3E0; padding: 10px; margin: 10px 0; border-left: 4px solid #FF9800;",
-              tags$small(
-                tags$b("Tissue-based calculation: "),
-                "Enter tissue weight (mg) per replicate group to calculate pg cortisol / g tissue. ",
-                "Leave blank if not applicable."
-              )
+              style = "background-color: #FFF3E0; padding: 8px; margin: 8px 0; border-left: 4px solid #FF9800; font-size: 12px;",
+              tags$b("Tissue-based calculation: "),
+              "Enter tissue weight (mg) and extraction volume (\u00b5L) per replicate group. ",
+              "Leave blank if not applicable. Default extraction volume: 500 \u00b5L."
             ),
-            numericInput("extraction_volume", "Extraction volume (\u00b5L):",
-                        value = 500, min = 1, max = 10000, step = 50),
-            rHandsontableOutput("tissue_weight_table")
+            rHandsontableOutput("tissue_weight_table"),
+            tags$small(style = "color: #888;", "Scroll right if more groups are present.")
           )
         )
       ),
@@ -1010,10 +1000,13 @@ server <- function(input, output, session) {
 
     if (all(is.na(num_mat))) return(NULL)
 
-    # Hover text: show well ID and value
+    # Build hover text using cbind() for element-wise matrix indexing
+    # (outer() passes vectorized args; plain matrix[vec, vec] creates a cross-product)
     hover_text <- outer(ROW_NAMES, COL_NAMES, function(r, c) {
-      paste0(r, c, "<br>Value: ",
-             round(num_mat[match(r, ROW_NAMES), match(c, COL_NAMES)], 3))
+      ri <- match(r, ROW_NAMES)
+      ci <- match(c, COL_NAMES)
+      vals <- num_mat[cbind(ri, ci)]
+      paste0(r, c, "<br>Value: ", round(vals, 3))
     })
 
     plotly::plot_ly(
@@ -1744,29 +1737,49 @@ server <- function(input, output, session) {
     groups <- replicate_groups()
     if (length(groups) == 0) return(NULL)
 
-    # Build data frame with current stored values
-    # Use isolate() to avoid re-rendering when user edits a cell
-    # (the observer updates tissue_weights_rv, which would trigger re-render
-    #  and cause a feedback loop that truncates values)
+    # Use isolate() to avoid feedback loop on user edits
     tw <- isolate(tissue_weights_rv())
+
+    # Build wide-format: rows = parameters, columns = replicate groups
+    weight_vals <- sapply(groups, function(g) {
+      v <- tw[[g]]
+      if (is.list(v)) {
+        if (is.null(v$weight) || is.na(v$weight)) NA_real_ else as.numeric(v$weight)
+      } else {
+        if (is.null(v) || is.na(v)) NA_real_ else as.numeric(v)
+      }
+    })
+    extraction_vals <- sapply(groups, function(g) {
+      v <- tw[[g]]
+      if (is.list(v) && !is.null(v$extraction_uL)) as.numeric(v$extraction_uL) else 500
+    })
+
     df <- data.frame(
-      Replicate = groups,
-      Weight_mg = sapply(groups, function(g) {
-        val <- tw[[g]]
-        if (is.null(val) || is.na(val)) NA_real_ else as.numeric(val)
-      }),
+      Parameter = c("Weight (mg)", "Extraction vol (\u00b5L)"),
       stringsAsFactors = FALSE
     )
+    for (i in seq_along(groups)) {
+      df[[groups[i]]] <- c(weight_vals[i], extraction_vals[i])
+    }
 
-    rhandsontable(df, rowHeaders = FALSE, width = 350) %>%
-      hot_col("Replicate", readOnly = TRUE) %>%
-      hot_col("Weight_mg", type = "numeric", format = "0.0")
+    rhandsontable(df, rowHeaders = FALSE, stretchH = "all",
+                  height = 100, overflow = "hidden") %>%
+      hot_col("Parameter", readOnly = TRUE) %>%
+      hot_cols(type = "numeric", format = "0.0")
   })
-  
+
   observeEvent(input$tissue_weight_table, {
     req(input$tissue_weight_table)
     df <- hot_to_r(input$tissue_weight_table)
-    tw <- as.list(setNames(df$Weight_mg, df$Replicate))
+    groups <- colnames(df)[-1]  # All columns except "Parameter"
+
+    tw <- list()
+    for (g in groups) {
+      tw[[g]] <- list(
+        weight = df[1, g],          # Row 1 = Weight (mg)
+        extraction_uL = df[2, g]    # Row 2 = Extraction vol (uL)
+      )
+    }
     tissue_weights_rv(tw)
   })
   
@@ -2559,17 +2572,17 @@ server <- function(input, output, session) {
       if (input$assay_type == "elisa") {
         tw <- tissue_weights_rv()
         if (length(tw) > 0) {
+          # New format: {"R1": {"weight": 50.0, "extraction_uL": 500}, ...}
           write_json_safe(tw, file.path(output_dir, "tissue_weights.json"))
         }
-        
-        # Save extraction volume in sample processing config
-        extraction_vol <- input$extraction_volume %||% 500
+
+        # Save default processing config (per-sample volumes are in tissue_weights.json)
         processing_config <- list(
-          extraction_volume_ul = extraction_vol,
+          extraction_volume_ul = 500,
           sample_type = "extracted",
-          notes = "Set from Shiny app"
+          notes = "Per-sample extraction volumes stored in tissue_weights.json"
         )
-        write_json_safe(processing_config, 
+        write_json_safe(processing_config,
                        file.path(output_dir, "sample_processing_config.json"))
       }
       
