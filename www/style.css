@@ -91,6 +91,20 @@ h5 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* --- Bottom matrix pair: flex alignment ---
+   Both .matrix-bottom-cell containers become equal-height flex columns.
+   The .matrix-table-anchor inside each uses margin-top:auto to push
+   the rhandsontable to the bottom, so the tables always align
+   regardless of how much content sits above them. */
+.matrix-bottom-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.matrix-table-anchor {
+  margin-top: auto;
+}
+
 /* --- Inline form controls (dilution row) --- */
 #matrix_dilution_section .form-group {
   margin-bottom: 0;
