@@ -358,74 +358,102 @@ ui <- fluidPage(
         ),
         br(),
 
-        # ---- 2x2 MATRIX GRID ----
-        fluidRow(
-          # LEFT COLUMN: Type + Dilution
-          column(6,
+        # ---- MATRIX PAIRS (CSS Grid) ----
+        div(
+          class = "matrix-pairs",
+
+          # === Pair 1: Sample Type | Sample ID ===
+          tags$section(
+            class = "matrix-pair",
+
+            # Left: Sample Type
             div(
               id = "matrix_type_section",
-              h5("1. Sample Type"),
-              actionButton("reset_type", "Reset", class = "btn btn-xs"),
-
-              conditionalPanel(
-                condition = "input.assay_type == 'elisa'",
-                div(
-                  style = "background-color: #FFF9E6; padding: 8px; margin: 8px 0; border-left: 4px solid #FFC107; font-size: 12px;",
-                  tags$b("ELISA Controls: "),
-                  "Blank | NSB | B0 | TotalActivity (col 1)"
+              class = "matrix-card",
+              div(class = "matrix-title",
+                h5("1. Sample Type"),
+                actionButton("reset_type", "Reset", class = "btn btn-xs")
+              ),
+              div(class = "matrix-meta",
+                conditionalPanel(
+                  condition = "input.assay_type == 'elisa'",
+                  div(
+                    style = "background-color: #FFF9E6; padding: 6px 8px; border-left: 4px solid #FFC107; font-size: 12px;",
+                    tags$b("ELISA Controls: "),
+                    "Blank | NSB | B0 | TotalActivity (col 1)"
+                  )
                 )
               ),
-
-              rHandsontableOutput("matrix_type")
+              div(class = "matrix-body",
+                rHandsontableOutput("matrix_type")
+              )
             ),
-            br(),
 
+            # Right: Sample ID
             div(
-              id = "matrix_dilution_section",
-              class = "matrix-bottom-cell",
-              h5("3. Dilution Factors"),
-              div(
-                style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
-                div(
-                  style = "display: flex; align-items: center; gap: 6px;",
-                  tags$label("Set all to:", `for` = "uniform_dilution",
-                             style = "margin: 0; white-space: nowrap;"),
-                  tags$input(type = "number", id = "uniform_dilution", value = "1",
-                             min = "0", step = "0.1", class = "form-control",
-                             style = "width: 70px; height: 30px; padding: 2px 6px;")
-                ),
-                actionButton("apply_uniform_dilution", "Apply",
-                             class = "btn btn-sm btn-info",
-                             style = "height: 30px; padding: 2px 12px;"),
-                checkboxInput("advanced_dilution", "Per-well", value = TRUE)
+              id = "matrix_id_section",
+              class = "matrix-card",
+              div(class = "matrix-title",
+                h5("2. Sample ID"),
+                actionButton("reset_id", "Reset", class = "btn btn-xs")
               ),
-              conditionalPanel(
-                condition = "input.advanced_dilution == true",
-                uiOutput("dilution_error_feedback"),
-                actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
-                div(class = "matrix-table-anchor",
-                  rHandsontableOutput("matrix_dilution"))
+              div(class = "matrix-meta"),
+              div(class = "matrix-body",
+                rHandsontableOutput("matrix_id")
               )
             )
           ),
 
-          # RIGHT COLUMN: ID + Replicate
-          column(6,
-            div(
-              id = "matrix_id_section",
-              h5("2. Sample ID"),
-              actionButton("reset_id", "Reset", class = "btn btn-xs"),
-              rHandsontableOutput("matrix_id")
-            ),
-            br(),
+          # === Pair 2: Dilution Factors | Replicate Groups ===
+          tags$section(
+            class = "matrix-pair",
 
+            # Left: Dilution Factors
+            div(
+              id = "matrix_dilution_section",
+              class = "matrix-card",
+              div(class = "matrix-title",
+                h5("3. Dilution Factors")
+              ),
+              div(class = "matrix-meta",
+                div(
+                  style = "display: flex; align-items: center; gap: 10px;",
+                  div(
+                    style = "display: flex; align-items: center; gap: 6px;",
+                    tags$label("Set all to:", `for` = "uniform_dilution",
+                               style = "margin: 0; white-space: nowrap;"),
+                    tags$input(type = "number", id = "uniform_dilution", value = "1",
+                               min = "0", step = "0.1", class = "form-control",
+                               style = "width: 70px; height: 30px; padding: 2px 6px;")
+                  ),
+                  actionButton("apply_uniform_dilution", "Apply",
+                               class = "btn btn-sm btn-info",
+                               style = "height: 30px; padding: 2px 12px;"),
+                  checkboxInput("advanced_dilution", "Per-well", value = TRUE)
+                )
+              ),
+              div(class = "matrix-body",
+                conditionalPanel(
+                  condition = "input.advanced_dilution == true",
+                  uiOutput("dilution_error_feedback"),
+                  actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
+                  rHandsontableOutput("matrix_dilution")
+                )
+              )
+            ),
+
+            # Right: Replicate Groups
             div(
               id = "matrix_replicate_section",
-              class = "matrix-bottom-cell",
-              h5("4. Replicate Groups"),
-              actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
-              div(class = "matrix-table-anchor",
-                rHandsontableOutput("matrix_replicate"))
+              class = "matrix-card",
+              div(class = "matrix-title",
+                h5("4. Replicate Groups")
+              ),
+              div(class = "matrix-meta"),
+              div(class = "matrix-body",
+                actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
+                rHandsontableOutput("matrix_replicate")
+              )
             )
           )
         ),
