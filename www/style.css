@@ -91,6 +91,16 @@ h5 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* --- Inline form controls (dilution row) --- */
+#matrix_dilution_section .form-group {
+  margin-bottom: 0;
+}
+
+#matrix_dilution_section .checkbox {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* --- Details/Summary (Advanced Options) --- */
 details summary {
   user-select: none;
