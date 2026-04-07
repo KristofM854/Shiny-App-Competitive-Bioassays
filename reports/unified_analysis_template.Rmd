@@ -1062,7 +1062,7 @@ tryCatch({
 })
 ```
 
-```{r dose-response-plots, fig.width=12, fig.height=8}
+```{r dose-response-plots, fig.width=12, fig.height=8, fig.cap="Dose-response curve showing fitted 4-parameter logistic model with observed standard concentrations"}
 # Create unified dose-response curve plot
 plot_data <- data_long %>% filter(!is.na(concentration))
 
@@ -1955,7 +1955,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
 ## `r tr("sample_variability", lang)`
 
-```{r sample-boxplot, fig.width=10, fig.height=7, warning=FALSE, message=FALSE}
+```{r sample-boxplot, fig.width=10, fig.height=7, warning=FALSE, message=FALSE, fig.cap="Sample concentration estimates with confidence intervals"}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   sample_plot_data <- sample_results %>%
@@ -2114,7 +2114,7 @@ if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
 
 ## `r tr("drc_with_samples", lang)`
 
-```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE}
+```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   standards_plot_data <- data_long %>%
