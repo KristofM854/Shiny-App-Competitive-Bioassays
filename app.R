@@ -363,7 +363,7 @@ ui <- fluidPage(
           # LEFT COLUMN: Type + Dilution
           column(6,
             div(
-              id = "matrix_type_section",
+              id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
               h5("1. Sample Type"),
               actionButton("reset_type", "Reset", class = "btn btn-xs"),
 
@@ -376,12 +376,12 @@ ui <- fluidPage(
                 )
               ),
 
-              rHandsontableOutput("matrix_type")
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
             ),
             br(),
 
             div(
-              id = "matrix_dilution_section",
+              id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution factor matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
               h5("3. Dilution Factors"),
               div(
@@ -401,10 +401,10 @@ ui <- fluidPage(
               ),
               conditionalPanel(
                 condition = "input.advanced_dilution == true",
-                uiOutput("dilution_error_feedback"),
+                div(`aria-live` = "polite", uiOutput("dilution_error_feedback")),
                 actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
                 div(class = "matrix-table-anchor",
-                  rHandsontableOutput("matrix_dilution"))
+                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"), type = 6, color = "#1976D2"))
               )
             )
           ),
@@ -412,20 +412,20 @@ ui <- fluidPage(
           # RIGHT COLUMN: ID + Replicate
           column(6,
             div(
-              id = "matrix_id_section",
+              id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
               h5("2. Sample ID"),
               actionButton("reset_id", "Reset", class = "btn btn-xs"),
-              rHandsontableOutput("matrix_id")
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
             ),
             br(),
 
             div(
-              id = "matrix_replicate_section",
+              id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
               h5("4. Replicate Groups"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               div(class = "matrix-table-anchor",
-                rHandsontableOutput("matrix_replicate"))
+                shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"), type = 6, color = "#1976D2"))
             )
           )
         ),
@@ -678,7 +678,7 @@ ui <- fluidPage(
         id = "preflight_section",
         style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
         h5(style = "margin-top: 0;", "Pre-Flight Check"),
-        uiOutput("preflight_checks")
+        div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
       br(),
       div(
