@@ -368,38 +368,48 @@ ui <- fluidPage(
 
             # Left: Sample Type
             div(
-              id = "matrix_type_section",
-              class = "matrix-card",
-              div(class = "matrix-title",
-                h5("1. Sample Type"),
-                actionButton("reset_type", "Reset", class = "btn btn-xs")
-              ),
-              div(class = "matrix-meta",
-                conditionalPanel(
-                  condition = "input.assay_type == 'elisa'",
-                  div(
-                    style = "background-color: #FFF9E6; padding: 6px 8px; border-left: 4px solid #FFC107; font-size: 12px;",
-                    tags$b("ELISA Controls: "),
-                    "Blank | NSB | B0 | TotalActivity (col 1)"
-                  )
+              id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
+              h5("1. Sample Type"),
+              actionButton("reset_type", "Reset", class = "btn btn-xs"),
+
+              conditionalPanel(
+                condition = "input.assay_type == 'elisa'",
+                div(
+                  style = "background-color: #FFF9E6; padding: 8px; margin: 8px 0; border-left: 4px solid #FFC107; font-size: 12px;",
+                  tags$b("ELISA Controls: "),
+                  "Blank | NSB | B0 | TotalActivity (col 1)"
                 )
               ),
-              div(class = "matrix-body",
-                rHandsontableOutput("matrix_type")
-              )
+
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
             ),
 
             # Right: Sample ID
             div(
-              id = "matrix_id_section",
-              class = "matrix-card",
-              div(class = "matrix-title",
-                h5("2. Sample ID"),
-                actionButton("reset_id", "Reset", class = "btn btn-xs")
+              id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution factor matrix: 8 rows by 12 columns",
+              class = "matrix-bottom-cell",
+              h5("3. Dilution Factors"),
+              div(
+                style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
+                div(
+                  style = "display: flex; align-items: center; gap: 6px;",
+                  tags$label("Set all to:", `for` = "uniform_dilution",
+                             style = "margin: 0; white-space: nowrap;"),
+                  tags$input(type = "number", id = "uniform_dilution", value = "1",
+                             min = "0", step = "0.1", class = "form-control",
+                             style = "width: 70px; height: 30px; padding: 2px 6px;")
+                ),
+                actionButton("apply_uniform_dilution", "Apply",
+                             class = "btn btn-sm btn-info",
+                             style = "height: 30px; padding: 2px 12px;"),
+                checkboxInput("advanced_dilution", "Per-well", value = TRUE)
               ),
-              div(class = "matrix-meta"),
-              div(class = "matrix-body",
-                rHandsontableOutput("matrix_id")
+              conditionalPanel(
+                condition = "input.advanced_dilution == true",
+                div(`aria-live` = "polite", uiOutput("dilution_error_feedback")),
+                actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
+                div(class = "matrix-table-anchor",
+                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"), type = 6, color = "#1976D2"))
               )
             )
           ),
@@ -410,50 +420,20 @@ ui <- fluidPage(
 
             # Left: Dilution Factors
             div(
-              id = "matrix_dilution_section",
-              class = "matrix-card",
-              div(class = "matrix-title",
-                h5("3. Dilution Factors")
-              ),
-              div(class = "matrix-meta",
-                div(
-                  style = "display: flex; align-items: center; gap: 10px;",
-                  div(
-                    style = "display: flex; align-items: center; gap: 6px;",
-                    tags$label("Set all to:", `for` = "uniform_dilution",
-                               style = "margin: 0; white-space: nowrap;"),
-                    tags$input(type = "number", id = "uniform_dilution", value = "1",
-                               min = "0", step = "0.1", class = "form-control",
-                               style = "width: 70px; height: 30px; padding: 2px 6px;")
-                  ),
-                  actionButton("apply_uniform_dilution", "Apply",
-                               class = "btn btn-sm btn-info",
-                               style = "height: 30px; padding: 2px 12px;"),
-                  checkboxInput("advanced_dilution", "Per-well", value = TRUE)
-                )
-              ),
-              div(class = "matrix-body",
-                conditionalPanel(
-                  condition = "input.advanced_dilution == true",
-                  uiOutput("dilution_error_feedback"),
-                  actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
-                  rHandsontableOutput("matrix_dilution")
-                )
-              )
+              id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
+              h5("2. Sample ID"),
+              actionButton("reset_id", "Reset", class = "btn btn-xs"),
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
             ),
 
             # Right: Replicate Groups
             div(
-              id = "matrix_replicate_section",
-              class = "matrix-card",
-              div(class = "matrix-title",
-                h5("4. Replicate Groups")
-              ),
-              div(class = "matrix-meta"),
-              div(class = "matrix-body",
-                actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
-                rHandsontableOutput("matrix_replicate")
-              )
+              id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
+              class = "matrix-bottom-cell",
+              h5("4. Replicate Groups"),
+              actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
+              div(class = "matrix-table-anchor",
+                shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"), type = 6, color = "#1976D2"))
             )
           )
         ),
@@ -529,6 +509,8 @@ ui <- fluidPage(
                       title = "Remove file",
                       style = "margin-top: 30px; background-color:#f8d7da; border:none;")
         ),
+        downloadButton("download_plate_template", "Download Example File",
+                       class = "btn btn-default btn-sm", style = "margin-top: 5px;"),
 
         # Visual plate selector panel
         conditionalPanel(
@@ -645,7 +627,11 @@ ui <- fluidPage(
               condition = "input.normality_assumption == 'test_shapiro'",
               helpText("Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.")
             )
-          )
+          ),
+          hr(),
+          numericInput("cv_limit", "Maximum CV for standards (%):",
+                      value = 30, min = 5, max = 50, step = 5),
+          helpText("Standards exceeding this CV% threshold are flagged as high-variability.")
         )
       ),
       br(),
@@ -700,7 +686,7 @@ ui <- fluidPage(
         id = "preflight_section",
         style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
         h5(style = "margin-top: 0;", "Pre-Flight Check"),
-        uiOutput("preflight_checks")
+        div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
       br(),
       div(
@@ -806,7 +792,7 @@ server <- function(input, output, session) {
     removeModal()
   })
 
-  autoSaveTimer <- reactiveTimer(30000)
+  autoSaveTimer <- reactiveTimer(60000)
   observe({
     autoSaveTimer()
     tryCatch({
@@ -1118,6 +1104,13 @@ server <- function(input, output, session) {
     }
   )
 
+  output$download_plate_template <- downloadHandler(
+    filename = function() "plate_reader_template.csv",
+    content = function(file) {
+      file.copy("examples/plate_template.csv", file)
+    }
+  )
+
   # --------------------------------------------------------------------------
   # Assay Type Configuration
   # --------------------------------------------------------------------------
@@ -1412,7 +1405,7 @@ server <- function(input, output, session) {
     do.call(tagList, rows_list)
   })
   
-  std_conc <- reactive({
+  std_conc_raw <- reactive({
     n <- as.integer(input$num_standards)
     assay <- input$assay_type %||% "rba"
     
@@ -1436,7 +1429,8 @@ server <- function(input, output, session) {
       }
     })
   })
-  
+  std_conc <- std_conc_raw %>% debounce(400)
+
   # --------------------------------------------------------------------------
   # Matrix Renderers
   # --------------------------------------------------------------------------
@@ -1532,7 +1526,8 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$matrix_dilution, {
+  matrix_dilution_debounced <- reactive({ input$matrix_dilution }) %>% debounce(300)
+  observeEvent(matrix_dilution_debounced(), {
     req(input$matrix_dilution)
     
     raw <- hot_to_r(input$matrix_dilution)
@@ -2490,24 +2485,22 @@ server <- function(input, output, session) {
       if (isTRUE(rv$is_multiwavelength) && !is.null(rv$wavelengths)) {
         
         message(sprintf("Processing %d wavelengths...", length(rv$wavelengths)))
-        
+
+        # Build the converter once — layout matrices are identical across
+        # wavelengths, so pivoting them inside the loop would be redundant.
+        converter <- matrix_to_long_with_cached_layout(
+          matrix_type(), matrix_id(), matrix_dilution(),
+          matrix_replicate(), std_conc()
+        )
+
         # Save each wavelength as separate CSV
         for (wl in rv$wavelengths) {
-          
+
           # Get the plate data for this wavelength
           plate_wl <- rv$wavelength_plates[[wl]]
-          
-          # Convert to long format using SAME plate layout
-          # We use matrix_to_long with the plate data for this wavelength
-          # but all other matrices (IDs, types, dilutions, etc.) stay the same!
-          df_long_wl <- matrix_to_long(
-            type_mat = matrix_type(),
-            id_mat = matrix_id(),
-            dilution_mat = matrix_dilution(),
-            replicate_mat = matrix_replicate(),
-            measurement_mat = plate_wl,  # <-- Different plate data!
-            std_conc = std_conc()
-          )
+
+          # Convert to long format reusing the cached layout
+          df_long_wl <- converter(plate_wl)
           
           # Apply normalization
           df_normalized_wl <- tryCatch({
@@ -2618,7 +2611,8 @@ server <- function(input, output, session) {
         ci_method = input$ci_method %||% "t_dist",
         enable_outlier_detection = isTRUE(input$enable_outlier_detection),
         outlier_min_n = input$outlier_min_n %||% 3,
-        normality_assumption = input$normality_assumption %||% "assume"
+        normality_assumption = input$normality_assumption %||% "assume",
+        cv_limit = input$cv_limit %||% 30
       )
       write_json_safe(analysis_config, file.path(output_dir, "analysis_config.json"))
 
