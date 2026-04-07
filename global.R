@@ -25,7 +25,7 @@ if (getRversion() < "4.2.0") {
 
 # --- Package Loading ----------------------------------------------------------
 required_pkgs <- c(
-  "shiny", "shinyjs", "shinyFeedback", "rintrojs", "rhandsontable",
+  "shiny", "shinyjs", "shinyFeedback", "rintrojs", "rhandsontable", "shinycssloaders",
   "dplyr", "tidyr", "tibble", "stringr", "purrr", "readr",
   "ggplot2", "ggrepel", "ggthemes", "ggtext", "plotly", "scales", "patchwork",
   "drc", "readxl", "jsonlite", "knitr", "rmarkdown", "digest"
