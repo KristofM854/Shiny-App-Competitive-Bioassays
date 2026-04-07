@@ -267,6 +267,8 @@ get_translations <- function() {
       normality_test_shapiro = "Test with Shapiro-Wilk",
       normality_shapiro_help = "Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.",
       outlier_method_mad = "MAD-based (non-normal distribution detected)",
+      cv_limit_label = "Maximum CV for standards (%):",
+      cv_limit_help = "Standards exceeding this CV% threshold are flagged as high-variability.",
 
       # Tab titles
       tab_analysis_title = "4. Analysis Settings",
@@ -310,6 +312,12 @@ get_translations <- function() {
       # Bootstrap CI (report)
       ci_bootstrap_note = "95%% confidence intervals calculated using bootstrap resampling (1000 iterations).",
       ci_tdist_note = "95%% confidence intervals calculated using t-distribution.",
+      ci_delta_method_note = "Individual sample concentrations include CIs from inverse prediction (delta method), accounting for curve-fitting uncertainty.",
+
+      # Methods section (report)
+      methods_title = "Methods",
+      methods_drc_citation = "Dose-response analysis performed using the drc package (Ritz et al., 2015, *PLOS ONE* 10(12):e0146021). ",
+      methods_outlier_citation = "Outlier detection: Dixon's Q-test (Dixon, 1950) for n=3-5, Grubbs' test (Grubbs, 1950) for n\u22656. ",
 
       # Weight comparison (report)
       weight_comparison_title = "DRC Weighting Comparison",
@@ -600,6 +608,8 @@ get_translations <- function() {
       normality_test_shapiro = "Probar con Shapiro-Wilk",
       normality_shapiro_help = "Se ejecuta la prueba de Shapiro-Wilk en cada grupo de r\u00E9plicas. Si p < 0.05 (no normal), la detecci\u00F3n basada en MAD reemplaza la prueba de Grubbs.",
       outlier_method_mad = "Basado en MAD (distribuci\u00F3n no normal detectada)",
+      cv_limit_label = "CV m\u00E1ximo para est\u00E1ndares (%):",
+      cv_limit_help = "Los est\u00E1ndares que excedan este umbral de CV% se marcan como alta variabilidad.",
 
       # Tab titles
       tab_analysis_title = "4. Configuraci\u00F3n de An\u00E1lisis",
@@ -643,6 +653,12 @@ get_translations <- function() {
       # Bootstrap CI (report)
       ci_bootstrap_note = "Intervalos de confianza del 95%% calculados mediante remuestreo bootstrap (1000 iteraciones).",
       ci_tdist_note = "Intervalos de confianza del 95%% calculados mediante distribuci\u00F3n t.",
+      ci_delta_method_note = "Las concentraciones individuales de muestras incluyen IC a partir de predicci\u00F3n inversa (m\u00E9todo delta), considerando la incertidumbre del ajuste de la curva.",
+
+      # Methods section (report)
+      methods_title = "M\u00E9todos",
+      methods_drc_citation = "An\u00E1lisis dosis-respuesta realizado con el paquete drc (Ritz et al., 2015, *PLOS ONE* 10(12):e0146021). ",
+      methods_outlier_citation = "Detecci\u00F3n de valores at\u00EDpicos: prueba Q de Dixon (Dixon, 1950) para n=3-5, prueba de Grubbs (Grubbs, 1950) para n\u22656. ",
 
       # Weight comparison (report)
       weight_comparison_title = "Comparaci\u00F3n de Ponderaci\u00F3n DRC",

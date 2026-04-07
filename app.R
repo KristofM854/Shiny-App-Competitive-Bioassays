@@ -2594,7 +2594,8 @@ server <- function(input, output, session) {
         ci_method = input$ci_method %||% "t_dist",
         enable_outlier_detection = isTRUE(input$enable_outlier_detection),
         outlier_min_n = input$outlier_min_n %||% 3,
-        normality_assumption = input$normality_assumption %||% "assume"
+        normality_assumption = input$normality_assumption %||% "assume",
+        cv_limit = input$cv_limit %||% 30
       )
       write_json_safe(analysis_config, file.path(output_dir, "analysis_config.json"))
 
