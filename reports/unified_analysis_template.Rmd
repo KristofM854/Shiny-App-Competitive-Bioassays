@@ -327,7 +327,7 @@ cat("\n\n")
 data_long <- data_long %>%
   mutate(concentration = ifelse(SampleType == "Standard", StandardConc, NA_real_))
 
-high_var_standards <- identify_high_variability_standards(data_long)
+high_var_standards <- identify_high_variability_standards(data_long, cv_limit = cv_limit)
 
 # Mark high variability in data
 data_long <- data_long %>%
