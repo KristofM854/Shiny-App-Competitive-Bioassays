@@ -1,0 +1,11 @@
+# Claude Code worktrees (temporary agent workspaces)
+.claude/
+
+# R session files
+.Rhistory
+.RData
+.Rproj.user/
+
+# OS files
+.DS_Store
+Thumbs.db
