@@ -278,6 +278,15 @@ get_translations <- function() {
       r2_identical_warning = "R-squared could not be computed: all response values are identical (zero total variance). Check assay integrity.",
       ci_asymmetric_footnote = "Lower confidence bounds are constrained to zero, as negative concentrations have no biological meaning. This may result in asymmetric confidence intervals.",
 
+      # Report sections
+      summary_title = "Summary",
+      interpretation_title = "Interpretation & Recommendations",
+      interpretation_pass = "All quality criteria met. Results are suitable for reporting.",
+      interpretation_warn = "Quality warnings detected: %s. Review flagged items before use.",
+      methods_title = "Methods",
+      plate_positional_title = "Plate Positional Quality",
+      data_quality_title = "Data Quality Overview",
+
       # Traffic-light QC card (report)
       qc_card_title = "Quality Control Summary",
       qc_metric = "Metric",
@@ -618,6 +627,15 @@ get_translations <- function() {
       # Statistical warnings and footnotes
       r2_identical_warning = "No se pudo calcular R-cuadrado: todos los valores de respuesta son id\u00E9nticos (varianza total cero). Verifique la integridad del ensayo.",
       ci_asymmetric_footnote = "Los l\u00EDmites inferiores de confianza est\u00E1n restringidos a cero, ya que las concentraciones negativas no tienen significado biol\u00F3gico. Esto puede resultar en intervalos de confianza asim\u00E9tricos.",
+
+      # Report sections
+      summary_title = "Resumen",
+      interpretation_title = "Interpretaci\u00F3n y Recomendaciones",
+      interpretation_pass = "Todos los criterios de calidad cumplidos. Los resultados son aptos para reporte.",
+      interpretation_warn = "Advertencias de calidad detectadas: %s. Revise los elementos marcados antes de usar.",
+      methods_title = "M\u00E9todos",
+      plate_positional_title = "Calidad Posicional de la Placa",
+      data_quality_title = "Resumen de Calidad de Datos",
 
       # Traffic-light QC card (report)
       qc_card_title = "Resumen de Control de Calidad",
