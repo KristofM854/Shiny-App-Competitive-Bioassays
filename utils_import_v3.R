@@ -306,8 +306,94 @@ import_plate_data <- function(file_path, sheet = 1,
   return(plate_numeric)
 }
 
+#' Unified single-pass plate file parser
+#'
+#' Detects file format, checks for multi-wavelength content (Excel), and parses
+#' all plate data in a single pass.  Returns a normalized result object suitable
+#' for direct use in the upload server logic.
+#'
+#' @param file_path Path to the plate reader file (CSV, TXT, XLS, XLSX)
+#' @param sheet     Sheet name or index (Excel only, default 1)
+#' @return A list with elements:
+#'   \describe{
+#'     \item{is_multiwavelength}{Logical}
+#'     \item{format}{"Excel", "CSV", or "TXT"}
+#'     \item{detected_wells}{Integer – wells with data in the primary plate}
+#'     \item{partial_plate}{Logical – TRUE when fewer than 96 wells detected}
+#'     \item{wavelengths}{Character vector of wavelength labels, or NULL}
+#'     \item{plates}{Named list of data-frame plates (single-element for
+#'       single-wavelength files)}
+#'     \item{import_info}{List of metadata for notifications}
+#'   }
+#' @export
+parse_plate_file <- function(file_path, sheet = 1) {
+
+  ext <- tolower(tools::file_ext(file_path))
+
+  fmt <- if (ext %in% c("xlsx", "xls")) "Excel" else if (ext == "csv") "CSV" else "TXT"
+
+  # ------------------------------------------------------------------
+  # Excel files: try multi-wavelength detection first (single file read)
+  # ------------------------------------------------------------------
+  if (ext %in% c("xlsx", "xls")) {
+    mw <- tryCatch(
+      detect_and_import_multiwavelength(file_path, sheet),
+      error = function(e) list(wavelengths = NULL, plates = NULL)
+    )
+
+    if (!is.null(mw$wavelengths) && length(mw$wavelengths) > 1) {
+      primary   <- mw$plates[[1]]
+      info      <- base::attr(primary, "import_info")
+      wells     <- if (!is.null(info)) info$detected_wells else sum(!is.na(primary))
+      partial   <- if (!is.null(info)) info$partial_plate  else (wells < 96)
+
+      return(list(
+        is_multiwavelength = TRUE,
+        format             = fmt,
+        detected_wells     = wells,
+        partial_plate      = partial,
+        wavelengths        = mw$wavelengths,
+        plates             = mw$plates,
+        import_info        = list(
+          file        = basename(file_path),
+          format      = fmt,
+          wells       = wells,
+          partial     = partial,
+          wavelengths = mw$wavelengths
+        )
+      ))
+    }
+  }
+
+  # ------------------------------------------------------------------
+  # Single-plate path (CSV / TXT / Excel without multi-wave markers)
+  # ------------------------------------------------------------------
+  plate <- import_plate_data(file_path, sheet)   # may throw on bad files
+  info  <- base::attr(plate, "import_info")
+
+  wells   <- if (!is.null(info)) info$detected_wells else sum(!is.na(plate))
+  partial <- if (!is.null(info)) info$partial_plate  else (wells < 96)
+  det_fmt <- if (!is.null(info)) info$format         else "unknown"
+
+  list(
+    is_multiwavelength = FALSE,
+    format             = fmt,
+    detected_wells     = wells,
+    partial_plate      = partial,
+    wavelengths        = NULL,
+    plates             = list(primary = plate),
+    import_info        = list(
+      file        = basename(file_path),
+      format      = det_fmt,
+      wells       = wells,
+      partial     = partial,
+      wavelengths = NULL
+    )
+  )
+}
+
 #' Preview file import
-#' 
+#'
 #' Quick check to see what would be imported
 #' 
 #' @param file_path Path to file
