@@ -617,7 +617,11 @@ ui <- fluidPage(
               condition = "input.normality_assumption == 'test_shapiro'",
               helpText("Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.")
             )
-          )
+          ),
+          hr(),
+          numericInput("cv_limit", "Maximum CV for standards (%):",
+                      value = 30, min = 5, max = 50, step = 5),
+          helpText("Standards exceeding this CV% threshold are flagged as high-variability.")
         )
       ),
       br(),
@@ -778,7 +782,7 @@ server <- function(input, output, session) {
     removeModal()
   })
 
-  autoSaveTimer <- reactiveTimer(30000)
+  autoSaveTimer <- reactiveTimer(60000)
   observe({
     autoSaveTimer()
     tryCatch({
