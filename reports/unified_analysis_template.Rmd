@@ -13,7 +13,14 @@ output:
     css: report_style.css
   word_document:
     toc: true
-  pdf_document: default
+  pdf_document:
+    toc: true
+header-includes:
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyfoot[C]{\thepage}
+  - \fancyhead{}
+  - \renewcommand{\headrulewidth}{0pt}
 params:
   output_dir: NULL
   lang: "en"
@@ -244,6 +251,23 @@ if (isTRUE(is_elisa)) {
   cat(tr("rba_intro", lang, assay_config$toxin_standard_label %||% "biotoxin"), "\n\n")
   cat("**", tr("rba_method", lang, assay_config$detection_method %||% "radioligand"), "**\n\n", sep = "")
 }
+```
+
+### `r tr("methods_title", lang)`
+
+```{r methods-section, results='asis'}
+weight_label <- if (exists("model_stats") && !is.null(model_stats)) model_stats$weight_method %||% "unweighted" else "unweighted"
+cat(tr("methods_drc_citation", lang))
+cat(sprintf("4-parameter log-logistic model (LL.4) fitted with %s regression. ", weight_label))
+if (isTRUE(analysis_config$enable_outlier_detection)) {
+  cat(tr("methods_outlier_citation", lang))
+  if (isTRUE(analysis_config$normality_assumption == "test_shapiro")) {
+    cat("Non-normality fallback: MAD-based detection (Leys et al., 2013). ")
+  }
+}
+cat("\n\n")
+cat(tr("ci_delta_method_note", lang))
+cat("\n\n")
 ```
 
 ## `r tr("analysis_notes", lang)`
@@ -1064,8 +1088,7 @@ write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 
 ### `r tr("std_backcalc_title", lang)`
 
-<details>
-<summary>Click to expand detailed back-calculation results</summary>
+<!-- Back-calculation promoted to visible section (critical QC data) -->
 
 ```{r standard-backcalculation, results='asis'}
 # Back-calculate concentrations for each standard well using the fitted model
@@ -1138,8 +1161,6 @@ if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
   cat(tr("recovery_outside", lang), "\n\n")
 }
 ```
-
-</details>
 
 ## `r tr("sample_results", lang)`
 
