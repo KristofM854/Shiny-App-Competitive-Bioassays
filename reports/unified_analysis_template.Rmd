@@ -780,24 +780,30 @@ tryCatch({
     max(replicate_stats$cv_percent, na.rm = TRUE)
   } else NA_real_
 
-  # Define thresholds and classify
+  # Define thresholds using assay-specific QC profile (M7)
+  tl_qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
+  tl_hill_range <- sort(abs(tl_qc_profile$hill_slope_range))
+  tl_recovery <- tl_qc_profile$recovery_range
+
   qc_items <- list(
     list(metric = tr("qc_r2", lang), value = round(R2, 4),
-         status = if (R2 >= 0.99) "green" else if (R2 >= 0.95) "amber" else "red"),
+         status = if (R2 >= 0.99) "green" else if (R2 >= tl_qc_profile$r2_threshold) "amber" else "red"),
     list(metric = tr("qc_hill", lang), value = round(hill_slope, 3),
-         status = if (hill_slope >= 0.8 && hill_slope <= 1.5) "green"
-                  else if (hill_slope >= 0.5 && hill_slope <= 2.0) "amber" else "red")
+         status = if (hill_slope >= tl_hill_range[1] && hill_slope <= tl_hill_range[2]) "green"
+                  else if (hill_slope >= tl_hill_range[1] * 0.6 && hill_slope <= tl_hill_range[2] * 1.3) "amber" else "red")
   )
   if (!is.na(max_cv) && is.finite(max_cv)) {
     qc_items[[length(qc_items) + 1]] <- list(
       metric = tr("qc_max_cv", lang), value = paste0(round(max_cv, 1), "%"),
-      status = if (max_cv <= 15) "green" else if (max_cv <= 30) "amber" else "red")
+      status = if (max_cv <= tl_qc_profile$cv_limit) "green" else if (max_cv <= tl_qc_profile$cv_limit * 2) "amber" else "red")
   }
   if (!is.na(mean_recovery) && is.finite(mean_recovery)) {
+    rec_tight_lo <- tl_recovery[1] + (100 - tl_recovery[1]) * 0.5
+    rec_tight_hi <- tl_recovery[2] - (tl_recovery[2] - 100) * 0.5
     qc_items[[length(qc_items) + 1]] <- list(
       metric = tr("qc_recovery", lang), value = paste0(round(mean_recovery, 1), "%"),
-      status = if (mean_recovery >= 90 && mean_recovery <= 110) "green"
-               else if (mean_recovery >= 80 && mean_recovery <= 120) "amber" else "red")
+      status = if (mean_recovery >= rec_tight_lo && mean_recovery <= rec_tight_hi) "green"
+               else if (mean_recovery >= tl_recovery[1] && mean_recovery <= tl_recovery[2]) "amber" else "red")
   }
 
   # Build traffic light table
@@ -1752,7 +1758,7 @@ if (nrow(samples_to_analyze) > 0) {
       mean_conc, sd_conc, se_conc, ci_lower, ci_upper,
       ci_lower_model, ci_upper_model, ci_lower_replicate, ci_upper_replicate,
       ci_lower_raw, ci_upper_raw, ci_truncated, cv_percent,
-      any_of(c("mean_response", "within_range", "range_flag", "TissueWeight_mg", "concentration_pg_per_g"))
+      any_of(c("mean_response", "within_range", "range_flag", "quant_status", "TissueWeight_mg", "concentration_pg_per_g"))
     ) %>%
     dplyr::rename(
       replicate_group = Replicate,
