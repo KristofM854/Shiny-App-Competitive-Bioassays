@@ -358,10 +358,15 @@ ui <- fluidPage(
         ),
         br(),
 
-        # ---- 2x2 MATRIX GRID ----
-        fluidRow(
-          # LEFT COLUMN: Type + Dilution
-          column(6,
+        # ---- MATRIX PAIRS (CSS Grid) ----
+        div(
+          class = "matrix-pairs",
+
+          # === Pair 1: Sample Type | Sample ID ===
+          tags$section(
+            class = "matrix-pair",
+
+            # Left: Sample Type
             div(
               id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
               h5("1. Sample Type"),
@@ -378,8 +383,8 @@ ui <- fluidPage(
 
               shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
             ),
-            br(),
 
+            # Right: Sample ID
             div(
               id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution factor matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
@@ -409,16 +414,19 @@ ui <- fluidPage(
             )
           ),
 
-          # RIGHT COLUMN: ID + Replicate
-          column(6,
+          # === Pair 2: Dilution Factors | Replicate Groups ===
+          tags$section(
+            class = "matrix-pair",
+
+            # Left: Dilution Factors
             div(
               id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
               h5("2. Sample ID"),
               actionButton("reset_id", "Reset", class = "btn btn-xs"),
               shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
             ),
-            br(),
 
+            # Right: Replicate Groups
             div(
               id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
