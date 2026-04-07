@@ -1388,7 +1388,7 @@ server <- function(input, output, session) {
     do.call(tagList, rows_list)
   })
   
-  std_conc <- reactive({
+  std_conc_raw <- reactive({
     n <- as.integer(input$num_standards)
     assay <- input$assay_type %||% "rba"
     
@@ -1412,7 +1412,8 @@ server <- function(input, output, session) {
       }
     })
   })
-  
+  std_conc <- std_conc_raw %>% debounce(400)
+
   # --------------------------------------------------------------------------
   # Matrix Renderers
   # --------------------------------------------------------------------------
@@ -1508,7 +1509,8 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$matrix_dilution, {
+  matrix_dilution_debounced <- reactive({ input$matrix_dilution }) %>% debounce(300)
+  observeEvent(matrix_dilution_debounced(), {
     req(input$matrix_dilution)
     
     raw <- hot_to_r(input$matrix_dilution)
