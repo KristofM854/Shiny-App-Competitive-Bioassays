@@ -230,6 +230,40 @@ if (isTRUE(is_elisa)) {
 }
 ```
 
+```{r executive-summary, results='asis'}
+tryCatch({
+  exec_assay_type <- toupper(assay_config$assay_type %||% "Unknown")
+  exec_analyte <- assay_config$analyte %||% assay_config$toxin_standard_label %||% "Unknown"
+
+  cat('<div style="border: 2px solid #2196F3; padding: 15px; border-radius: 8px; background: #F5F9FF; margin: 10px 0 20px 0;">\n')
+  cat('<strong style="font-size: 1.1em;">Executive Summary</strong><br><br>\n')
+
+  cat(sprintf("<strong>Assay:</strong> %s &mdash; %s<br>\n", exec_assay_type, exec_analyte))
+  cat(sprintf("<strong>Analysis date:</strong> %s<br>\n", Sys.Date()))
+
+  # Standards info
+  n_std_concs <- length(unique(
+    data_long$StandardConc[data_long$SampleType == "Standard" & !is.na(data_long$StandardConc)]
+  ))
+  n_hv <- nrow(identify_high_variability_standards(data_long, cv_limit = cv_limit))
+  cat(sprintf("<strong>Standards:</strong> %d concentration levels", n_std_concs))
+  if (n_hv > 0) cat(sprintf(" (%d excluded for high CV)", n_hv))
+  cat("<br>\n")
+
+  # Sample count
+  n_samples <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
+  cat(sprintf("<strong>Sample wells:</strong> %d<br>\n", n_samples))
+
+  # Note: Model fit details (R2, LLOQ/ULOQ, status) are populated after model fitting
+  # in the exec-summary-box chunk below.
+  cat('<em>Model results and overall status appear after curve fitting below.</em><br>\n')
+
+  cat('</div>\n\n')
+}, error = function(e) {
+  cat(sprintf("\n\n*Executive summary could not be generated: %s*\n\n", e$message))
+})
+```
+
 # `r tr(if (isTRUE(is_elisa)) "report_elisa" else "report_rba", lang)` `r tr("analysis_report", lang)`
 
 **`r tr("assay_type", lang)`** `r toupper(assay_config$assay_type)`
@@ -592,9 +626,35 @@ flag_range <- function(response_val, conc_val, is_elisa_assay) {
 # Executive summary box — only shown if model fitting succeeded
 if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
 
-  overall_status <- if (R2 >= 0.99) "\U0001F7E2 Excellent"
-                    else if (R2 >= 0.95) "\U0001F7E1 Acceptable"
-                    else "\U0001F534 Review needed"
+  # Load QC profile for assay-specific thresholds
+  qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
+
+  # Determine overall status using assay-specific R2 threshold
+  exec_warnings <- character(0)
+  if (R2 >= 0.99) {
+    overall_status <- "Pass"
+    status_icon <- "\U0001F7E2"
+  } else if (R2 >= qc_profile$r2_threshold) {
+    overall_status <- "Qualified Pass"
+    status_icon <- "\U0001F7E1"
+  } else {
+    overall_status <- "Review Required"
+    status_icon <- "\U0001F534"
+    exec_warnings <- c(exec_warnings, sprintf("R\u00B2 below threshold (%.4f < %.2f)", R2, qc_profile$r2_threshold))
+  }
+
+  primary_model_entry <- if (!drc_failed_completely) all_models[[primary_key]] else NULL
+  if (!is.null(primary_model_entry$convergence) && !primary_model_entry$convergence$se_available) {
+    exec_warnings <- c(exec_warnings, "Standard errors could not be computed")
+    if (overall_status == "Pass") { overall_status <- "Qualified Pass"; status_icon <- "\U0001F7E1" }
+  }
+  if (!is.null(primary_model_entry$lack_of_fit) && !is.null(primary_model_entry$lack_of_fit$p_value) && primary_model_entry$lack_of_fit$p_value < 0.05) {
+    exec_warnings <- c(exec_warnings, sprintf("Lack-of-fit (p = %.4f)", primary_model_entry$lack_of_fit$p_value))
+    if (overall_status == "Pass") { overall_status <- "Qualified Pass"; status_icon <- "\U0001F7E1" }
+  }
+  if (nrow(high_var_standards) > 0) {
+    exec_warnings <- c(exec_warnings, sprintf("%d standard level(s) excluded for high CV", nrow(high_var_standards)))
+  }
 
   if (knitr::is_html_output()) {
     cat('<div style="background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%); ',
@@ -604,19 +664,31 @@ if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
     cat("---\n\n")
   }
 
-  cat(sprintf("**Curve fit:** R\u00B2 = %.4f | RMSE = %.3f | %s\n\n", R2, RMSE, overall_status))
+  cat(sprintf("**Overall status:** %s %s\n\n", status_icon, overall_status))
+  cat(sprintf("**Assay:** %s \u2014 %s | **Model:** %s\n\n",
+              toupper(assay_config$assay_type %||% "Unknown"),
+              assay_config$analyte %||% assay_config$toxin_standard_label %||% "Unknown",
+              weight_desc))
+  cat(sprintf("**Curve fit:** R\u00B2 = %.4f | RMSE = %.3f\n\n", R2, RMSE))
 
-  primary_model_entry <- if (!drc_failed_completely) all_models[[primary_key]] else NULL
-  if (!is.null(primary_model_entry$convergence) && !primary_model_entry$convergence$se_available) {
-    cat("**Warning:** Standard errors could not be computed \u2014 interpret parameters with caution.\n\n")
+  cat(sprintf("**Standards:** %d wells used (of %d unique concentrations)",
+              nrow(standards_for_model), length(unique(standards_data$StandardConc))))
+  if (nrow(high_var_standards) > 0) {
+    cat(sprintf(" | %d excluded", nrow(high_var_standards)))
   }
-  if (!is.null(primary_model_entry$lack_of_fit) && !is.null(primary_model_entry$lack_of_fit$p_value) && primary_model_entry$lack_of_fit$p_value < 0.05) {
-    cat(sprintf("**Lack-of-fit:** F = %.2f, p = %.4f \u2014 model may not adequately describe the data.\n\n",
-                primary_model_entry$lack_of_fit$f_stat, primary_model_entry$lack_of_fit$p_value))
+  cat("\n\n")
+
+  # LLOQ/ULOQ from quantifiable range (ec20/ec80)
+  if (exists("ec20") && exists("ec80") && !is.na(ec20) && !is.na(ec80)) {
+    conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
+    lloq_fmt <- if (isTRUE(is_elisa)) format(ec20, digits = 4, big.mark = ",") else format(ec20, scientific = TRUE, digits = 3)
+    uloq_fmt <- if (isTRUE(is_elisa)) format(ec80, digits = 4, big.mark = ",") else format(ec80, scientific = TRUE, digits = 3)
+    cat(sprintf("**Quantifiable range:** LLOQ = %s %s | ULOQ = %s %s\n\n", lloq_fmt, conc_unit, uloq_fmt, conc_unit))
   }
 
-  cat(sprintf("**Standards:** %d wells used (of %d unique concentrations) | Method: %s\n\n",
-              nrow(standards_for_model), length(unique(standards_data$StandardConc)), weight_desc))
+  # Number of quantified samples (will be 0 at this point since sample analysis is later)
+  n_sample_wells <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
+  cat(sprintf("**Sample wells:** %d\n\n", n_sample_wells))
 
   if (isTRUE(is_elisa) && exists("control_summary") && !is.null(control_summary)) {
     cat(sprintf("**Controls:** Blank=%.3f | NSB=%.3f | B0=%.3f | Hierarchy: %s\n\n",
@@ -624,6 +696,10 @@ if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
                 as.numeric(control_summary$nsb_avg),
                 as.numeric(control_summary$b0_avg),
                 if (control_summary$hierarchy_valid) "Valid" else "**INVALID**"))
+  }
+
+  if (length(exec_warnings) > 0) {
+    cat(sprintf("**Top warnings:** %s\n\n", paste(exec_warnings, collapse = "; ")))
   }
 
   if (knitr::is_html_output()) {
@@ -1363,7 +1439,21 @@ if (nrow(samples_to_analyze) > 0) {
   
   # Combine all predictions
   sample_results <- do.call(rbind, sample_predictions_list)
-  
+
+  # M6: Add interpolation vs extrapolation labels
+  tryCatch({
+    min_std_conc <- min(standards_for_model$concentration, na.rm = TRUE)
+    max_std_conc <- max(standards_for_model$concentration, na.rm = TRUE)
+    sample_results$quantification_status <- dplyr::case_when(
+      is.na(sample_results$estimated_concentration) ~ "Not estimable",
+      sample_results$estimated_concentration < min_std_conc ~ "Extrapolated (below)",
+      sample_results$estimated_concentration > max_std_conc ~ "Extrapolated (above)",
+      TRUE ~ "Interpolated"
+    )
+  }, error = function(e) {
+    sample_results$quantification_status <<- "Unknown"
+  })
+
   # Outlier detection (applied before stats if enabled)
   outlier_flags <- data.frame(Well = character(), Replicate = character(),
                                is_outlier = logical(), method = character(),
@@ -1483,6 +1573,43 @@ if (nrow(samples_to_analyze) > 0) {
   stats_data <- sample_results %>%
     filter(!is.na(estimated_concentration) & !is_outlier)
 
+  # Use compute_layered_uncertainty for each replicate group (Task A: HP5)
+  replicate_groups <- unique(stats_data$Replicate)
+  layered_ci_list <- lapply(replicate_groups, function(rep_grp) {
+    tryCatch({
+      grp_data <- stats_data %>% dplyr::filter(Replicate == rep_grp)
+      well_preds <- data.frame(
+        well = grp_data$Well,
+        predicted_conc = grp_data$estimated_concentration,
+        ci_lower_model = grp_data$ci_lower_individual,
+        ci_upper_model = grp_data$ci_upper_individual,
+        stringsAsFactors = FALSE
+      )
+      ci_method <- analysis_config$ci_method %||% "t_dist"
+      lu <- compute_layered_uncertainty(well_preds, grp_data$estimated_concentration,
+                                         ci_method = ci_method)
+      data.frame(
+        Replicate = rep_grp,
+        ci_lower_model = lu$ci_lower_model,
+        ci_upper_model = lu$ci_upper_model,
+        ci_lower_replicate = lu$ci_lower_replicate,
+        ci_upper_replicate = lu$ci_upper_replicate,
+        ci_lower_combined = lu$ci_lower_combined,
+        ci_upper_combined = lu$ci_upper_combined,
+        stringsAsFactors = FALSE
+      )
+    }, error = function(e) {
+      data.frame(
+        Replicate = rep_grp,
+        ci_lower_model = NA_real_, ci_upper_model = NA_real_,
+        ci_lower_replicate = NA_real_, ci_upper_replicate = NA_real_,
+        ci_lower_combined = NA_real_, ci_upper_combined = NA_real_,
+        stringsAsFactors = FALSE
+      )
+    })
+  })
+  layered_ci_df <- do.call(rbind, layered_ci_list)
+
   replicate_stats <- stats_data %>%
     group_by(Replicate) %>%
     summarise(
@@ -1492,54 +1619,20 @@ if (nrow(samples_to_analyze) > 0) {
       mean_conc = mean(estimated_concentration, na.rm = TRUE),
       sd_conc = sd(estimated_concentration, na.rm = TRUE),
       se_conc = sd_conc / sqrt(n_replicates),
-      # Confidence intervals - method depends on config, combined with model uncertainty
-      ci_lower = {
-        # Replicate-variability CI
-        ci_replicate_lower <- if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
-          set.seed(42)
-          boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
-          set.seed(NULL)
-          quantile(boot_vals, 0.025)
-        } else if (n_replicates >= 2 && !is.na(sd_conc)) {
-          mean_conc - qt(0.975, df = n_replicates - 1) * se_conc
-        } else {
-          mean_conc
-        }
-        # Model-uncertainty envelope from per-well delta-method CIs
-        ci_model_lower <- if (any(!is.na(ci_lower_individual))) {
-          min(ci_lower_individual, na.rm = TRUE)
-        } else {
-          ci_replicate_lower
-        }
-        # Use the wider (more conservative) of the two lower bounds
-        min(ci_replicate_lower, ci_model_lower)
-      },
-      ci_upper = {
-        # Replicate-variability CI
-        ci_replicate_upper <- if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
-          set.seed(42)
-          boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
-          set.seed(NULL)
-          quantile(boot_vals, 0.975)
-        } else if (n_replicates >= 2 && !is.na(sd_conc)) {
-          mean_conc + qt(0.975, df = n_replicates - 1) * se_conc
-        } else {
-          mean_conc
-        }
-        # Model-uncertainty envelope from per-well delta-method CIs
-        ci_model_upper <- if (any(!is.na(ci_upper_individual))) {
-          max(ci_upper_individual, na.rm = TRUE)
-        } else {
-          ci_replicate_upper
-        }
-        # Use the wider (more conservative) of the two upper bounds
-        max(ci_replicate_upper, ci_model_upper)
-      },
       cv_percent = (sd_conc / mean_conc) * 100,
       .groups = "drop"
     ) %>%
+    # Join layered uncertainty columns (Task A: HP5)
+    left_join(layered_ci_df, by = "Replicate") %>%
     mutate(
-      ci_lower = pmax(ci_lower, 0),
+      # Task B (HP6): Preserve raw CI before truncation
+      ci_lower_raw = ci_lower_combined,
+      ci_upper_raw = ci_upper_combined,
+      # Apply truncation for display
+      ci_lower = pmax(ci_lower_combined, 0),
+      ci_upper = ci_upper_combined,
+      # Track whether truncation occurred
+      ci_truncated = !is.na(ci_lower_raw) & ci_lower_raw < 0,
       mean_conc_formatted = if (isTRUE(is_elisa)) {
         format(mean_conc, digits = 4, nsmall = 1, big.mark = ",")
       } else {
@@ -1563,6 +1656,12 @@ if (nrow(samples_to_analyze) > 0) {
     summarise(
       mean_response = mean(response_value, na.rm = TRUE),
       mean_conc_for_flag = mean(estimated_concentration, na.rm = TRUE),
+      # M6: Aggregate quantification_status per replicate group (majority vote)
+      quant_status = if ("quantification_status" %in% names(sample_results)) {
+        names(sort(table(quantification_status), decreasing = TRUE))[1]
+      } else {
+        "Unknown"
+      },
       .groups = "drop"
     ) %>%
     mutate(
@@ -1571,9 +1670,9 @@ if (nrow(samples_to_analyze) > 0) {
       range_flag = mapply(flag_range, mean_response, mean_conc_for_flag,
                           MoreArgs = list(is_elisa_assay = is_elisa))
     )
-  
+
   replicate_stats <- replicate_stats %>%
-    left_join(replicate_range %>% dplyr::select(Replicate, mean_response, within_range, range_flag), by = "Replicate")
+    left_join(replicate_range %>% dplyr::select(Replicate, mean_response, within_range, range_flag, quant_status), by = "Replicate")
   
   # Add tissue-weight-based concentration if applicable (ELISA only)
   if (isTRUE(is_elisa)) {
@@ -1646,11 +1745,13 @@ if (nrow(samples_to_analyze) > 0) {
       concentration = estimated_concentration
     )
   
-  # Save replicate summary
+  # Save replicate summary with layered uncertainty columns (Task A/B: HP5/HP6)
   replicate_summary <- replicate_stats %>%
     dplyr::select(
       Replicate, sampleID, sample_type, n_replicates,
-      mean_conc, sd_conc, se_conc, ci_lower, ci_upper, cv_percent,
+      mean_conc, sd_conc, se_conc, ci_lower, ci_upper,
+      ci_lower_model, ci_upper_model, ci_lower_replicate, ci_upper_replicate,
+      ci_lower_raw, ci_upper_raw, ci_truncated, cv_percent,
       any_of(c("mean_response", "within_range", "range_flag", "TissueWeight_mg", "concentration_pg_per_g"))
     ) %>%
     dplyr::rename(
@@ -1663,7 +1764,7 @@ if (nrow(samples_to_analyze) > 0) {
       ci_upper_95 = ci_upper,
       cv_percent = cv_percent
     )
-    
+
 } else {
   sample_results <- data.frame()
   replicate_stats <- data.frame()
@@ -1690,12 +1791,17 @@ tryCatch({
     # Determine concentration column name based on assay type
     conc_col_name <- if (isTRUE(is_elisa)) "Mean Conc. (pg/mL)" else "Mean Conc. (mol/L)"
     
-    # Create clean results table
-    results_display <- replicate_stats %>%
-      dplyr::select(Replicate, sampleID, n_replicates, mean_conc_formatted, ci_formatted, cv_formatted)
-    
-    # Rename columns
-    names(results_display) <- c("Replicate Group", "Sample ID", "n", conc_col_name, "95% CI", "CV [%]")
+    # Create clean results table (include quant_status if available)
+    base_cols <- c("Replicate", "sampleID", "n_replicates", "mean_conc_formatted", "ci_formatted", "cv_formatted")
+    if ("quant_status" %in% names(replicate_stats)) {
+      results_display <- replicate_stats %>%
+        dplyr::select(dplyr::all_of(base_cols), quant_status)
+      names(results_display) <- c("Replicate Group", "Sample ID", "n", conc_col_name, "Conservative Combined 95% CI", "CV [%]", "Status")
+    } else {
+      results_display <- replicate_stats %>%
+        dplyr::select(dplyr::all_of(base_cols))
+      names(results_display) <- c("Replicate Group", "Sample ID", "n", conc_col_name, "Conservative Combined 95% CI", "CV [%]")
+    }
     
     # Add tissue-based concentrations if available
     if (isTRUE(is_elisa) && isTRUE(has_tissue_weights)) {
@@ -1741,17 +1847,29 @@ tryCatch({
     }
     
     render_table(results_display, caption = caption_text)
-    
-    # Save cleaned results files
+
+    # Task B (HP6): Add truncation footnote when any CIs were truncated to 0
+    if ("ci_truncated" %in% names(replicate_stats)) {
+      any_truncated <- any(replicate_stats$ci_truncated, na.rm = TRUE)
+      if (isTRUE(any_truncated)) {
+        truncated_groups <- replicate_stats$Replicate[replicate_stats$ci_truncated]
+        cat(sprintf(
+          "\n<small>\u2020 Lower bound truncated to 0 (original value was negative) for: %s</small>\n\n",
+          paste(truncated_groups, collapse = ", ")
+        ))
+      }
+    }
+
+    # Save cleaned results files (Task B: include both raw and display CI bounds in CSV)
     if (exists("sample_results_clean") && !is.null(sample_results_clean)) {
-      write.csv(sample_results_clean, 
+      write.csv(sample_results_clean,
                file.path(output_dir, "unknown_results.csv"),
                row.names = FALSE)
     }
-    
+
     if (exists("replicate_summary") && !is.null(replicate_summary)) {
       write.csv(replicate_summary,
-               file.path(output_dir, "unknown_results_summary.csv"), 
+               file.path(output_dir, "unknown_results_summary.csv"),
                row.names = FALSE)
     }
     
@@ -1907,20 +2025,23 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       }
     ) %>%
     dplyr::select(-ci_lower_95, -ci_upper_95,
-                  -any_of(c("within_range", "range_flag", "mean_response"))) %>%
+                  -any_of(c("within_range", "range_flag", "mean_response",
+                            "ci_lower_model", "ci_upper_model",
+                            "ci_lower_replicate", "ci_upper_replicate",
+                            "ci_lower_raw", "ci_upper_raw", "ci_truncated"))) %>%
     dplyr::relocate(ci_95, .before = cv_percent) %>%
     dplyr::relocate(range_flag_display, .after = cv_percent) %>%
     { if ("mean_bb0" %in% names(.)) dplyr::relocate(., mean_bb0, .before = range_flag_display) else . }
-  
+
   # Set column names
   conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
-  
+
   # Build column name vector dynamically based on available columns
-  base_names <- c("Replicate Group", "Sample IDs", "Sample Type", "n", 
-                  paste0("Mean (", conc_unit, ")"), 
+  base_names <- c("Replicate Group", "Sample IDs", "Sample Type", "n",
+                  paste0("Mean (", conc_unit, ")"),
                   paste0("SD (", conc_unit, ")"),
                   paste0("SE (", conc_unit, ")"),
-                  "95% CI", "CV [%]")
+                  "Conservative Combined 95% CI", "CV [%]")
   
   # Add %B/B0 and range flag columns
   if ("mean_bb0" %in% names(summary_display)) {
@@ -2201,6 +2322,51 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     }
   }
 }
+```
+
+## Parallelism and Relative Potency
+
+```{r parallelism-assessment, results='asis'}
+# Task C (HP7): Optional parallelism / relative potency assessment
+tryCatch({
+  if (exists("model_fit") && !is.null(model_fit) && exists("data_long") && exists("response_var")) {
+    parallelism_result <- assess_parallelism(data_long, model_fit, response_var)
+
+    if (isTRUE(parallelism_result$applicable)) {
+      cat("### Test Results\n\n")
+
+      # Slope comparison
+      if (!is.na(parallelism_result$slope_test$p_value)) {
+        if (isTRUE(parallelism_result$slope_test$parallel)) {
+          cat(sprintf("**Slope comparison:** Slopes are not significantly different (t = %.3f, p = %.4f). Curves appear parallel.\n\n",
+                      parallelism_result$slope_test$statistic,
+                      parallelism_result$slope_test$p_value))
+        } else {
+          cat(sprintf("**Slope comparison:** Slopes differ significantly (t = %.3f, p = %.4f). Curves are **not** parallel.\n\n",
+                      parallelism_result$slope_test$statistic,
+                      parallelism_result$slope_test$p_value))
+        }
+      }
+
+      # Potency ratio
+      if (!is.na(parallelism_result$potency_ratio$estimate)) {
+        cat(sprintf("**Relative potency (EC50 ratio):** %.4f [95%% CI: %.4f \u2013 %.4f]\n\n",
+                    parallelism_result$potency_ratio$estimate,
+                    parallelism_result$potency_ratio$ci_lower,
+                    parallelism_result$potency_ratio$ci_upper))
+      }
+
+      cat(sprintf("*%d curve groups were compared.*\n\n", parallelism_result$curves_found))
+
+    } else {
+      cat(sprintf("*Not applicable:* %s\n\n", parallelism_result$reason))
+    }
+  } else {
+    cat("*Not applicable:* No fitted model available for parallelism assessment.\n\n")
+  }
+}, error = function(e) {
+  cat(sprintf("*Parallelism assessment could not be completed: %s*\n\n", e$message))
+})
 ```
 
 ## Summary
