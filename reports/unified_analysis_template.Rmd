@@ -1096,8 +1096,8 @@ if (nrow(samples_to_analyze) > 0) {
         concentration_diluted = estimate_diluted,
         # For reporting (actual sample concentration)
         estimated_concentration = estimate_diluted / dilution,
-        ci_lower = ci_lower_diluted / dilution,
-        ci_upper = ci_upper_diluted / dilution,
+        ci_lower_individual = ci_lower_diluted / dilution,
+        ci_upper_individual = ci_upper_diluted / dilution,
         stringsAsFactors = FALSE
       )
     }, error = function(e) {
@@ -1111,8 +1111,8 @@ if (nrow(samples_to_analyze) > 0) {
         response_value = response_value,
         concentration_diluted = NA_real_,
         estimated_concentration = NA_real_,
-        ci_lower = NA_real_,
-        ci_upper = NA_real_,
+        ci_lower_individual = NA_real_,
+        ci_upper_individual = NA_real_,
         stringsAsFactors = FALSE
       )
     })
@@ -1249,22 +1249,44 @@ if (nrow(samples_to_analyze) > 0) {
       mean_conc = mean(estimated_concentration, na.rm = TRUE),
       sd_conc = sd(estimated_concentration, na.rm = TRUE),
       se_conc = sd_conc / sqrt(n_replicates),
-      # Confidence intervals - method depends on config
-      ci_lower = if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
-        boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
-        quantile(boot_vals, 0.025)
-      } else if (n_replicates >= 2 && !is.na(sd_conc)) {
-        mean_conc - qt(0.975, df = n_replicates - 1) * se_conc
-      } else {
-        mean_conc
+      # Confidence intervals - method depends on config, combined with model uncertainty
+      ci_lower = {
+        # Replicate-variability CI
+        ci_replicate_lower <- if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
+          boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
+          quantile(boot_vals, 0.025)
+        } else if (n_replicates >= 2 && !is.na(sd_conc)) {
+          mean_conc - qt(0.975, df = n_replicates - 1) * se_conc
+        } else {
+          mean_conc
+        }
+        # Model-uncertainty envelope from per-well delta-method CIs
+        ci_model_lower <- if (any(!is.na(ci_lower_individual))) {
+          min(ci_lower_individual, na.rm = TRUE)
+        } else {
+          ci_replicate_lower
+        }
+        # Use the wider (more conservative) of the two lower bounds
+        min(ci_replicate_lower, ci_model_lower)
       },
-      ci_upper = if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
-        boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
-        quantile(boot_vals, 0.975)
-      } else if (n_replicates >= 2 && !is.na(sd_conc)) {
-        mean_conc + qt(0.975, df = n_replicates - 1) * se_conc
-      } else {
-        mean_conc
+      ci_upper = {
+        # Replicate-variability CI
+        ci_replicate_upper <- if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
+          boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
+          quantile(boot_vals, 0.975)
+        } else if (n_replicates >= 2 && !is.na(sd_conc)) {
+          mean_conc + qt(0.975, df = n_replicates - 1) * se_conc
+        } else {
+          mean_conc
+        }
+        # Model-uncertainty envelope from per-well delta-method CIs
+        ci_model_upper <- if (any(!is.na(ci_upper_individual))) {
+          max(ci_upper_individual, na.rm = TRUE)
+        } else {
+          ci_replicate_upper
+        }
+        # Use the wider (more conservative) of the two upper bounds
+        max(ci_replicate_upper, ci_model_upper)
       },
       cv_percent = (sd_conc / mean_conc) * 100,
       .groups = "drop"
