@@ -2407,31 +2407,147 @@ if (exists("formal_lloq") && exists("formal_uloq") && !is.na(formal_lloq) && !is
 ## Interpretation & Recommendations
 
 ```{r report-interpretation, results='asis'}
-qc_issues <- c()
+tryCatch({
+  qc_issues <- c()
 
-r2_val <- if (exists("model_stats") && !is.null(model_stats)) model_stats$r_squared %||% NA_real_ else NA_real_
-if (!is.na(r2_val) && is.finite(r2_val) && r2_val < 0.95) {
-  qc_issues <- c(qc_issues, sprintf("Low R\u00b2 (%.3f)", r2_val))
-}
+  # Use assay-specific QC profile for thresholds (M7)
+  interp_qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
 
-hill_val <- if (exists("model_stats") && !is.null(model_stats)) model_stats$hill_slope %||% NA_real_ else NA_real_
-if (!is.na(hill_val) && is.finite(hill_val) && (abs(hill_val) < 0.5 || abs(hill_val) > 3.0)) {
-  qc_issues <- c(qc_issues, sprintf("Unusual Hill slope (%.2f)", hill_val))
-}
-
-if (exists("replicate_stats") && !is.null(replicate_stats) && "cv_percent" %in% names(replicate_stats)) {
-  max_cv <- max(replicate_stats$cv_percent, na.rm = TRUE)
-  if (is.finite(max_cv) && max_cv > 30) {
-    qc_issues <- c(qc_issues, sprintf("High sample CV (max %.1f%%)", max_cv))
+  r2_val <- if (exists("model_stats") && !is.null(model_stats)) model_stats$r_squared %||% NA_real_ else NA_real_
+  if (!is.na(r2_val) && is.finite(r2_val) && r2_val < interp_qc_profile$r2_threshold) {
+    qc_issues <- c(qc_issues, sprintf("Low R\u00b2 (%.3f < %.2f threshold)", r2_val, interp_qc_profile$r2_threshold))
   }
-}
 
-if (length(qc_issues) == 0) {
-  cat("All quality criteria met. Results are suitable for reporting.\n\n")
-} else {
-  cat(sprintf("**Quality warnings detected:** %s. Review flagged items before use.\n\n",
-              paste(qc_issues, collapse = ", ")))
-}
+  hill_val <- if (exists("model_stats") && !is.null(model_stats)) model_stats$hill_slope %||% NA_real_ else NA_real_
+  if (!is.na(hill_val) && is.finite(hill_val)) {
+    abs_hill <- abs(hill_val)
+    abs_range <- sort(abs(interp_qc_profile$hill_slope_range))
+    if (abs_hill < abs_range[1] || abs_hill > abs_range[2]) {
+      qc_issues <- c(qc_issues, sprintf("Unusual Hill slope (%.2f; expected |slope| in %.1f to %.1f)",
+                                          hill_val, abs_range[1], abs_range[2]))
+    }
+  }
+
+  if (exists("replicate_stats") && !is.null(replicate_stats) && "cv_percent" %in% names(replicate_stats)) {
+    max_cv <- max(replicate_stats$cv_percent, na.rm = TRUE)
+    if (is.finite(max_cv) && max_cv > interp_qc_profile$cv_limit) {
+      qc_issues <- c(qc_issues, sprintf("High sample CV (max %.1f%% > %d%% limit)", max_cv, interp_qc_profile$cv_limit))
+    }
+  }
+
+  if (length(qc_issues) == 0) {
+    cat("All quality criteria met. Results are suitable for reporting.\n\n")
+  } else {
+    cat(sprintf("**Quality warnings detected:** %s. Review flagged items before use.\n\n",
+                paste(qc_issues, collapse = ", ")))
+  }
+
+  # M6: Quantification status counts
+  if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0 &&
+      "quantification_status" %in% names(sample_results)) {
+    status_counts <- table(sample_results$quantification_status)
+    cat("**Quantification status breakdown (per well):**\n\n")
+    for (s in names(status_counts)) {
+      cat(sprintf("- %s: %d\n", s, status_counts[[s]]))
+    }
+    cat("\n")
+    if (any(grepl("Extrapolated", names(status_counts)))) {
+      cat("*Note: Extrapolated values are outside the standard curve range and should be interpreted with caution.*\n\n")
+    }
+  }
+
+  cat(sprintf("\n*QC profile: %s (R\u00b2 >= %.2f, CV <= %d%%, Hill slope [%.1f, %.1f], Recovery [%d%%, %d%%])*\n\n",
+              toupper(assay_config$assay_type %||% "rba"),
+              interp_qc_profile$r2_threshold,
+              interp_qc_profile$cv_limit,
+              interp_qc_profile$hill_slope_range[1],
+              interp_qc_profile$hill_slope_range[2],
+              interp_qc_profile$recovery_range[1],
+              interp_qc_profile$recovery_range[2]))
+}, error = function(e) {
+  cat(sprintf("\n\n*Interpretation section failed: %s*\n\n", e$message))
+})
+```
+
+```{r tissue-normalization-traceability, results='asis'}
+# M8: Tissue Normalization Traceability (ELISA + tissue weights only)
+tryCatch({
+  if (isTRUE(is_elisa) && exists("tissue_weights") && !is.null(tissue_weights) && length(tissue_weights) > 0) {
+    cat("\n\n### Tissue Normalization Method\n\n")
+
+    cat("Tissue-based concentrations are calculated using the following formula:\n\n")
+    cat("$$C_{tissue} = \\frac{C_{extract} \\times V_{extraction}}{m_{tissue}}$$\n\n")
+    cat("Where:\n\n")
+    cat("- $C_{extract}$ = concentration in extract (pg/mL from curve)\n")
+    cat("- $V_{extraction}$ = extraction volume (mL)\n")
+    cat("- $m_{tissue}$ = tissue mass (g)\n")
+    cat("- $C_{tissue}$ = final concentration (pg/g tissue)\n\n")
+
+    # Build per-sample conversion table
+    tw_trace <- data.frame(
+      Replicate = names(tissue_weights),
+      stringsAsFactors = FALSE
+    )
+    tw_trace$TissueMass_mg <- sapply(tissue_weights, function(x) {
+      if (is.list(x)) as.numeric(x$weight) else as.numeric(x)
+    })
+    tw_trace$Extraction_uL <- sapply(tissue_weights, function(x) {
+      if (is.list(x) && !is.null(x$extraction_uL)) as.numeric(x$extraction_uL)
+      else processing_config$extraction_volume_ul %||% 500
+    })
+    tw_trace <- tw_trace[!is.na(tw_trace$TissueMass_mg) & tw_trace$TissueMass_mg > 0, , drop = FALSE]
+
+    if (nrow(tw_trace) > 0) {
+      tw_trace$TissueMass_g <- tw_trace$TissueMass_mg / 1000
+      tw_trace$Extraction_mL <- tw_trace$Extraction_uL / 1000
+
+      display_tw <- tw_trace %>%
+        dplyr::select(Replicate, TissueMass_mg, Extraction_uL, TissueMass_g, Extraction_mL)
+      names(display_tw) <- c("Replicate Group", "Tissue Mass (mg)", "Extraction Vol. (uL)",
+                              "Tissue Mass (g)", "Extraction Vol. (mL)")
+      render_table(display_tw, caption = "Tissue Normalization Parameters")
+
+      cat(sprintf("\n**Units:** Final tissue concentrations are reported as pg/g tissue (= pg analyte per gram of tissue).\n\n"))
+    }
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Tissue normalization traceability could not be generated: %s*\n\n", e$message))
+})
+```
+
+### Exclusion Audit
+
+```{r exclusion-audit, results='asis'}
+# M5: Formal Exclusion Audit Table
+tryCatch({
+  ol_flags_for_audit <- if (exists("outlier_flags") && !is.null(outlier_flags) && nrow(outlier_flags) > 0) {
+    outlier_flags
+  } else {
+    NULL
+  }
+
+  hv_for_audit <- if (exists("high_var_standards") && !is.null(high_var_standards) && nrow(high_var_standards) > 0) {
+    high_var_standards
+  } else {
+    NULL
+  }
+
+  exclusion_audit <- build_exclusion_audit(
+    data_long = data_long,
+    high_var_standards = hv_for_audit,
+    outlier_flags = ol_flags_for_audit
+  )
+
+  if (nrow(exclusion_audit) > 0) {
+    cat(sprintf("**%d exclusion(s) documented across %d unique well(s).**\n\n",
+                nrow(exclusion_audit), length(unique(exclusion_audit$Well))))
+    render_table(exclusion_audit, caption = "Exclusion Audit Trail")
+  } else {
+    cat("*No exclusions were applied during this analysis.*\n\n")
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Exclusion audit could not be generated: %s*\n\n", e$message))
+})
 ```
 
 ---
