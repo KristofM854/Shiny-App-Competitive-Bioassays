@@ -2468,24 +2468,22 @@ server <- function(input, output, session) {
       if (isTRUE(rv$is_multiwavelength) && !is.null(rv$wavelengths)) {
         
         message(sprintf("Processing %d wavelengths...", length(rv$wavelengths)))
-        
+
+        # Build the converter once — layout matrices are identical across
+        # wavelengths, so pivoting them inside the loop would be redundant.
+        converter <- matrix_to_long_with_cached_layout(
+          matrix_type(), matrix_id(), matrix_dilution(),
+          matrix_replicate(), std_conc()
+        )
+
         # Save each wavelength as separate CSV
         for (wl in rv$wavelengths) {
-          
+
           # Get the plate data for this wavelength
           plate_wl <- rv$wavelength_plates[[wl]]
-          
-          # Convert to long format using SAME plate layout
-          # We use matrix_to_long with the plate data for this wavelength
-          # but all other matrices (IDs, types, dilutions, etc.) stay the same!
-          df_long_wl <- matrix_to_long(
-            type_mat = matrix_type(),
-            id_mat = matrix_id(),
-            dilution_mat = matrix_dilution(),
-            replicate_mat = matrix_replicate(),
-            measurement_mat = plate_wl,  # <-- Different plate data!
-            std_conc = std_conc()
-          )
+
+          # Convert to long format reusing the cached layout
+          df_long_wl <- converter(plate_wl)
           
           # Apply normalization
           df_normalized_wl <- tryCatch({
