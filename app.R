@@ -1538,19 +1538,12 @@ server <- function(input, output, session) {
     raw <- hot_to_r(input$matrix_dilution)
     raw <- enforce_plate_shape(raw)
     raw_matrix_dilution(raw)
-    
-    # Parse each cell
-    parsed <- matrix(NA_real_, nrow = 8, ncol = 12)
-    validity <- matrix(TRUE, nrow = 8, ncol = 12)
-    
-    for (r in 1:8) {
-      for (c in 1:12) {
-        res <- parse_dilution_cell(raw[r, c])
-        parsed[r, c] <- res$value
-        validity[r, c] <- res$valid
-      }
-    }
-    
+
+    # Parse all cells at once using vectorized parse_dilution_matrix()
+    result <- parse_dilution_matrix(raw)
+    parsed <- result$values
+    validity <- result$validity
+
     matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
     dilution_validity(validity)
     dilution_error(any(!validity))
@@ -1653,18 +1646,10 @@ server <- function(input, output, session) {
           raw_matrix_dilution(enforce_plate_shape(layout$dilution))
           # Re-parse dilution values
           raw <- enforce_plate_shape(layout$dilution)
-          parsed <- matrix(NA_real_, nrow = 8, ncol = 12)
-          validity <- matrix(TRUE, nrow = 8, ncol = 12)
-          for (r in 1:8) {
-            for (cc in 1:12) {
-              res <- parse_dilution_cell(raw[r, cc])
-              parsed[r, cc] <- res$value
-              validity[r, cc] <- res$valid
-            }
-          }
-          matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
-          dilution_validity(validity)
-          dilution_error(any(!validity))
+          result <- parse_dilution_matrix(raw)
+          matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
+          dilution_validity(result$validity)
+          dilution_error(any(!result$validity))
         }
         if (!is.null(layout$replicate)) matrix_replicate(enforce_plate_shape(layout$replicate))
 
@@ -1758,18 +1743,10 @@ server <- function(input, output, session) {
       if (!is.null(id_imported)) matrix_id(id_imported)
       if (!is.null(dil_imported)) {
         raw_matrix_dilution(dil_imported)
-        parsed <- matrix(NA_real_, nrow = 8, ncol = 12)
-        validity <- matrix(TRUE, nrow = 8, ncol = 12)
-        for (r in 1:8) {
-          for (cc in 1:12) {
-            res <- parse_dilution_cell(dil_imported[r, cc])
-            parsed[r, cc] <- res$value
-            validity[r, cc] <- res$valid
-          }
-        }
-        matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
-        dilution_validity(validity)
-        dilution_error(any(!validity))
+        result <- parse_dilution_matrix(dil_imported)
+        matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
+        dilution_validity(result$validity)
+        dilution_error(any(!result$validity))
       }
       if (!is.null(rep_imported)) matrix_replicate(rep_imported)
 
