@@ -253,23 +253,6 @@ if (isTRUE(is_elisa)) {
 }
 ```
 
-### `r tr("methods_title", lang)`
-
-```{r methods-section, results='asis'}
-weight_label <- if (exists("model_stats") && !is.null(model_stats)) model_stats$weight_method %||% "unweighted" else "unweighted"
-cat(tr("methods_drc_citation", lang))
-cat(sprintf("4-parameter log-logistic model (LL.4) fitted with %s regression. ", weight_label))
-if (isTRUE(analysis_config$enable_outlier_detection)) {
-  cat(tr("methods_outlier_citation", lang))
-  if (isTRUE(analysis_config$normality_assumption == "test_shapiro")) {
-    cat("Non-normality fallback: MAD-based detection (Leys et al., 2013). ")
-  }
-}
-cat("\n\n")
-cat(tr("ci_delta_method_note", lang))
-cat("\n\n")
-```
-
 ## `r tr("analysis_notes", lang)`
 
 ```{r notes-section, results='asis'}
