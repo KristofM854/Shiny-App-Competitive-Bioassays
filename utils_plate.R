@@ -10,8 +10,11 @@
 #   create_replicate_matrix() - Replicate group labels (paired wells)
 #   enforce_plate_shape()     - Pad/trim data frame to 8x12
 #   parse_dilution_cell()     - Parse "1:2" or "0.5" dilution formats
+#   parse_dilution_matrix()   - Vectorized version of parse_dilution_cell()
 #   matrix_to_long()          - Convert 4 plate matrices + measurements to
 #                               long format for downstream analysis
+#   matrix_to_long_with_cached_layout() - Optimized version that caches
+#                               layout columns across multiple wavelengths
 #
 # NOTE: matrix_to_long() uses dplyr::select() explicitly to avoid
 #       MASS::select masking from the drc package.
@@ -312,6 +315,62 @@ parse_dilution_cell <- function(cell) {
   return(list(value = num, valid = TRUE))
 }
 
+#' Parse an entire 8x12 dilution matrix at once (vectorized)
+#'
+#' Processes all cells of a raw dilution matrix using vectorized operations
+#' instead of nested loops. Drop-in replacement for calling parse_dilution_cell()
+#' in a loop.
+#'
+#' @param raw_matrix Data frame or matrix (8x12) of raw dilution strings
+#' @return List with: $values (numeric matrix 8x12), $validity (logical matrix 8x12)
+parse_dilution_matrix <- function(raw_matrix) {
+  raw_matrix <- as.data.frame(raw_matrix, stringsAsFactors = FALSE)
+
+  # Flatten to character vector for vectorized processing
+  cells <- trimws(as.character(as.matrix(raw_matrix)))
+  n <- length(cells)
+
+  values <- rep(NA_real_, n)
+  validity <- rep(FALSE, n)
+
+  # Identify empty/null cells (leave as NA/FALSE)
+  non_empty <- nchar(cells) > 0 & !is.na(cells)
+
+  # Identify ratio cells (contain ":")
+  is_ratio <- non_empty & grepl(":", cells)
+
+  # Process ratio cells vectorized
+  if (any(is_ratio)) {
+    ratio_cells <- cells[is_ratio]
+    # Split all ratios at once
+    parts_list <- strsplit(ratio_cells, ":")
+    # Extract numerator and denominator
+    nums <- suppressWarnings(vapply(parts_list, function(p) {
+      if (length(p) != 2) return(NA_real_)
+      vals <- as.numeric(p)
+      if (all(is.finite(vals)) && all(vals > 0)) vals[1] / vals[2] else NA_real_
+    }, numeric(1)))
+    valid_ratios <- is.finite(nums)
+    values[is_ratio] <- nums
+    validity[is_ratio] <- valid_ratios
+  }
+
+  # Process numeric cells (non-ratio, non-empty) vectorized
+  is_numeric <- non_empty & !is_ratio
+  if (any(is_numeric)) {
+    nums <- suppressWarnings(as.numeric(cells[is_numeric]))
+    valid_nums <- !is.na(nums) & nums > 0
+    values[is_numeric] <- ifelse(valid_nums, nums, NA_real_)
+    validity[is_numeric] <- valid_nums
+  }
+
+  # Reshape back to 8x12 matrices
+  list(
+    values = matrix(values, nrow = PLATE_NROW, ncol = PLATE_NCOL),
+    validity = matrix(validity, nrow = PLATE_NROW, ncol = PLATE_NCOL)
+  )
+}
+
 #' Convert plate matrix to long format
 #' 
 #' @param type_mat Type matrix (from create_type_matrix)
@@ -321,59 +380,95 @@ parse_dilution_cell <- function(cell) {
 #' @param measurement_mat Measurement values
 #' @param std_conc Vector of standard concentrations (aligned with S1, S2, ...)
 #' @return Long-format data frame
-matrix_to_long <- function(type_mat, id_mat, dilution_mat, 
+matrix_to_long <- function(type_mat, id_mat, dilution_mat,
                           replicate_mat, measurement_mat, std_conc = NULL) {
-  
-  # Convert each matrix to long format
-  df_type <- type_mat %>% 
-    rownames_to_column("Row") %>% 
-    pivot_longer(-Row, names_to = "Column", values_to = "SampleType")
-  
-  df_id <- id_mat %>% 
-    rownames_to_column("Row") %>% 
-    pivot_longer(-Row, names_to = "Column", values_to = "SampleID")
-  
-  df_dilution <- dilution_mat %>% 
-    rownames_to_column("Row") %>% 
-    pivot_longer(-Row, names_to = "Column", values_to = "DilutionFactor")
-  
-  df_replicate <- replicate_mat %>% 
-    rownames_to_column("Row") %>% 
-    pivot_longer(-Row, names_to = "Column", values_to = "Replicate")
-  
-  df_meas <- measurement_mat %>%
-    mutate(across(everything(), as.numeric)) %>%
-    rownames_to_column("Row") %>%
-    pivot_longer(-Row, names_to = "Column", values_to = "MeasurementValue")
-  
-  # Combine
-  df_long <- df_type %>%
-    left_join(df_id, by = c("Row", "Column")) %>%
-    left_join(df_dilution, by = c("Row", "Column")) %>%
-    left_join(df_replicate, by = c("Row", "Column")) %>%
-    left_join(df_meas, by = c("Row", "Column")) %>%
-    mutate(
-      Well = paste0(Row, Column),
-      MeasurementValue = as.numeric(MeasurementValue),
-      DilutionFactor = as.numeric(DilutionFactor)
-    )
-  
+
+  # Build Row and Column vectors once (deterministic order: row-major)
+  rows <- rep(ROW_NAMES, times = PLATE_NCOL)
+  cols <- rep(COL_NAMES, each = PLATE_NROW)
+  wells <- paste0(rows, cols)
+
+  # Flatten all matrices to vectors in the same order (column-major is default
+  # for as.matrix, which matches rep(ROW_NAMES, times=NCOL) / rep(COL_NAMES, each=NROW))
+  df_long <- data.frame(
+    Well           = wells,
+    Row            = rows,
+    Column         = cols,
+    SampleType     = as.character(as.matrix(type_mat)),
+    SampleID       = as.character(as.matrix(id_mat)),
+    DilutionFactor = as.numeric(as.matrix(dilution_mat)),
+    Replicate      = as.character(as.matrix(replicate_mat)),
+    MeasurementValue = as.numeric(as.matrix(measurement_mat)),
+    stringsAsFactors = FALSE
+  )
+
   # Add standard concentrations if provided
   if (!is.null(std_conc)) {
-    df_long <- df_long %>%
-      mutate(
-        StandardConc = case_when(
-          grepl("^S[0-9]+$", SampleID) ~ {
-            idx <- as.integer(str_extract(SampleID, "[0-9]+"))
-            ifelse(idx <= length(std_conc), std_conc[idx], NA_real_)
-          },
-          TRUE ~ NA_real_
-        )
-      )
+    is_std <- grepl("^S[0-9]+$", df_long$SampleID)
+    std_idx <- rep(NA_integer_, nrow(df_long))
+    std_idx[is_std] <- as.integer(sub("^S", "", df_long$SampleID[is_std]))
+    df_long$StandardConc <- ifelse(
+      is_std & !is.na(std_idx) & std_idx <= length(std_conc),
+      std_conc[std_idx],
+      NA_real_
+    )
   }
-  
+
   # Reorder columns
   df_long %>%
     dplyr::select(Well, Row, Column, SampleType, SampleID,
            any_of("StandardConc"), DilutionFactor, Replicate, MeasurementValue)
+}
+
+#' Convert plate matrices to long format with cached layout
+#'
+#' For multi-wavelength data where layout matrices (type, id, dilution,
+#' replicate) are identical across wavelengths, this function computes the
+#' layout long-format once and reuses it. Call it once to get back a closure
+#' that efficiently converts each wavelength's measurement matrix.
+#'
+#' @param type_mat Type matrix
+#' @param id_mat ID matrix
+#' @param dilution_mat Dilution matrix
+#' @param replicate_mat Replicate matrix
+#' @param std_conc Vector of standard concentrations
+#' @return A function(measurement_mat) that returns a long-format data frame
+#'   with the cached layout columns plus MeasurementValue from the supplied matrix
+matrix_to_long_with_cached_layout <- function(type_mat, id_mat, dilution_mat,
+                                               replicate_mat, std_conc = NULL) {
+
+  # Pre-compute layout columns once
+  rows <- rep(ROW_NAMES, times = PLATE_NCOL)
+  cols <- rep(COL_NAMES, each = PLATE_NROW)
+
+  layout <- data.frame(
+    Well           = paste0(rows, cols),
+    Row            = rows,
+    Column         = cols,
+    SampleType     = as.character(as.matrix(type_mat)),
+    SampleID       = as.character(as.matrix(id_mat)),
+    DilutionFactor = as.numeric(as.matrix(dilution_mat)),
+    Replicate      = as.character(as.matrix(replicate_mat)),
+    stringsAsFactors = FALSE
+  )
+
+  if (!is.null(std_conc)) {
+    is_std <- grepl("^S[0-9]+$", layout$SampleID)
+    std_idx <- rep(NA_integer_, nrow(layout))
+    std_idx[is_std] <- as.integer(sub("^S", "", layout$SampleID[is_std]))
+    layout$StandardConc <- ifelse(
+      is_std & !is.na(std_idx) & std_idx <= length(std_conc),
+      std_conc[std_idx],
+      NA_real_
+    )
+  }
+
+  # Return a closure that merges measurement data with the cached layout
+  function(measurement_mat) {
+    df <- layout
+    df$MeasurementValue <- as.numeric(as.matrix(measurement_mat))
+    df %>%
+      dplyr::select(Well, Row, Column, SampleType, SampleID,
+             any_of("StandardConc"), DilutionFactor, Replicate, MeasurementValue)
+  }
 }
