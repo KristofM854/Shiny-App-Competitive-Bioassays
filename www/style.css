@@ -131,3 +131,45 @@ details[open] summary {
     padding: 8px 16px;
   }
 }
+
+/* Mobile responsive: small screens */
+@media (max-width: 768px) {
+  .nav-pills > li > a {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .matrix-grid-row {
+    flex-direction: column !important;
+  }
+
+  .matrix-bottom-cell {
+    flex-direction: column !important;
+  }
+
+  .handsontable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .btn-lg {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+
+  .well {
+    padding: 10px;
+  }
+}
+
+/* Tablet responsive */
+@media (max-width: 576px) {
+  .nav-pills > li > a {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  h4 {
+    font-size: 16px;
+  }
+}
