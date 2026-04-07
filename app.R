@@ -501,6 +501,8 @@ ui <- fluidPage(
                       title = "Remove file",
                       style = "margin-top: 30px; background-color:#f8d7da; border:none;")
         ),
+        downloadButton("download_plate_template", "Download Example File",
+                       class = "btn btn-default btn-sm", style = "margin-top: 5px;"),
 
         # Visual plate selector panel
         conditionalPanel(
@@ -1091,6 +1093,13 @@ server <- function(input, output, session) {
       } else {
         showNotification("No report found. Generate a report first.", type = "warning")
       }
+    }
+  )
+
+  output$download_plate_template <- downloadHandler(
+    filename = function() "plate_reader_template.csv",
+    content = function(file) {
+      file.copy("examples/plate_template.csv", file)
     }
   )
 
