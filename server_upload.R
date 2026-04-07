@@ -428,54 +428,38 @@ server_upload <- function(input, output, session, shared) {
       return()
     }
 
-    # Classic import mode
-    # Check if file contains multiple wavelengths
-    is_multiwave <- tryCatch({
-      wavelengths <- detect_multiwavelength_plates(file_path)
-      !is.null(wavelengths) && length(wavelengths) > 1
-    }, error = function(e) FALSE)
-
-    if (is_multiwave) {
-      shared$rv$is_multiwavelength <- TRUE
-      plates <- import_multiwavelength_plates(file_path)
-      shared$rv$wavelength_plates <- plates
-      shared$rv$wavelengths <- names(plates)
-      plate_data <- plates[[1]]
-      info <- base::attr(plate_data, "import_info")
-      shared$matrix_measresults(plate_data)
-
-      showNotification(
-        sprintf("\u2705 Multi-wavelength file detected: %s\n%d wells detected per plate\nFormat: %s%s",
-                paste(names(plates), collapse = ", "),
-                if (!is.null(info)) info$detected_wells else sum(!is.na(plate_data)),
-                if (!is.null(info)) info$format else "Excel",
-                if (!is.null(info) && info$partial_plate) " (partial)" else ""),
-        type = "message",
-        duration = 7
-      )
-    } else {
-      shared$rv$is_multiwavelength <- FALSE
-
-      plate <- tryCatch({
-        import_plate_data(file_path)
-      }, error = function(e) {
+    # Classic import mode — single-pass pipeline
+    result <- tryCatch(
+      parse_plate_file(file_path),
+      error = function(e) {
         showNotification(paste("Import failed:", e$message), type = "error", duration = 15)
         return(NULL)
-      })
+      }
+    )
 
-      req(!is.null(plate))
+    req(!is.null(result))
 
-      shared$matrix_measresults(plate)
-      info <- base::attr(plate, "import_info")
+    shared$rv$is_multiwavelength <- result$is_multiwavelength
+    shared$rv$wavelengths        <- result$wavelengths
+    shared$rv$wavelength_plates  <- if (result$is_multiwavelength) result$plates else NULL
+    shared$matrix_measresults(result$plates[[1]])
 
-      showNotification(
-        sprintf("\u2705 Imported: %s\n%d wells detected\nFormat: %s%s",
-                info$file, info$detected_wells, info$format,
-                if (info$partial_plate) " (partial)" else ""),
-        type = "message",
-        duration = 5
-      )
+    # Unified notification
+    wave_msg <- if (result$is_multiwavelength) {
+      paste0("Wavelengths: ", paste(result$wavelengths, collapse = ", "), "\n")
+    } else {
+      ""
     }
+    showNotification(
+      sprintf("\u2705 Imported: %s\n%s%d wells detected\nFormat: %s%s",
+              result$import_info$file,
+              wave_msg,
+              result$detected_wells,
+              result$format,
+              if (result$partial_plate) " (partial)" else ""),
+      type = "message",
+      duration = if (result$is_multiwavelength) 7 else 5
+    )
   })
 
   # --------------------------------------------------------------------------
