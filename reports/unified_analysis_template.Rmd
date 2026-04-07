@@ -132,12 +132,18 @@ analysis_config <- tryCatch({
     jsonlite::fromJSON(cfg_file)
   } else {
     list(regression_weight = "none", quant_range_min = 20, quant_range_max = 80,
-         ci_method = "t_dist", enable_outlier_detection = FALSE, outlier_min_n = 3)
+         ci_method = "t_dist", enable_outlier_detection = FALSE, outlier_min_n = 3,
+         normality_assumption = "assume")
   }
 }, error = function(e) {
   list(regression_weight = "none", quant_range_min = 20, quant_range_max = 80,
-       ci_method = "t_dist", enable_outlier_detection = FALSE, outlier_min_n = 3)
+       ci_method = "t_dist", enable_outlier_detection = FALSE, outlier_min_n = 3,
+       normality_assumption = "assume")
 })
+# Ensure backward compatibility for configs saved without normality_assumption
+if (is.null(analysis_config$normality_assumption)) {
+  analysis_config$normality_assumption <- "assume"
+}
 ```
 
 ```{r load-data, include=FALSE}
@@ -380,7 +386,13 @@ for (wt_key in selected_weights) {
 
   if (!is.null(fit)) {
     resid <- residuals(fit)
-    r2 <- 1 - sum(resid^2) / sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
+    ss_total <- sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
+    if (ss_total > 0) {
+      r2 <- 1 - sum(resid^2) / ss_total
+    } else {
+      r2 <- NA_real_
+      warning(tr("r2_identical_warning", lang))
+    }
     rmse <- sqrt(mean(resid^2))
     coefs <- coef(fit)
 
@@ -1116,6 +1128,9 @@ if (nrow(samples_to_analyze) > 0) {
 
   if (isTRUE(analysis_config$enable_outlier_detection)) {
     outlier_min <- analysis_config$outlier_min_n %||% 3
+    use_shapiro <- isTRUE(analysis_config$normality_assumption == "test_shapiro")
+    outlier_method_log <- data.frame(Replicate = character(), method_used = character(),
+                                      shapiro_p = numeric(), stringsAsFactors = FALSE)
 
     outlier_groups <- sample_results %>%
       filter(!is.na(estimated_concentration)) %>%
@@ -1129,7 +1144,38 @@ if (nrow(samples_to_analyze) > 0) {
         n_grp <- nrow(grp_data)
         vals <- grp_data$estimated_concentration
 
-        if (n_grp >= 3 && n_grp <= 5) {
+        # Determine if MAD-based detection should be used (Shapiro-Wilk pre-test)
+        use_mad <- FALSE
+        shapiro_p <- NA_real_
+        if (use_shapiro && n_grp >= 3) {
+          shap_test <- tryCatch(shapiro.test(vals), error = function(e) list(p.value = 1))
+          shapiro_p <- shap_test$p.value
+          if (shapiro_p < 0.05) {
+            use_mad <- TRUE
+          }
+        }
+
+        if (use_mad) {
+          # MAD-based outlier detection (robust, non-parametric)
+          med_val <- median(vals)
+          mad_val <- mad(vals, constant = 1.4826)
+          if (mad_val > 0) {
+            mad_scores <- abs(vals - med_val) / mad_val
+            outlier_idx <- which(mad_scores > 3)
+            if (length(outlier_idx) > 0) {
+              for (oi in outlier_idx) {
+                outlier_flags <- rbind(outlier_flags, data.frame(
+                  Well = grp_data$Well[oi], Replicate = rep_grp,
+                  is_outlier = TRUE, method = "MAD", stringsAsFactors = FALSE))
+              }
+            }
+          }
+          if (use_shapiro) {
+            outlier_method_log <- rbind(outlier_method_log, data.frame(
+              Replicate = rep_grp, method_used = "MAD",
+              shapiro_p = shapiro_p, stringsAsFactors = FALSE))
+          }
+        } else if (n_grp >= 3 && n_grp <= 5) {
           # Dixon's Q-test
           sorted_vals <- sort(vals)
           range_val <- max(sorted_vals) - min(sorted_vals)
@@ -1150,6 +1196,11 @@ if (nrow(samples_to_analyze) > 0) {
                 is_outlier = TRUE, method = "Dixon Q", stringsAsFactors = FALSE))
             }
           }
+          if (use_shapiro) {
+            outlier_method_log <- rbind(outlier_method_log, data.frame(
+              Replicate = rep_grp, method_used = "Dixon Q",
+              shapiro_p = shapiro_p, stringsAsFactors = FALSE))
+          }
         } else if (n_grp >= 6) {
           # Grubbs' test (simplified)
           mean_val <- mean(vals)
@@ -1167,6 +1218,11 @@ if (nrow(samples_to_analyze) > 0) {
                   is_outlier = TRUE, method = "Grubbs", stringsAsFactors = FALSE))
               }
             }
+          }
+          if (use_shapiro) {
+            outlier_method_log <- rbind(outlier_method_log, data.frame(
+              Replicate = rep_grp, method_used = "Grubbs",
+              shapiro_p = shapiro_p, stringsAsFactors = FALSE))
           }
         }
       }
@@ -1496,12 +1552,27 @@ if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") 
 }
 ```
 
+```{r outlier-method-log, results='asis'}
+if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
+  cat("\n**Outlier detection method per replicate group (Shapiro-Wilk pre-test enabled):**\n\n")
+  for (i in seq_len(nrow(outlier_method_log))) {
+    row <- outlier_method_log[i, ]
+    cat(sprintf("- %s: %s (Shapiro-Wilk p = %.4f)\n", row$Replicate, row$method_used, row$shapiro_p))
+  }
+  cat("\n")
+}
+```
+
 ```{r ci-method-note, results='asis'}
 if (isTRUE(analysis_config$ci_method == "bootstrap")) {
   cat(sprintf("\n*%s*\n\n", tr("ci_bootstrap_note", lang)))
 } else {
   cat(sprintf("\n*%s*\n\n", tr("ci_tdist_note", lang)))
 }
+```
+
+```{r ci-asymmetric-footnote, results='asis'}
+cat(sprintf("\n*%s*\n\n", tr("ci_asymmetric_footnote", lang)))
 ```
 
 ```{r save-sample-stats, include=FALSE}
