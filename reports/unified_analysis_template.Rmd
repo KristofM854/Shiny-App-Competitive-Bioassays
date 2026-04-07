@@ -418,9 +418,20 @@ for (wt_key in selected_weights) {
 
   if (!is.null(fit)) {
     resid <- residuals(fit)
-    ss_total <- sum((standards_for_model[[response_var]] - mean(standards_for_model[[response_var]]))^2)
-    if (ss_total > 0) {
-      r2 <- 1 - sum(resid^2) / ss_total
+    resp_vals <- standards_for_model[[response_var]]
+
+    # Use weighted R² when weights are applied
+    if (!is.null(wt_info$weights)) {
+      w <- wt_info$weights
+      ss_res <- sum(w * resid^2)
+      ss_tot <- sum(w * (resp_vals - weighted.mean(resp_vals, w))^2)
+    } else {
+      ss_res <- sum(resid^2)
+      ss_tot <- sum((resp_vals - mean(resp_vals))^2)
+    }
+
+    if (ss_tot > 0) {
+      r2 <- 1 - ss_res / ss_tot
     } else {
       r2 <- NA_real_
       warning(tr("r2_identical_warning", lang))
@@ -428,10 +439,24 @@ for (wt_key in selected_weights) {
     rmse <- sqrt(mean(resid^2))
     coefs <- coef(fit)
 
+    conv_info <- tryCatch({
+      s <- summary(fit)
+      se_vals <- s$coefficients[, "Std. Error"]
+      list(converged = TRUE, se_available = all(!is.na(se_vals)),
+           max_se = max(se_vals, na.rm = TRUE))
+    }, error = function(e) list(converged = TRUE, se_available = FALSE, max_se = NA_real_))
+
+    lof_result <- tryCatch({
+      lof <- modelFit(fit)
+      list(f_stat = lof[2, "F value"], p_value = lof[2, "p value"])
+    }, error = function(e) NULL)
+
     all_models[[wt_key]] <- list(
       model = fit, label = paste0(wt_info$label, " (", fit_method, ")"),
       R2 = r2, RMSE = rmse, coefs = coefs,
-      fit_method = fit_method
+      fit_method = fit_method,
+      convergence = conv_info,
+      lack_of_fit = lof_result
     )
   } else {
     # Tier 3: Log-linear interpolation fallback
@@ -573,6 +598,16 @@ if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
   }
 
   cat(sprintf("**Curve fit:** R\u00B2 = %.4f | RMSE = %.3f | %s\n\n", R2, RMSE, overall_status))
+
+  primary_model_entry <- if (!drc_failed_completely) all_models[[primary_key]] else NULL
+  if (!is.null(primary_model_entry$convergence) && !primary_model_entry$convergence$se_available) {
+    cat("**Warning:** Standard errors could not be computed \u2014 interpret parameters with caution.\n\n")
+  }
+  if (!is.null(primary_model_entry$lack_of_fit) && !is.null(primary_model_entry$lack_of_fit$p_value) && primary_model_entry$lack_of_fit$p_value < 0.05) {
+    cat(sprintf("**Lack-of-fit:** F = %.2f, p = %.4f \u2014 model may not adequately describe the data.\n\n",
+                primary_model_entry$lack_of_fit$f_stat, primary_model_entry$lack_of_fit$p_value))
+  }
+
   cat(sprintf("**Standards:** %d wells used (of %d unique concentrations) | Method: %s\n\n",
               nrow(standards_for_model), length(unique(standards_data$StandardConc)), weight_desc))
 
