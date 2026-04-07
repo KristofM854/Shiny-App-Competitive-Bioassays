@@ -91,21 +91,51 @@ h5 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-/* --- Bottom matrix pair: flex alignment ---
-   Both .matrix-bottom-cell containers become equal-height flex columns.
-   The .matrix-table-anchor inside each uses margin-top:auto to push
-   the rhandsontable to the bottom, so the tables always align
-   regardless of how much content sits above them. */
-.matrix-bottom-cell {
+/* --- Matrix pairs: CSS Grid alignment ---
+   Each pair is a 2-column grid. Each card inside uses a 3-row sub-grid
+   (title / meta / body) so that titles align across the pair, meta areas
+   align, and matrix widgets align — regardless of content differences. */
+.matrix-pairs {
+  display: grid;
+  gap: 2rem;
+}
+
+.matrix-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.matrix-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-width: 0;
+}
+
+.matrix-title {
+  margin-bottom: 0.5rem;
+}
+
+.matrix-title h5 {
+  display: inline;
+  margin-right: 0.5rem;
+}
+
+.matrix-meta {
+  min-height: 2.25rem;
+  margin-bottom: 0.5rem;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.matrix-table-anchor {
-  margin-top: auto;
+.matrix-body {
+  min-width: 0;
+  overflow-x: auto;
 }
 
-/* --- Inline form controls (dilution row) --- */
+/* Inline form controls inside dilution meta row */
 #matrix_dilution_section .form-group {
   margin-bottom: 0;
 }
@@ -113,6 +143,13 @@ h5 {
 #matrix_dilution_section .checkbox {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+/* Responsive: collapse pairs to single column on small screens */
+@media (max-width: 768px) {
+  .matrix-pair {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* --- Details/Summary (Advanced Options) --- */
