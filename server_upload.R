@@ -96,21 +96,37 @@ server_upload <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   # Reactive to store raw Excel content for preview (LOCAL to this module)
+
+  # Task 11 & 12: Stable plate identity model with cached preview data.
+  # - plate_registry: data.frame with stable plate_id, sheet, start_row,
+  #   start_col, label, nrow, ncol (built once per file upload)
+  # - exclusions: named list keyed by stable plate_id -> set of excluded
+  #   well coordinates (survives re-renders)
+  # - preview_cache: pre-built HTML for the file preview table (computed
+  #   once per upload, not on every render)
   rv_file_preview <- reactiveValues(
-    raw_data = NULL,
-    file_path = NULL,
-    detected_plates = list(),
-    excluded_wells = list()
+    raw_data       = NULL,         # raw imported data (matrix)
+    file_path      = NULL,         # datapath of the current upload
+    plate_registry = NULL,         # data.frame of detected plates with stable IDs
+    exclusions     = list(),       # named list keyed by plate_id -> vector of excluded well coords
+    preview_cache  = NULL          # cached HTML tagList for file preview table
   )
 
-  # Visual file preview: render file content and auto-detected plates
-  output$visual_file_preview <- renderUI({
-    req(input$upload_counts)
+  # ---------- Detection observer (runs ONCE per new file upload) ----------
+  # Reads the file, detects plates, assigns stable IDs, and caches the
+
+  # file-preview HTML.  Rendering outputs below read from cache only.
+  observeEvent(input$upload_counts, {
     req(input$import_method == "visual")
-    lang <- input$app_language %||% "en"
 
     file_path <- input$upload_counts$datapath
     ext <- tools::file_ext(input$upload_counts$name)
+
+    # Skip re-detection if the same file is already loaded
+    if (!is.null(rv_file_preview$file_path) &&
+        identical(rv_file_preview$file_path, file_path)) {
+      return()
+    }
 
     # Read raw file content
     raw <- tryCatch({
@@ -124,21 +140,28 @@ server_upload <- function(input, output, session, shared) {
     }, error = function(e) NULL)
 
     if (is.null(raw)) {
-      return(tags$p(style = "color: red;", "Could not read file for preview."))
+      rv_file_preview$raw_data       <- NULL
+      rv_file_preview$file_path      <- file_path
+      rv_file_preview$plate_registry <- NULL
+      rv_file_preview$exclusions     <- list()
+      rv_file_preview$preview_cache  <- NULL
+      return()
     }
 
-    # Clear stale excluded wells from previous upload (BUG_005 fix)
-    rv_file_preview$excluded_wells <- list()
-    rv_file_preview$raw_data <- raw
+    # Store raw data and path
+    rv_file_preview$raw_data  <- raw
     rv_file_preview$file_path <- file_path
 
-    # Auto-detect plate regions
+    # Clear stale exclusions from previous upload (BUG_005 fix)
+    rv_file_preview$exclusions <- list()
+
+    # ---- Auto-detect plate regions ----
     mat <- as.matrix(raw)
-    detected <- list()
-    plate_idx <- 1
+    registry_rows <- list()
+    plate_seq <- 1
 
     for (i in 1:(nrow(mat) - 7)) {
-      potential_rows <- trimws(as.character(mat[i:(i+7), 1]))
+      potential_rows <- trimws(as.character(mat[i:(i + 7), 1]))
       if (identical(potential_rows, LETTERS[1:8])) {
         test_data <- suppressWarnings(as.numeric(mat[i, 2:min(13, ncol(mat))]))
         num_valid <- sum(!is.na(test_data))
@@ -146,7 +169,7 @@ server_upload <- function(input, output, session, shared) {
           # Try to find a wavelength label above the plate
           wl_label <- ""
           if (i >= 3) {
-            for (look_back in 1:min(3, i-1)) {
+            for (look_back in 1:min(3, i - 1)) {
               above_text <- trimws(as.character(mat[i - look_back, 1]))
               if (grepl("Raw Data|\\d{3}", above_text)) {
                 wl_label <- paste0(" - ", above_text)
@@ -154,72 +177,108 @@ server_upload <- function(input, output, session, shared) {
               }
             }
           }
-          detected[[plate_idx]] <- list(
+
+          # Stable ID derived from position in file (not sequential index)
+          stable_id <- paste0("sheet1_row", i, "_col2")
+
+          registry_rows[[length(registry_rows) + 1]] <- data.frame(
+            plate_id  = stable_id,
+            sheet     = "sheet1",
             start_row = i,
-            start_col = 2,
-            nrows = 8,
-            ncols = min(12, num_valid),
-            label = paste0("Plate ", plate_idx, wl_label)
+            start_col = 2L,
+            label     = paste0("Plate ", plate_seq, wl_label),
+            nrows     = 8L,
+            ncols     = min(12L, as.integer(num_valid)),
+            stringsAsFactors = FALSE
           )
-          plate_idx <- plate_idx + 1
+          plate_seq <- plate_seq + 1
         }
       }
     }
 
-    rv_file_preview$detected_plates <- detected
-
-    if (length(detected) == 0) {
-      return(tags$p(style = "color: orange;",
-                    "No 8\u00D712 plate regions auto-detected. Use Classic Import, or check file format."))
+    if (length(registry_rows) > 0) {
+      rv_file_preview$plate_registry <- do.call(rbind, registry_rows)
+    } else {
+      rv_file_preview$plate_registry <- NULL
     }
 
-    # Build file preview HTML table with highlighted plate regions
-    plate_row_ranges <- lapply(detected, function(pl) pl$start_row:(pl$start_row + pl$nrows - 1))
-    plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
-
-    # Build a compact HTML preview of the raw file
-    n_preview_rows <- min(nrow(mat), max(unlist(plate_row_ranges)) + 2)
-    n_preview_cols <- min(ncol(mat), 14)
-    preview_rows <- lapply(1:n_preview_rows, function(r) {
-      bg <- "transparent"
-      for (p_idx in seq_along(plate_row_ranges)) {
-        if (r %in% plate_row_ranges[[p_idx]]) {
-          bg <- plate_colors[(p_idx - 1) %% length(plate_colors) + 1]
-          break
-        }
-      }
-      cells <- lapply(1:n_preview_cols, function(c) {
-        val <- if (c <= ncol(mat)) as.character(mat[r, c]) else ""
-        if (is.na(val)) val <- ""
-        tags$td(style = paste0("padding:2px 6px; font-size:11px; border:1px solid #ddd; background:", bg),
-                val)
+    # ---- Build and cache the file-preview HTML table ----
+    registry <- rv_file_preview$plate_registry
+    if (!is.null(registry) && nrow(registry) > 0) {
+      plate_row_ranges <- lapply(seq_len(nrow(registry)), function(p) {
+        registry$start_row[p]:(registry$start_row[p] + registry$nrows[p] - 1)
       })
-      tags$tr(cells)
-    })
+      plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
 
-    tagList(
-      tags$p(style = "color: green; font-weight: bold;",
-             sprintf("\u2705 %d plate region(s) detected.", length(detected))),
+      n_preview_rows <- min(nrow(mat), max(unlist(plate_row_ranges)) + 2)
+      n_preview_cols <- min(ncol(mat), 14)
 
-      # File preview table
-      tags$div(
+      preview_rows <- lapply(1:n_preview_rows, function(r) {
+        bg <- "transparent"
+        for (p_idx in seq_along(plate_row_ranges)) {
+          if (r %in% plate_row_ranges[[p_idx]]) {
+            bg <- plate_colors[(p_idx - 1) %% length(plate_colors) + 1]
+            break
+          }
+        }
+        cells <- lapply(1:n_preview_cols, function(cc) {
+          val <- if (cc <= ncol(mat)) as.character(mat[r, cc]) else ""
+          if (is.na(val)) val <- ""
+          tags$td(style = paste0("padding:2px 6px; font-size:11px; border:1px solid #ddd; background:", bg),
+                  val)
+        })
+        tags$tr(cells)
+      })
+
+      rv_file_preview$preview_cache <- tags$div(
         style = "max-height: 300px; overflow: auto; border: 1px solid #ccc; margin: 10px 0; border-radius: 4px;",
         tags$table(
           style = "border-collapse: collapse; width: 100%;",
           preview_rows
         )
-      ),
+      )
+    } else {
+      rv_file_preview$preview_cache <- NULL
+    }
+  }, priority = 10)  # high priority so detection runs before renders
 
-      # Plate checkboxes
+  # ---------- Visual file preview: renders from cached data ----------
+  output$visual_file_preview <- renderUI({
+    req(input$upload_counts)
+    req(input$import_method == "visual")
+    lang <- input$app_language %||% "en"
+
+    # Wait for detection to populate cache
+    registry <- rv_file_preview$plate_registry
+
+    if (is.null(rv_file_preview$raw_data)) {
+      return(tags$p(style = "color: red;", "Could not read file for preview."))
+    }
+
+    if (is.null(registry) || nrow(registry) == 0) {
+      return(tags$p(style = "color: orange;",
+                    "No 8\u00D712 plate regions auto-detected. Use Classic Import, or check file format."))
+    }
+
+    plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
+
+    tagList(
+      tags$p(style = "color: green; font-weight: bold;",
+             sprintf("\u2705 %d plate region(s) detected.", nrow(registry))),
+
+      # Cached file preview table
+      rv_file_preview$preview_cache,
+
+      # Plate checkboxes (keyed by stable plate_id)
       tags$div(
         style = "margin: 10px 0;",
-        lapply(seq_along(detected), function(idx) {
-          pl <- detected[[idx]]
+        lapply(seq_len(nrow(registry)), function(idx) {
+          pl <- registry[idx, ]
           bg <- plate_colors[(idx - 1) %% length(plate_colors) + 1]
           div(
             style = paste0("display: inline-flex; align-items: center; gap: 8px; margin: 5px 10px; ",
                           "padding: 4px 10px; border-radius: 4px; background:", bg, ";"),
-            checkboxInput(paste0("select_plate_", idx),
+            checkboxInput(paste0("select_plate_", pl$plate_id),
                          pl$label, value = TRUE),
             tags$small(sprintf("(%d\u00D7%d)", pl$nrows, pl$ncols))
           )
@@ -239,42 +298,47 @@ server_upload <- function(input, output, session, shared) {
     )
   })
 
-  # Render interactive well grids for each selected plate
+  # ---------- Render interactive well grids from cached plate data ----------
   output$visual_well_grids <- renderUI({
-    req(rv_file_preview$detected_plates)
+    req(rv_file_preview$plate_registry)
     lang <- input$app_language %||% "en"
-    detected <- rv_file_preview$detected_plates
+    registry <- rv_file_preview$plate_registry
     raw <- rv_file_preview$raw_data
-    if (is.null(raw) || length(detected) == 0) return(NULL)
+    if (is.null(raw) || is.null(registry) || nrow(registry) == 0) return(NULL)
 
+    mat <- as.matrix(raw)
     plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
 
-    plate_grids <- lapply(seq_along(detected), function(idx) {
-      # Check if this plate is selected
-      checkbox_val <- input[[paste0("select_plate_", idx)]]
+    plate_grids <- lapply(seq_len(nrow(registry)), function(idx) {
+      pl <- registry[idx, ]
+      plate_id <- pl$plate_id
+
+      # Check if this plate is selected (checkbox keyed by stable plate_id)
+      checkbox_val <- input[[paste0("select_plate_", plate_id)]]
       if (!isTRUE(checkbox_val)) return(NULL)
 
-      pl <- detected[[idx]]
       bg <- plate_colors[(idx - 1) %% length(plate_colors) + 1]
 
-      # Extract the plate data
-      mat <- as.matrix(raw)
+      # Extract the plate data from cached raw matrix
       plate_data <- mat[pl$start_row:(pl$start_row + pl$nrows - 1),
                         pl$start_col:(pl$start_col + pl$ncols - 1), drop = FALSE]
+
+      # Current exclusions for this plate
+      plate_excl <- rv_file_preview$exclusions[[plate_id]]
+      if (is.null(plate_excl)) plate_excl <- character(0)
 
       # Build an 8xncol interactive grid
       grid_rows <- lapply(1:8, function(r) {
         row_letter <- LETTERS[r]
-        cells <- lapply(1:pl$ncols, function(c) {
-          well_id <- paste0(row_letter, c)
-          val <- tryCatch(as.character(plate_data[r, c]), error = function(e) "")
+        cells <- lapply(1:pl$ncols, function(cc) {
+          well_id <- paste0(row_letter, cc)
+          val <- tryCatch(as.character(plate_data[r, cc]), error = function(e) "")
           if (is.na(val)) val <- ""
           num_val <- suppressWarnings(as.numeric(val))
           display_val <- if (!is.na(num_val)) round(num_val, 3) else val
 
-          # Check if this well is excluded
-          excluded_key <- paste0("plate_", idx, "_", well_id)
-          is_excluded <- isTRUE(rv_file_preview$excluded_wells[[excluded_key]])
+          # Check if this well is excluded (keyed by stable plate_id)
+          is_excluded <- well_id %in% plate_excl
 
           cell_style <- if (is_excluded) {
             "padding:3px 5px; font-size:10px; border:1px solid #ccc; cursor:pointer; background:#ffcdd2; color:#999; text-decoration:line-through; text-align:center; min-width:48px;"
@@ -284,8 +348,8 @@ server_upload <- function(input, output, session, shared) {
 
           tags$td(
             style = cell_style,
-            onclick = sprintf("Shiny.setInputValue('toggle_well', {plate: %d, well: '%s', ts: Date.now()});",
-                             idx, well_id),
+            onclick = sprintf("Shiny.setInputValue('toggle_well', {plate_id: '%s', well: '%s', ts: Date.now()});",
+                             plate_id, well_id),
             title = paste0(well_id, if (is_excluded) " (excluded)" else ""),
             display_val
           )
@@ -299,8 +363,8 @@ server_upload <- function(input, output, session, shared) {
       # Column headers
       col_header <- tags$tr(
         tags$th(style = "padding:3px 5px; font-size:10px;", ""),
-        lapply(1:pl$ncols, function(c) {
-          tags$th(style = "padding:3px 5px; font-size:10px; text-align:center;", c)
+        lapply(1:pl$ncols, function(cc) {
+          tags$th(style = "padding:3px 5px; font-size:10px; text-align:center;", cc)
         })
       )
 
@@ -327,13 +391,23 @@ server_upload <- function(input, output, session, shared) {
     )
   })
 
-  # Handle well toggle clicks from JavaScript
+  # Handle well toggle clicks from JavaScript (keyed by stable plate_id)
   observeEvent(input$toggle_well, {
     info <- input$toggle_well
     if (is.null(info)) return()
-    key <- paste0("plate_", info$plate, "_", info$well)
-    current <- isTRUE(rv_file_preview$excluded_wells[[key]])
-    rv_file_preview$excluded_wells[[key]] <- !current
+    plate_id <- info$plate_id
+    well <- info$well
+
+    current_excl <- rv_file_preview$exclusions[[plate_id]]
+    if (is.null(current_excl)) current_excl <- character(0)
+
+    if (well %in% current_excl) {
+      # Remove from exclusions
+      rv_file_preview$exclusions[[plate_id]] <- setdiff(current_excl, well)
+    } else {
+      # Add to exclusions
+      rv_file_preview$exclusions[[plate_id]] <- c(current_excl, well)
+    }
   })
 
   # --------------------------------------------------------------------------

@@ -751,11 +751,11 @@ if (multi_weight_mode && length(all_models) > 1) {
   cat(sprintf("\n\n### %s\n\n", tr("weight_comparison_title", lang)))
   cat(tr("weight_comparison_desc", lang), "\n\n")
 
-  # --- Comparison table: R², RMSE, parameters ---
+  # --- Comparison table: R², RMSE, parameters (+ stability if available) ---
   comp_rows <- lapply(names(all_models), function(k) {
     m <- all_models[[k]]
     coefs <- m$coefs  # b (Hill), c (Bottom), d (Top), e (IC50)
-    data.frame(
+    row <- data.frame(
       Method = m$label,
       R2 = round(m$R2, 5),
       RMSE = round(m$RMSE, 3),
@@ -765,10 +765,23 @@ if (multi_weight_mode && length(all_models) > 1) {
       IC50 = if (isTRUE(is_elisa)) format(round(coefs[4], 2), big.mark = ",") else format(coefs[4], scientific = TRUE, digits = 3),
       stringsAsFactors = FALSE
     )
+    # Append stability grade if already assessed
+    if (!is.null(m$stability)) {
+      grade_icon <- function(g) switch(g,
+        good = "\U0001F7E2", acceptable = "\U0001F7E1",
+        unstable = "\U0001F534", failed = "\u274C", "\u2753")
+      row$Stability <- paste(grade_icon(m$stability$stability_grade),
+                              tools::toTitleCase(m$stability$stability_grade))
+    }
+    row
   })
   comp_df <- do.call(rbind, comp_rows)
-  names(comp_df) <- c(tr("qc_metric", lang), "R\u00B2", "RMSE",
-                       "Hill slope", "Bottom", "Top", "IC50")
+  col_names <- c(tr("qc_metric", lang), "R\u00B2", "RMSE",
+                  "Hill slope", "Bottom", "Top", "IC50")
+  if ("Stability" %in% names(comp_df)) {
+    col_names <- c(col_names, "Stability")
+  }
+  names(comp_df) <- col_names
 
   render_table(comp_df, caption = tr("weight_comparison_title", lang))
 
@@ -842,6 +855,123 @@ if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
     cat(sprintf("\n\n> **Note:** Residual variance ratio across concentration levels = %.1f (>3), suggesting heteroscedasticity. Weighted regression (1/Y or 1/Y²) is recommended.\n\n", var_ratio))
   }
 }
+```
+
+```{r weighting-suitability, results='asis'}
+# Formal heteroscedasticity diagnostic (assess_heteroscedasticity)
+tryCatch({
+  # Determine which model to assess: prefer the unweighted model, otherwise
+  # use the first available model as a reference
+  hetero_model <- NULL
+  hetero_label <- NULL
+
+  if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
+    hetero_model <- all_models[["none"]]$model
+    hetero_label <- "Unweighted (LL.4/LL.3)"
+  } else if (!drc_failed_completely) {
+    # No unweighted model was fitted; use primary model as proxy
+    hetero_model <- all_models[[primary_key]]$model
+    hetero_label <- all_models[[primary_key]]$label
+  }
+
+  if (!is.null(hetero_model)) {
+    hetero_result <- assess_heteroscedasticity(
+      model = hetero_model,
+      data_long = standards_for_model,
+      response_var = response_var
+    )
+
+    cat("\n\n### Weighting Suitability Assessment\n\n")
+
+    cat(sprintf("**Test:** %s\n\n", hetero_result$test_name %||% "N/A"))
+
+    if (!is.na(hetero_result$statistic)) {
+      cat(sprintf("**Statistic:** %.3f", hetero_result$statistic))
+      if (!is.na(hetero_result$p_value)) {
+        cat(sprintf("&emsp;**p-value:** %.4f", hetero_result$p_value))
+      }
+      cat("\n\n")
+    }
+
+    if (!is.na(hetero_result$variance_ratio)) {
+      cat(sprintf("**Variance ratio** (max/min across concentration levels): %.1f\n\n",
+                  hetero_result$variance_ratio))
+    }
+
+    cat(sprintf("**Interpretation:** %s\n\n", hetero_result$interpretation))
+    cat(sprintf("**Recommendation:** %s\n\n", hetero_result$recommendation))
+
+    cat("*Note: This diagnostic is advisory only and does not change the selected model.*\n\n")
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Weighting suitability assessment could not be performed: %s*\n\n", e$message))
+})
+```
+
+```{r model-stability-assessment, results='asis'}
+# Convergence and stability diagnostics for all fitted models
+tryCatch({
+  if (!drc_failed_completely && length(all_models) > 0) {
+
+    # Assess stability for each fitted model
+    stability_results <- lapply(names(all_models), function(k) {
+      assess_model_stability(all_models[[k]], all_models[[k]]$label)
+    })
+    names(stability_results) <- names(all_models)
+
+    cat("\n\n### Model Stability Assessment\n\n")
+
+    # Build summary table
+    grade_icon <- function(g) {
+      switch(g,
+        good       = "\U0001F7E2 Good",
+        acceptable = "\U0001F7E1 Acceptable",
+        unstable   = "\U0001F534 Unstable",
+        failed     = "\u274C Failed",
+        "\u2753 Unknown"
+      )
+    }
+
+    stability_df <- data.frame(
+      Model = sapply(stability_results, function(s) s$model_name),
+      Method = sapply(stability_results, function(s) s$fit_method %||% "N/A"),
+      Converged = sapply(stability_results, function(s) if (s$converged) "Yes" else "No"),
+      SE_Available = sapply(stability_results, function(s) if (s$se_available) "Yes" else "No"),
+      Boundary = sapply(stability_results, function(s) if (s$boundary_flag) "Yes" else "No"),
+      Grade = sapply(stability_results, function(s) grade_icon(s$stability_grade)),
+      stringsAsFactors = FALSE
+    )
+    names(stability_df) <- c("Model", "Fit Method", "Converged", "SEs Available",
+                              "Boundary Hit", "Stability Grade")
+
+    render_table(stability_df, caption = "Model Stability Assessment")
+
+    # Print detailed warnings / suspicious parameters per model
+    for (k in names(stability_results)) {
+      sr <- stability_results[[k]]
+      has_details <- length(sr$suspicious_params) > 0 || length(sr$warnings) > 0
+
+      if (has_details) {
+        cat(sprintf("\n**%s:**\n\n", sr$model_name))
+        for (w in sr$warnings) {
+          cat(sprintf("- %s\n", w))
+        }
+        for (sp in sr$suspicious_params) {
+          cat(sprintf("- %s\n", sp))
+        }
+        cat("\n")
+      }
+    }
+
+    # Store stability info for downstream use (e.g., model comparison table)
+    # Attach to all_models entries
+    for (k in names(stability_results)) {
+      all_models[[k]]$stability <- stability_results[[k]]
+    }
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Model stability assessment could not be performed: %s*\n\n", e$message))
+})
 ```
 
 ```{r lloq-uloq, results='asis'}
