@@ -144,6 +144,8 @@ analysis_config <- tryCatch({
 if (is.null(analysis_config$normality_assumption)) {
   analysis_config$normality_assumption <- "assume"
 }
+# Resolve configurable CV threshold (app-level override or fallback to global constant)
+cv_limit <- analysis_config$cv_limit %||% QC_THRESHOLDS$cv_limit
 ```
 
 ```{r load-data, include=FALSE}
@@ -227,6 +229,12 @@ if (isTRUE(is_elisa)) {
 **`r tr("analysis_date", lang)`** `r Sys.Date()`
 **`r tr("analyst", lang)`** `r Sys.info()[["user"]]`
 
+```{r software-version-info, results='asis'}
+cat(sprintf("**Software:** Bioassay Analysis App v%s  \n", REPORT_INFO$version))
+cat(sprintf("**R version:** %s  \n", R.version.string))
+cat(sprintf("**drc package:** v%s  \n\n", as.character(packageVersion("drc"))))
+```
+
 ```{r dynamic-description, results='asis'}
 # Dynamic description based on assay type
 if (isTRUE(is_elisa)) {
@@ -279,6 +287,30 @@ render_table(
   caption = tr("std_concentrations_table", lang),
   col_names = c("Standard", unit_label)
 )
+```
+
+## `r tr("methods_title", lang)`
+
+```{r methods-section, results='asis'}
+cat(tr("methods_drc_citation", lang))
+
+# Describe the regression weighting used by the primary model
+selected_weights <- analysis_config$regression_weight
+if (is.null(selected_weights) || length(selected_weights) == 0) selected_weights <- "none"
+weight_options_labels <- list(none = "Unweighted", inv_y = "1/Y weighted", inv_y2 = "1/Y\u00B2 weighted")
+primary_weight_key <- selected_weights[[1]]
+weight_label <- weight_options_labels[[primary_weight_key]] %||% primary_weight_key
+cat(sprintf("4-parameter log-logistic model (LL.4) fitted with %s regression. ", weight_label))
+
+if (isTRUE(analysis_config$enable_outlier_detection)) {
+  cat(tr("methods_outlier_citation", lang))
+}
+
+use_shapiro_methods <- isTRUE(analysis_config$normality_assumption == "test_shapiro")
+if (use_shapiro_methods) {
+  cat("Non-normality fallback: MAD-based detection (Leys et al., 2013). ")
+}
+cat("\n\n")
 ```
 
 ## `r tr("drc_analysis", lang)`
@@ -745,6 +777,18 @@ if (multi_weight_mode && length(all_models) > 1) {
 
   cat(sprintf("\n\n*%s*\n\n",
       tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
+}
+
+# Simple heteroscedasticity diagnostic for unweighted model
+if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
+  unw_fit <- all_models[["none"]]$model
+  unw_resid <- residuals(unw_fit)
+  conc_levels <- standards_for_model$StandardConc
+  var_by_level <- tapply(unw_resid^2, conc_levels, mean, na.rm = TRUE)
+  var_ratio <- max(var_by_level, na.rm = TRUE) / max(min(var_by_level[var_by_level > 0], na.rm = TRUE), 1e-10)
+  if (var_ratio > 3) {
+    cat(sprintf("\n\n> **Note:** Residual variance ratio across concentration levels = %.1f (>3), suggesting heteroscedasticity. Weighted regression (1/Y or 1/Y²) is recommended.\n\n", var_ratio))
+  }
 }
 ```
 
@@ -1253,7 +1297,9 @@ if (nrow(samples_to_analyze) > 0) {
       ci_lower = {
         # Replicate-variability CI
         ci_replicate_lower <- if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
+          set.seed(42)
           boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
+          set.seed(NULL)
           quantile(boot_vals, 0.025)
         } else if (n_replicates >= 2 && !is.na(sd_conc)) {
           mean_conc - qt(0.975, df = n_replicates - 1) * se_conc
@@ -1272,7 +1318,9 @@ if (nrow(samples_to_analyze) > 0) {
       ci_upper = {
         # Replicate-variability CI
         ci_replicate_upper <- if (isTRUE(analysis_config$ci_method == "bootstrap") && n_replicates >= 3) {
+          set.seed(42)
           boot_vals <- replicate(1000, mean(sample(estimated_concentration, replace = TRUE)))
+          set.seed(NULL)
           quantile(boot_vals, 0.975)
         } else if (n_replicates >= 2 && !is.na(sd_conc)) {
           mean_conc + qt(0.975, df = n_replicates - 1) * se_conc
