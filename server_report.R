@@ -106,6 +106,106 @@ server_report <- function(input, output, session, shared, config_reactives) {
       tags$div(style = "color: #FF9800;", icon("exclamation-triangle"), " Some dilution entries are invalid")
     }
 
+    # Check 5: Standards count consistency
+    num_std_input <- as.integer(input$num_standards %||% 0)
+    if (!is.null(type_mat) && num_std_input > 0) {
+      rep_mat <- shared$matrix_replicate()
+      type_vec <- as.character(unlist(type_mat))
+      rep_vec <- as.character(unlist(rep_mat))
+      std_mask <- type_vec == "Standard" & !is.na(type_vec)
+      unique_std_groups <- length(unique(rep_vec[std_mask]))
+      if (unique_std_groups == num_std_input) {
+        checks[[length(checks) + 1]] <- tags$div(
+          style = "color: #388E3C;", icon("check-circle"),
+          paste0(" Standard count matches: ", unique_std_groups, " groups for ", num_std_input, " standards"))
+      } else {
+        checks[[length(checks) + 1]] <- tags$div(
+          style = "color: #FF9800;", icon("exclamation-triangle"),
+          paste0(" Standard groups (", unique_std_groups, ") differs from configured standards (", num_std_input, ")"))
+      }
+    }
+
+    # Check 6: Replicate-group consistency (no mixed types within a group)
+    if (!is.null(type_mat)) {
+      rep_mat <- shared$matrix_replicate()
+      type_vec <- as.character(unlist(type_mat))
+      rep_vec <- as.character(unlist(rep_mat))
+      non_empty <- !is.na(type_vec) & type_vec != "" & !is.na(rep_vec) & rep_vec != ""
+      if (any(non_empty)) {
+        group_df <- data.frame(type = type_vec[non_empty], rep = rep_vec[non_empty],
+                               stringsAsFactors = FALSE)
+        mixed_groups <- character(0)
+        for (g in unique(group_df$rep)) {
+          types_in_group <- unique(group_df$type[group_df$rep == g])
+          if (length(types_in_group) > 1) mixed_groups <- c(mixed_groups, g)
+        }
+        if (length(mixed_groups) == 0) {
+          checks[[length(checks) + 1]] <- tags$div(
+            style = "color: #388E3C;", icon("check-circle"), " Replicate groups are consistent")
+        } else {
+          checks[[length(checks) + 1]] <- tags$div(
+            style = "color: #FF9800;", icon("exclamation-triangle"),
+            paste0(" Mixed well types in replicate group(s): ", paste(mixed_groups, collapse = ", ")))
+        }
+      }
+    }
+
+    # Check 7: Empty sample IDs
+    if (!is.null(type_mat)) {
+      id_mat <- shared$matrix_id()
+      type_vec <- as.character(unlist(type_mat))
+      id_vec <- as.character(unlist(id_mat))
+      sample_mask <- type_vec == "Sample" & !is.na(type_vec)
+      if (any(sample_mask)) {
+        empty_ids <- sum(is.na(id_vec[sample_mask]) | trimws(id_vec[sample_mask]) == "")
+        if (empty_ids == 0) {
+          checks[[length(checks) + 1]] <- tags$div(
+            style = "color: #388E3C;", icon("check-circle"), " All sample wells have IDs")
+        } else {
+          checks[[length(checks) + 1]] <- tags$div(
+            style = "color: #FF9800;", icon("exclamation-triangle"),
+            paste0(" ", empty_ids, " sample well(s) have empty IDs"))
+        }
+      }
+    }
+
+    # Check 8: ELISA control count plausibility
+    if (assay == "elisa" && !is.null(type_mat)) {
+      well_types <- as.character(unlist(type_mat))
+      control_types <- c("Blank", "NSB", "B0")
+      low_rep_controls <- character(0)
+      for (ct in control_types) {
+        ct_count <- sum(well_types == ct, na.rm = TRUE)
+        if (ct_count > 0 && ct_count < 2) {
+          low_rep_controls <- c(low_rep_controls, paste0(ct, " (", ct_count, ")"))
+        }
+      }
+      if (length(low_rep_controls) == 0) {
+        has_any_control <- any(well_types %in% control_types, na.rm = TRUE)
+        if (has_any_control) {
+          checks[[length(checks) + 1]] <- tags$div(
+            style = "color: #388E3C;", icon("check-circle"), " ELISA controls have adequate replicates")
+        }
+      } else {
+        checks[[length(checks) + 1]] <- tags$div(
+          style = "color: #FF9800;", icon("exclamation-triangle"),
+          paste0(" Low replicates for ELISA control(s): ", paste(low_rep_controls, collapse = ", "), " (recommend >= 2)"))
+      }
+    }
+
+    # Check 9: Missing tissue weights when tissue normalization expected
+    if (assay == "elisa" && !is.null(type_mat)) {
+      type_vec <- as.character(unlist(type_mat))
+      has_samples <- any(type_vec == "Sample", na.rm = TRUE)
+      tw <- shared$tissue_weights_rv()
+      has_weights <- length(tw) > 0 && any(sapply(tw, function(x) !is.null(x) && x > 0))
+      if (has_samples && !has_weights) {
+        checks[[length(checks) + 1]] <- tags$div(
+          style = "color: #FF9800;", icon("exclamation-triangle"),
+          " No tissue weights entered (needed for tissue-normalized ELISA results)")
+      }
+    }
+
     do.call(tagList, checks)
   })
 
@@ -143,326 +243,100 @@ server_report <- function(input, output, session, shared, config_reactives) {
     }
   })
 
+
   # --------------------------------------------------------------------------
-  # Report Generation
+  # Report Generation (orchestrator — see report_pipeline.R for stage helpers)
   # --------------------------------------------------------------------------
 
   observeEvent(input$convert, {
 
     withProgress(message = "Generating report...", value = 0, {
 
-      # Flush any pending debounced dilution update so Convert always
-      # sees the latest cell edits (fixes race with 300ms debounce).
-      if (!is.null(input$matrix_dilution)) {
-        raw <- hot_to_r(input$matrix_dilution)
-        raw <- enforce_plate_shape(raw)
-        shared$raw_matrix_dilution(raw)
-        result <- parse_dilution_matrix(raw)
-        shared$matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
-        shared$dilution_validity(result$validity)
-        shared$dilution_error(any(!result$validity))
-      }
+      # Stage 1: Flush pending layout state
+      flush_latest_layout_state(input, shared)
 
-      # Convert to long format — use std_conc_raw (synchronous) to avoid
-      # stale values from the 400ms debounce on std_conc.
-      df_long <- matrix_to_long(
-        shared$matrix_type(), shared$matrix_id(), shared$matrix_dilution(),
-        shared$matrix_replicate(), shared$matrix_measresults(), config_reactives$std_conc_raw()
-      )
-
+      # Stage 2: Build long-format data
+      df_long <- build_long_data(shared, config_reactives$std_conc_raw())
       incProgress(0.2, detail = "Validating data...")
 
-      # Validate ELISA control wells exist before normalization
-      if (input$assay_type == "elisa") {
-        type_mat <- shared$matrix_type()
-        well_types <- as.character(type_mat)
-        required_controls <- c("Blank", "NSB", "B0")
-        missing_controls <- required_controls[!required_controls %in% well_types]
-        if (length(missing_controls) > 0) {
-          showNotification(
-            paste("ELISA requires control wells:", paste(missing_controls, collapse = ", "),
-                  "- please assign them in the Type matrix before generating a report."),
-            type = "error", duration = 10
-          )
-          return()
-        }
-      }
-
-      # Apply normalization based on assay type
-      df_normalized <- tryCatch({
-
-        if (input$assay_type == "elisa") {
-          # ELISA normalization (%B/B0) is handled by the Rmd template via
-          # calculate_elisa_bb0(), which follows the Cayman protocol with
-          # proper Blank correction. Pass through raw absorbance here.
-          detection_method <- "absorbance"
-          df_long %>%
-            dplyr::mutate(
-              NormalizedValue = MeasurementValue,
-              ResponseUnit = "Raw Absorbance"
-            )
-        } else {
-          # RBA: Direct measurement (CPM or RFU)
-          detection_method <- "radioligand"
-          normalize_data(df_long, "rba", detection_method)
-        }
-
-      }, error = function(e) {
-
-        # If normalization fails, show warning but continue with raw data
-        showNotification(
-          paste("Normalization warning:", e$message),
-          type = "warning",
-          duration = 8
-        )
-
-        # Return original data with basic normalization info
-        df_long %>%
-          mutate(
-            NormalizedValue = MeasurementValue,
-            ResponseUnit = if (input$assay_type == "elisa") "Absorbance" else "CPM"
-          )
-      })
-
+      # Stage 3: Normalize
+      df_normalized <- normalize_assay_data(
+        df_long, input$assay_type, shared$matrix_type(), session
+      )
+      if (is.null(df_normalized)) return()
       incProgress(0.4, detail = "Saving data files...")
 
-      # Save main CSV (for single wavelength OR first wavelength of multi-wavelength)
-      csv_path <- session$userData$csv_path
-      write.csv(df_normalized, csv_path, row.names = FALSE)
-
-      # NEW: If multi-wavelength, save additional wavelength CSVs
-      if (isTRUE(shared$rv$is_multiwavelength) && !is.null(shared$rv$wavelengths)) {
-
-        message(sprintf("Processing %d wavelengths...", length(shared$rv$wavelengths)))
-
-        # Build the converter once — layout matrices are identical across
-        # wavelengths, so pivoting them inside the loop would be redundant.
-        converter <- matrix_to_long_with_cached_layout(
-          shared$matrix_type(), shared$matrix_id(), shared$matrix_dilution(),
-          shared$matrix_replicate(), config_reactives$std_conc_raw()
-        )
-
-        # Save each wavelength as separate CSV
-        for (wl in shared$rv$wavelengths) {
-
-          # Get the plate data for this wavelength
-          plate_wl <- shared$rv$wavelength_plates[[wl]]
-
-          # Convert to long format reusing the cached layout
-          df_long_wl <- converter(plate_wl)
-
-          # Apply normalization
-          df_normalized_wl <- tryCatch({
-
-            if (input$assay_type == "elisa") {
-              # Pass raw absorbance — normalization (%B/B0) is performed by
-              # calculate_elisa_bb0() in the Rmd template, which is the single
-              # source of truth for ELISA normalization.
-              df_long_wl %>%
-                dplyr::mutate(
-                  NormalizedValue = MeasurementValue,
-                  ResponseUnit = "Raw Absorbance"
-                )
-            } else {
-              detection_method <- "radioligand"
-              normalize_data(df_long_wl, "rba", detection_method)
-            }
-
-          }, error = function(e) {
-
-            # Fallback if normalization fails
-            df_long_wl %>%
-              mutate(
-                NormalizedValue = MeasurementValue,
-                ResponseUnit = if (input$assay_type == "elisa") "Absorbance" else "CPM"
-              )
-          })
-
-          # Save with wavelength suffix
-          csv_path_wl <- file.path(session$userData$output_dir, paste0("long_data_output_", wl, ".csv"))
-          write.csv(df_normalized_wl, csv_path_wl, row.names = FALSE)
-
-          message(sprintf("Saved: %s", basename(csv_path_wl)))
-        }
-
-        # Save wavelength manifest
-        write_json_safe(
-          list(wavelengths = shared$rv$wavelengths),
-          file.path(session$userData$output_dir, "wavelength_manifest.json")
-        )
-
-        showNotification(
-          sprintf("Saved data for %d wavelengths", length(shared$rv$wavelengths)),
-          type = "message",
-          duration = 5
-        )
-      }
-
-      # Save formats (use session-scoped paths for concurrency safety)
-      write_json_safe(input$export_formats, session$userData$fmt_json)
-
-      # Save notes
-      write_json_safe(list(notes = input$notes %||% ""),
-                      session$userData$notes_file)
-
-      # Save QC params (conditional based on assay type)
-      qc_params <- if (input$assay_type == "rba") {
-        list(
-          qc_concentration = input$qc_conc,
-          expected_hill = input$expected_hill,
-          assay_type = input$assay_type,
-          detection_method = "radioligand",
-          analyte = config_reactives$chosen_standard_label()
-        )
-      } else {
-        # ELISA: Different QC approach
-        list(
-          assay_type = input$assay_type,
-          detection_method = "absorbance",
-          analyte = input$elisa_analyte,
-          units = input$elisa_units %||% "pg/mL",
-          normalization = "percent_b_b0"
-        )
-      }
-
-      write_json_safe(qc_params, file.path(session$userData$output_dir, "qc_params.json"))
-
-      # Save assay configuration
-      assay_config <- if (input$assay_type == "elisa") {
-        list(
-          assay_type = "elisa",
-          analyte = input$elisa_analyte,
-          units = input$elisa_units %||% "pg/mL",
-          detection_method = "absorbance"
-        )
-      } else {
-        list(
-          assay_type = "rba",
-          toxin_class = input$toxin_class,
-          toxin_variant = input$toxin_variant %||% NA,
-          toxin_standard_label = config_reactives$chosen_standard_label(),
-          molecular_weight_g_mol = shared$mw_g_mol(),
-          detection_method = "radioligand",
-          units = "mol/L"
-        )
-      }
-
-      write_json_safe(assay_config, file.path(session$userData$output_dir, "assay_config.json"))
-
-      # Save analysis settings
-      # regression_weight is now a vector (user can select multiple for comparison)
+      # Stage 4: Collect configuration and save artifacts
+      assay <- input$assay_type
       sel_weights <- input$regression_weight
       if (is.null(sel_weights) || length(sel_weights) == 0) sel_weights <- "none"
-      analysis_config <- list(
-        regression_weight = sel_weights,
-        quant_range_min = input$quant_range_min %||% 20,
-        quant_range_max = input$quant_range_max %||% 80,
-        ci_method = input$ci_method %||% "t_dist",
-        enable_outlier_detection = isTRUE(input$enable_outlier_detection),
-        outlier_min_n = input$outlier_min_n %||% 3,
-        normality_assumption = input$normality_assumption %||% "assume",
-        cv_limit = input$cv_limit %||% 30
+
+      artifact_config <- list(
+        csv_path       = session$userData$csv_path,
+        output_dir     = session$userData$output_dir,
+        fmt_json       = session$userData$fmt_json,
+        notes_file     = session$userData$notes_file,
+        export_formats = input$export_formats,
+        notes          = input$notes %||% "",
+        assay_type     = assay,
+        is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
+        wavelengths        = shared$rv$wavelengths,
+        wavelength_plates  = shared$rv$wavelength_plates,
+        matrix_type      = shared$matrix_type(),
+        matrix_id        = shared$matrix_id(),
+        matrix_dilution  = shared$matrix_dilution(),
+        matrix_replicate = shared$matrix_replicate(),
+        std_conc_raw     = config_reactives$std_conc_raw(),
+        qc_params = if (assay == "rba") {
+          list(qc_concentration = input$qc_conc, expected_hill = input$expected_hill,
+               assay_type = assay, detection_method = "radioligand",
+               analyte = config_reactives$chosen_standard_label())
+        } else {
+          list(assay_type = assay, detection_method = "absorbance",
+               analyte = input$elisa_analyte, units = input$elisa_units %||% "pg/mL",
+               normalization = "percent_b_b0")
+        },
+        assay_config = if (assay == "elisa") {
+          list(assay_type = "elisa", analyte = input$elisa_analyte,
+               units = input$elisa_units %||% "pg/mL", detection_method = "absorbance")
+        } else {
+          list(assay_type = "rba", toxin_class = input$toxin_class,
+               toxin_variant = input$toxin_variant %||% NA,
+               toxin_standard_label = config_reactives$chosen_standard_label(),
+               molecular_weight_g_mol = shared$mw_g_mol(),
+               detection_method = "radioligand", units = "mol/L")
+        },
+        analysis_config = list(
+          regression_weight = sel_weights,
+          quant_range_min = input$quant_range_min %||% 20,
+          quant_range_max = input$quant_range_max %||% 80,
+          ci_method = input$ci_method %||% "t_dist",
+          enable_outlier_detection = isTRUE(input$enable_outlier_detection),
+          outlier_min_n = input$outlier_min_n %||% 3,
+          normality_assumption = input$normality_assumption %||% "assume",
+          cv_limit = input$cv_limit %||% 30
+        ),
+        report_language = input$report_language %||% "en",
+        tissue_weights  = if (assay == "elisa") shared$tissue_weights_rv() else NULL
       )
-      write_json_safe(analysis_config, file.path(session$userData$output_dir, "analysis_config.json"))
 
-      # Save tissue weights (ELISA only)
-      if (input$assay_type == "elisa") {
-        tw <- shared$tissue_weights_rv()
-        if (length(tw) > 0) {
-          # New format: {"R1": {"weight": 50.0, "extraction_uL": 500}, ...}
-          write_json_safe(tw, file.path(session$userData$output_dir, "tissue_weights.json"))
-        }
-
-        # Save default processing config (per-sample volumes are in tissue_weights.json)
-        processing_config <- list(
-          extraction_volume_ul = 500,
-          sample_type = "extracted",
-          notes = "Per-sample extraction volumes stored in tissue_weights.json"
-        )
-        write_json_safe(processing_config,
-                       file.path(session$userData$output_dir, "sample_processing_config.json"))
-      }
-
-      # Save report language preference
-      write_json_safe(list(lang = input$report_language %||% "en"),
-                     file.path(session$userData$output_dir, "report_language.json"))
-
-      incProgress(0.6, detail = "Saving configuration...")
-
-      showNotification(paste("Data saved to:", csv_path),
-                       type = "message", duration = 5)
-
+      save_analysis_artifacts(df_normalized, artifact_config, session)
       incProgress(0.7, detail = "Rendering report (this may take a minute)...")
 
-      # ----- Render reports inside the app -----
-      report_lang <- input$report_language %||% "en"
-      selected_formats <- input$export_formats
-      formats_map <- list(html = "html_document", pdf = "pdf_document", docx = "word_document")
-
-      # Determine template
-      is_mw <- isTRUE(shared$rv$is_multiwavelength)
-      app_root <- if (file.exists("reports")) "." else dirname(session$userData$csv_path)
-      template_dir <- file.path(app_root, "reports")
-      if (!dir.exists(template_dir)) template_dir <- "reports"
-
-      if (is_mw) {
-        report_template <- file.path(template_dir, "multiwavelength_analysis_template.Rmd")
-      } else {
-        report_template <- file.path(template_dir, "unified_analysis_template.Rmd")
-      }
-
-      if (file.exists(report_template)) {
-        report_template <- normalizePath(report_template, winslash = "/", mustWork = TRUE)
-        out_dir_abs <- normalizePath(session$userData$output_dir, winslash = "/", mustWork = TRUE)
-
-        for (fmt in selected_formats) {
-          showNotification(sprintf("Rendering %s report...", toupper(fmt)), type = "message", duration = 3)
-
-          render_ok <- tryCatch({
-            render_params <- list(
-              output_dir = out_dir_abs,
-              lang = report_lang
-            )
-            if (is_mw) render_params$wavelengths <- shared$rv$wavelengths
-
-            out_name <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
-
-            rmarkdown::render(
-              input = report_template,
-              output_format = formats_map[[fmt]],
-              output_file = out_name,
-              output_dir = out_dir_abs,
-              params = render_params,
-              knit_root_dir = dirname(report_template),
-              envir = new.env(parent = globalenv())
-            )
-            TRUE
-          }, error = function(e) {
-            showNotification(
-              sprintf("Report rendering failed (%s): %s", toupper(fmt), e$message),
-              type = "error", duration = 10
-            )
-            message(sprintf("Report render error (%s): %s", fmt, e$message))
-            FALSE
-          })
-
-          if (render_ok) {
-            showNotification(sprintf("%s report created!", toupper(fmt)), type = "message", duration = 5)
-          }
-        }
-
-        showNotification(
-          paste("Reports saved to:", out_dir_abs),
-          type = "message", duration = 8
-        )
-      } else {
-        showNotification("Report template not found - data saved but no report generated.", type = "warning", duration = 8)
-        message("Template not found at: ", report_template)
-      }
+      # Stage 5: Render reports
+      render_reports(
+        params = list(
+          output_dir         = session$userData$output_dir,
+          report_lang        = input$report_language %||% "en",
+          is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
+          wavelengths        = shared$rv$wavelengths,
+          selected_formats   = input$export_formats,
+          csv_path           = session$userData$csv_path
+        ),
+        session = session
+      )
 
       incProgress(1, detail = "Done!")
-
-      # stopApp() removed: let users iterate without restarting the app
     })
   })
 

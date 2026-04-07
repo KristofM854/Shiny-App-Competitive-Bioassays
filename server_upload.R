@@ -59,6 +59,25 @@ server_upload <- function(input, output, session, shared) {
   })
 
   # --------------------------------------------------------------------------
+  # Plate Heatmap Accessible Description
+  # --------------------------------------------------------------------------
+
+  output$plate_heatmap_description <- renderText({
+    mat <- shared$matrix_measresults()
+    req(mat)
+    vals <- unlist(mat)
+    n_filled <- sum(!is.na(vals) & vals != "")
+    range_text <- if (any(!is.na(suppressWarnings(as.numeric(vals))))) {
+      nums <- suppressWarnings(as.numeric(vals[!is.na(vals)]))
+      nums <- nums[!is.na(nums)]
+      paste0("Range: ", round(min(nums, na.rm = TRUE), 2), " to ", round(max(nums, na.rm = TRUE), 2))
+    } else {
+      "No numeric values"
+    }
+    paste0("Plate heatmap showing ", n_filled, " of 96 wells with data. ", range_text)
+  })
+
+  # --------------------------------------------------------------------------
   # Download Report Handler
   # --------------------------------------------------------------------------
 
