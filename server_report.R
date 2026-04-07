@@ -151,10 +151,23 @@ server_report <- function(input, output, session, shared, config_reactives) {
 
     withProgress(message = "Generating report...", value = 0, {
 
-      # Convert to long format
+      # Flush any pending debounced dilution update so Convert always
+      # sees the latest cell edits (fixes race with 300ms debounce).
+      if (!is.null(input$matrix_dilution)) {
+        raw <- hot_to_r(input$matrix_dilution)
+        raw <- enforce_plate_shape(raw)
+        shared$raw_matrix_dilution(raw)
+        result <- parse_dilution_matrix(raw)
+        shared$matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
+        shared$dilution_validity(result$validity)
+        shared$dilution_error(any(!result$validity))
+      }
+
+      # Convert to long format — use std_conc_raw (synchronous) to avoid
+      # stale values from the 400ms debounce on std_conc.
       df_long <- matrix_to_long(
         shared$matrix_type(), shared$matrix_id(), shared$matrix_dilution(),
-        shared$matrix_replicate(), shared$matrix_measresults(), config_reactives$std_conc()
+        shared$matrix_replicate(), shared$matrix_measresults(), config_reactives$std_conc_raw()
       )
 
       incProgress(0.2, detail = "Validating data...")
@@ -226,7 +239,7 @@ server_report <- function(input, output, session, shared, config_reactives) {
         # wavelengths, so pivoting them inside the loop would be redundant.
         converter <- matrix_to_long_with_cached_layout(
           shared$matrix_type(), shared$matrix_id(), shared$matrix_dilution(),
-          shared$matrix_replicate(), config_reactives$std_conc()
+          shared$matrix_replicate(), config_reactives$std_conc_raw()
         )
 
         # Save each wavelength as separate CSV
