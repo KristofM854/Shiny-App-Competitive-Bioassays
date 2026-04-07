@@ -313,7 +313,8 @@ server_config <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   list(
-    std_conc = std_conc,
+    std_conc = std_conc,              # debounced — for UI reactives / pre-flight
+    std_conc_raw = std_conc_raw,      # synchronous — for export at Convert time
     chosen_standard_label = chosen_standard_label
   )
 }
