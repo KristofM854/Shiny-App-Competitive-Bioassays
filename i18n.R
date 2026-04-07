@@ -136,8 +136,8 @@ get_translations <- function() {
       tour_step2_upload = "Step 2: Upload your plate reader data file (.xlsx, .csv, or .txt). The app auto-detects plate regions and multi-wavelength data.",
       tour_step2_visual = "Alternatively, use the Visual Plate Selector to preview the file and manually select plate regions by dragging over them.",
       tour_step2_notes = "Add optional notes about the experiment. These are included in the final report for documentation.",
-      tour_step2_analysis = "Configure analysis settings: select one or more DRC regression weightings for comparison, set the quantifiable %B/B0 range (LLOQ/ULOQ), choose the confidence interval method, and enable outlier detection.",
-      tour_step3 = "Step 3: Choose report format(s) (HTML and/or Word) and language, then click Generate Report. The analysis includes dose-response curve fitting, sample quantification, QC assessment, and optional weight comparison.",
+      tour_step2_analysis = "Tab 4 \u2013 Analysis Settings: select one or more DRC regression weightings for comparison, set the quantifiable %B/B0 range (LLOQ/ULOQ), choose the confidence interval method, and enable outlier detection with normality testing options.",
+      tour_step3 = "Tab 5 \u2013 Generate Report: choose report format(s) (HTML and/or Word) and language, then click Generate Report. The analysis includes dose-response curve fitting, sample quantification, QC assessment, and optional weight comparison.",
       tour_language = "Switch between English and Spanish for the entire interface.",
       
       # ---- REPORT TRANSLATIONS ----
@@ -262,6 +262,19 @@ get_translations <- function() {
       outlier_detection_label = "Enable outlier detection",
       outlier_min_n_label = "Minimum replicates for outlier test:",
       outlier_help = "Dixon's Q-test for n=3-5, Grubbs' test for n>=6. Outliers are flagged, not removed.",
+      normality_assumption_label = "Normality assumption for outlier detection:",
+      normality_assume = "Assume normality (default)",
+      normality_test_shapiro = "Test with Shapiro-Wilk",
+      normality_shapiro_help = "Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.",
+      outlier_method_mad = "MAD-based (non-normal distribution detected)",
+
+      # Tab titles
+      tab_analysis_title = "4. Analysis Settings",
+      tab_report_title = "5. Generate Report",
+
+      # Statistical warnings and footnotes
+      r2_identical_warning = "R-squared could not be computed: all response values are identical (zero total variance). Check assay integrity.",
+      ci_asymmetric_footnote = "Lower confidence bounds are constrained to zero, as negative concentrations have no biological meaning. This may result in asymmetric confidence intervals.",
 
       # Traffic-light QC card (report)
       qc_card_title = "Quality Control Summary",
@@ -456,8 +469,8 @@ get_translations <- function() {
       tour_step2_upload = "Paso 2: Cargue su archivo de datos del lector de placas (.xlsx, .csv o .txt). La app detecta autom\u00E1ticamente las regiones de placa y datos multi-longitud de onda.",
       tour_step2_visual = "Alternativamente, use el Selector Visual de Placa para previsualizar el archivo y seleccionar manualmente las regiones de placa arrastrando sobre ellas.",
       tour_step2_notes = "Agregue notas opcionales sobre el experimento. Estas se incluyen en el reporte final para documentaci\u00F3n.",
-      tour_step2_analysis = "Configure los ajustes de an\u00E1lisis: seleccione una o m\u00E1s ponderaciones de regresi\u00F3n DRC para comparar, establezca el rango cuantificable de %B/B0 (LLOQ/ULOQ), elija el m\u00E9todo de intervalo de confianza y active la detecci\u00F3n de valores at\u00EDpicos.",
-      tour_step3 = "Paso 3: Elija formato(s) de reporte (HTML y/o Word) e idioma, luego haga clic en Generar Reporte. El an\u00E1lisis incluye ajuste de curva dosis-respuesta, cuantificaci\u00F3n de muestras, evaluaci\u00F3n de calidad y comparaci\u00F3n opcional de ponderaciones.",
+      tour_step2_analysis = "Pesta\u00F1a 4 \u2013 Configuraci\u00F3n de An\u00E1lisis: seleccione una o m\u00E1s ponderaciones de regresi\u00F3n DRC para comparar, establezca el rango cuantificable de %B/B0 (LLOQ/ULOQ), elija el m\u00E9todo de intervalo de confianza y active la detecci\u00F3n de at\u00EDpicos con opciones de prueba de normalidad.",
+      tour_step3 = "Pesta\u00F1a 5 \u2013 Generar Reporte: elija formato(s) de reporte (HTML y/o Word) e idioma, luego haga clic en Generar Reporte. El an\u00E1lisis incluye ajuste de curva dosis-respuesta, cuantificaci\u00F3n de muestras, evaluaci\u00F3n de calidad y comparaci\u00F3n opcional de ponderaciones.",
       tour_language = "Cambie entre ingl\u00E9s y espa\u00F1ol para toda la interfaz.",
       
       # ---- REPORT TRANSLATIONS ----
@@ -582,6 +595,19 @@ get_translations <- function() {
       outlier_detection_label = "Activar detecci\u00F3n de valores at\u00EDpicos",
       outlier_min_n_label = "R\u00E9plicas m\u00EDnimas para prueba de valores at\u00EDpicos:",
       outlier_help = "Prueba Q de Dixon para n=3-5, prueba de Grubbs para n>=6. Los at\u00EDpicos se marcan, no se eliminan.",
+      normality_assumption_label = "Supuesto de normalidad para detecci\u00F3n de at\u00EDpicos:",
+      normality_assume = "Asumir normalidad (predeterminado)",
+      normality_test_shapiro = "Probar con Shapiro-Wilk",
+      normality_shapiro_help = "Se ejecuta la prueba de Shapiro-Wilk en cada grupo de r\u00E9plicas. Si p < 0.05 (no normal), la detecci\u00F3n basada en MAD reemplaza la prueba de Grubbs.",
+      outlier_method_mad = "Basado en MAD (distribuci\u00F3n no normal detectada)",
+
+      # Tab titles
+      tab_analysis_title = "4. Configuraci\u00F3n de An\u00E1lisis",
+      tab_report_title = "5. Generar Reporte",
+
+      # Statistical warnings and footnotes
+      r2_identical_warning = "No se pudo calcular R-cuadrado: todos los valores de respuesta son id\u00E9nticos (varianza total cero). Verifique la integridad del ensayo.",
+      ci_asymmetric_footnote = "Los l\u00EDmites inferiores de confianza est\u00E1n restringidos a cero, ya que las concentraciones negativas no tienen significado biol\u00F3gico. Esto puede resultar en intervalos de confianza asim\u00E9tricos.",
 
       # Traffic-light QC card (report)
       qc_card_title = "Resumen de Control de Calidad",
