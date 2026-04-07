@@ -703,35 +703,41 @@ ui <- fluidPage(
 # ============================================================================
 
 server <- function(input, output, session) {
-  
+
   # --------------------------------------------------------------------------
-  # Reactive Values
+  # Shared Reactive State (passed to all server_*.R functions)
   # --------------------------------------------------------------------------
-  
-  matrix_type <- reactiveVal()
-  matrix_id <- reactiveVal()
+
+  shared <- list(
+    # Plate layout matrices
+    matrix_type        = reactiveVal(),
+    matrix_id          = reactiveVal(),
+    matrix_dilution    = reactiveVal(create_dilution_matrix()),
+    matrix_replicate   = reactiveVal(create_replicate_matrix("rba")),
+    matrix_measresults = reactiveVal(create_plate_matrix()),
+
+    # Dilution parsing state
+    raw_matrix_dilution = reactiveVal(default_raw_dilution()),
+    dilution_validity   = reactiveVal(matrix(TRUE, nrow = 8, ncol = 12)),
+    dilution_error      = reactiveVal(FALSE),
+
+    # Molecular weight (RBA only)
+    mw_g_mol = reactiveVal(299.29),
+
+    # Multi-wavelength state
+    rv = reactiveValues(
+      is_multiwavelength = FALSE,
+      wavelengths = NULL,
+      wavelength_plates = NULL
+    ),
+
+    # Tissue weights (ELISA only)
+    tissue_weights_rv = reactiveVal(list())
+  )
 
   # Track previous assay config to avoid unnecessary matrix resets
   prev_assay_type <- reactiveVal(NULL)
   prev_num_standards <- reactiveVal(NULL)
-  matrix_dilution <- reactiveVal(create_dilution_matrix())
-  matrix_measresults <- reactiveVal(create_plate_matrix())
-  matrix_replicate <- reactiveVal(create_replicate_matrix("rba"))  # Initialize with RBA default
-  
-  # Raw dilution input (strings) and validity
-  raw_matrix_dilution <- reactiveVal(default_raw_dilution())
-  dilution_validity <- reactiveVal(matrix(TRUE, nrow = 8, ncol = 12))
-  dilution_error <- reactiveVal(FALSE)
-  
-  # Molecular weight (RBA only)
-  mw_g_mol <- reactiveVal(299.29)  # Default: Saxitoxin
-  
-  rv <- reactiveValues(
-    # Multi-wavelength variables
-    is_multiwavelength = FALSE,
-    wavelengths = NULL,
-    wavelength_plates = NULL
-  )
 
   # Session-scoped paths (replaces Sys.setenv/getenv for concurrency safety)
   session$userData$output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
@@ -777,10 +783,10 @@ server <- function(input, output, session) {
   observeEvent(input$restore_autosave, {
     saved <- session$userData$pending_restore
     if (!is.null(saved)) {
-      if (!is.null(saved$matrix_type)) matrix_type(saved$matrix_type)
-      if (!is.null(saved$matrix_id)) matrix_id(saved$matrix_id)
-      if (!is.null(saved$matrix_dilution)) matrix_dilution(saved$matrix_dilution)
-      if (!is.null(saved$matrix_replicate)) matrix_replicate(saved$matrix_replicate)
+      if (!is.null(saved$matrix_type)) shared$matrix_type(saved$matrix_type)
+      if (!is.null(saved$matrix_id)) shared$matrix_id(saved$matrix_id)
+      if (!is.null(saved$matrix_dilution)) shared$matrix_dilution(saved$matrix_dilution)
+      if (!is.null(saved$matrix_replicate)) shared$matrix_replicate(saved$matrix_replicate)
       if (!is.null(saved$std_concentrations)) {
         for (i in seq_along(saved$std_concentrations)) {
           updateTextInput(session, paste0("std", i), value = saved$std_concentrations[i])
@@ -803,10 +809,10 @@ server <- function(input, output, session) {
       } else character(0)
 
       state <- list(
-        matrix_type = isolate(matrix_type()),
-        matrix_id = isolate(matrix_id()),
-        matrix_dilution = isolate(matrix_dilution()),
-        matrix_replicate = isolate(matrix_replicate()),
+        matrix_type = isolate(shared$matrix_type()),
+        matrix_id = isolate(shared$matrix_id()),
+        matrix_dilution = isolate(shared$matrix_dilution()),
+        matrix_replicate = isolate(shared$matrix_replicate()),
         assay_type = isolate(input$assay_type),
         num_standards = isolate(input$num_standards),
         std_concentrations = std_vals,
@@ -896,7 +902,7 @@ server <- function(input, output, session) {
   observeEvent(input$next_to_analysis, {
     # Validate ELISA prerequisites before allowing analysis settings tab
     if (input$assay_type == "elisa") {
-      type_mat <- matrix_type()
+      type_mat <- shared$matrix_type()
       if (!is.null(type_mat)) {
         well_types <- as.character(unlist(type_mat))
         required_controls <- c("Blank", "NSB", "B0")
@@ -920,7 +926,7 @@ server <- function(input, output, session) {
     }
 
     # Check that plate data has been uploaded
-    plate <- matrix_measresults()
+    plate <- shared$matrix_measresults()
     if (is.null(plate) || !any(!is.na(as.numeric(unlist(plate))))) {
       showModal(modalDialog(
         title = "No Plate Data",
@@ -952,10 +958,10 @@ server <- function(input, output, session) {
     preset_file <- file.path("presets", paste0(input$preset_layout, ".rds"))
     if (file.exists(preset_file)) {
       preset <- readRDS(preset_file)
-      if (!is.null(preset$type_matrix)) matrix_type(preset$type_matrix)
-      if (!is.null(preset$id_matrix)) matrix_id(preset$id_matrix)
-      if (!is.null(preset$dilution_matrix)) matrix_dilution(preset$dilution_matrix)
-      if (!is.null(preset$replicate_matrix)) matrix_replicate(preset$replicate_matrix)
+      if (!is.null(preset$type_matrix)) shared$matrix_type(preset$type_matrix)
+      if (!is.null(preset$id_matrix)) shared$matrix_id(preset$id_matrix)
+      if (!is.null(preset$dilution_matrix)) shared$matrix_dilution(preset$dilution_matrix)
+      if (!is.null(preset$replicate_matrix)) shared$matrix_replicate(preset$replicate_matrix)
       showNotification("Preset layout loaded successfully.", type = "message", duration = 3)
     } else {
       showNotification("Preset file not found.", type = "warning", duration = 3)
@@ -974,14 +980,14 @@ server <- function(input, output, session) {
     new_dil <- matrix(val, nrow = PLATE_NROW, ncol = PLATE_NCOL)
     rownames(new_dil) <- ROW_NAMES
     colnames(new_dil) <- COL_NAMES
-    matrix_dilution(new_dil)
+    shared$matrix_dilution(new_dil)
     # Also update raw dilution strings
     raw_dil <- matrix(as.character(val), nrow = PLATE_NROW, ncol = PLATE_NCOL)
     rownames(raw_dil) <- ROW_NAMES
     colnames(raw_dil) <- COL_NAMES
-    raw_matrix_dilution(raw_dil)
-    dilution_validity(matrix(TRUE, nrow = PLATE_NROW, ncol = PLATE_NCOL))
-    dilution_error(FALSE)
+    shared$raw_matrix_dilution(raw_dil)
+    shared$dilution_validity(matrix(TRUE, nrow = PLATE_NROW, ncol = PLATE_NCOL))
+    shared$dilution_error(FALSE)
     showNotification(paste("All dilutions set to", val), type = "message", duration = 2)
   })
 
@@ -989,10 +995,10 @@ server <- function(input, output, session) {
   # Auto-fill ID Matrix from Type Matrix
   # --------------------------------------------------------------------------
 
-  observeEvent(matrix_type(), {
-    type_mat <- matrix_type()
+  observeEvent(shared$matrix_type(), {
+    type_mat <- shared$matrix_type()
     req(type_mat)
-    id_mat <- matrix_id()
+    id_mat <- shared$matrix_id()
     if (is.null(id_mat)) return()
 
     # Auto-generate standard IDs: all Standard wells in the same row
@@ -1025,7 +1031,7 @@ server <- function(input, output, session) {
       }
     }
 
-    if (changed) matrix_id(id_mat)
+    if (changed) shared$matrix_id(id_mat)
   }, ignoreInit = TRUE)
 
   # --------------------------------------------------------------------------
@@ -1033,7 +1039,7 @@ server <- function(input, output, session) {
   # --------------------------------------------------------------------------
 
   output$plate_heatmap <- plotly::renderPlotly({
-    meas_mat <- matrix_measresults()
+    meas_mat <- shared$matrix_measresults()
     req(meas_mat)
 
     # Safe numeric conversion: data.frame -> matrix (column-by-column)
@@ -1199,9 +1205,9 @@ server <- function(input, output, session) {
     id_mat <- create_id_matrix(assay, n)
     replicate_mat <- create_replicate_matrix(assay)  # Pass assay type
 
-    matrix_type(type_mat)
-    matrix_id(id_mat)
-    matrix_replicate(replicate_mat)  # Update replicate matrix too
+    shared$matrix_type(type_mat)
+    shared$matrix_id(id_mat)
+    shared$matrix_replicate(replicate_mat)  # Update replicate matrix too
   })
   
   # --------------------------------------------------------------------------
@@ -1307,7 +1313,7 @@ server <- function(input, output, session) {
     
     if (needs_manual_mw()) {
       numericInput("mw_manual", paste0("Molecular weight [g/mol] for ", lab, ":"),
-                  value = if (!is.na(mw_g_mol())) mw_g_mol() else NULL,
+                  value = if (!is.na(shared$mw_g_mol())) shared$mw_g_mol() else NULL,
                   min = 0, step = 0.01)
     } else {
       div(class = "well", style = "padding: 10px;",
@@ -1317,14 +1323,14 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$mw_manual, {
-    if (needs_manual_mw()) mw_g_mol(as.numeric(input$mw_manual))
+    if (needs_manual_mw()) shared$mw_g_mol(as.numeric(input$mw_manual))
   })
   
   observeEvent(list(input$toxin_class, input$toxin_variant), {
     cls <- input$toxin_class
     lab <- chosen_standard_label()
     if (cls != "Custom" && lab %in% names(MW_LOOKUP)) {
-      mw_g_mol(MW_LOOKUP[[lab]])
+      shared$mw_g_mol(MW_LOOKUP[[lab]])
     }
   }, ignoreInit = FALSE)
   
@@ -1436,8 +1442,8 @@ server <- function(input, output, session) {
   # --------------------------------------------------------------------------
   
   output$matrix_type <- renderRHandsontable({
-    req(matrix_type())
-    mat <- matrix_type()
+    req(shared$matrix_type())
+    mat <- shared$matrix_type()
     mat[] <- lapply(mat, as.character)
     
     # Dynamic dropdown based on assay type
@@ -1469,17 +1475,17 @@ server <- function(input, output, session) {
   })
   
   output$matrix_id <- renderRHandsontable({
-    req(matrix_id())
-    mat <- matrix_id()
+    req(shared$matrix_id())
+    mat <- shared$matrix_id()
     mat[] <- lapply(mat, as.character)
     rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
                   height = 250, stretchH = "all", overflow = "hidden")
   })
   
   output$matrix_dilution <- renderRHandsontable({
-    req(raw_matrix_dilution())
-    df <- raw_matrix_dilution()
-    val <- dilution_validity()
+    req(shared$raw_matrix_dilution())
+    df <- shared$raw_matrix_dilution()
+    val <- shared$dilution_validity()
     
     rhandsontable(df, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
                   height = 250, stretchH = "all", overflow = "hidden") %>%
@@ -1494,7 +1500,7 @@ server <- function(input, output, session) {
   })
   
   output$matrix_replicate <- renderRHandsontable({
-    mat <- matrix_replicate()
+    mat <- shared$matrix_replicate()
     mat[] <- lapply(mat, as.character)
     rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
                   height = 250, stretchH = "all", overflow = "hidden")
@@ -1506,7 +1512,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$matrix_type, {
     if (!is.null(input$matrix_type)) {
-      matrix_type(hot_to_r(input$matrix_type))
+      shared$matrix_type(hot_to_r(input$matrix_type))
     }
   })
   
@@ -1514,7 +1520,7 @@ server <- function(input, output, session) {
     if (!is.null(input$matrix_id)) {
       mat <- hot_to_r(input$matrix_id)
       mat[] <- lapply(mat, as.character)
-      matrix_id(mat)
+      shared$matrix_id(mat)
     }
   })
   
@@ -1522,7 +1528,7 @@ server <- function(input, output, session) {
     if (!is.null(input$matrix_replicate)) {
       mat <- hot_to_r(input$matrix_replicate)
       mat[] <- lapply(mat, as.character)
-      matrix_replicate(mat)
+      shared$matrix_replicate(mat)
     }
   })
   
@@ -1532,41 +1538,41 @@ server <- function(input, output, session) {
     
     raw <- hot_to_r(input$matrix_dilution)
     raw <- enforce_plate_shape(raw)
-    raw_matrix_dilution(raw)
+    shared$raw_matrix_dilution(raw)
 
     # Parse all cells at once using vectorized parse_dilution_matrix()
     result <- parse_dilution_matrix(raw)
     parsed <- result$values
     validity <- result$validity
 
-    matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
-    dilution_validity(validity)
-    dilution_error(any(!validity))
+    shared$matrix_dilution(enforce_plate_shape(as.data.frame(parsed)))
+    shared$dilution_validity(validity)
+    shared$dilution_error(any(!validity))
   })
   
   # Reset buttons
   observeEvent(input$reset_type, {
     assay <- input$assay_type %||% "rba"
     n <- as.integer(input$num_standards %||% 8)
-    matrix_type(create_type_matrix(assay, n))
+    shared$matrix_type(create_type_matrix(assay, n))
   })
 
   observeEvent(input$reset_id, {
     assay <- input$assay_type %||% "rba"
     n <- as.integer(input$num_standards %||% 8)
-    matrix_id(create_id_matrix(assay, n))
+    shared$matrix_id(create_id_matrix(assay, n))
   })
   
   observeEvent(input$reset_dilution, {
-    raw_matrix_dilution(default_raw_dilution())
-    matrix_dilution(create_dilution_matrix())
-    dilution_validity(matrix(TRUE, nrow = 8, ncol = 12))
-    dilution_error(FALSE)
+    shared$raw_matrix_dilution(default_raw_dilution())
+    shared$matrix_dilution(create_dilution_matrix())
+    shared$dilution_validity(matrix(TRUE, nrow = 8, ncol = 12))
+    shared$dilution_error(FALSE)
   })
   
   observeEvent(input$reset_replicate, {
     assay <- input$assay_type %||% "rba"
-    matrix_replicate(create_replicate_matrix(assay))
+    shared$matrix_replicate(create_replicate_matrix(assay))
   })
   
   # --------------------------------------------------------------------------
@@ -1581,10 +1587,10 @@ server <- function(input, output, session) {
     dir.create(layouts_dir, recursive = TRUE, showWarnings = FALSE)
 
     layout <- list(
-      type = as.data.frame(matrix_type()),
-      id = as.data.frame(matrix_id()),
-      dilution = as.data.frame(raw_matrix_dilution()),
-      replicate = as.data.frame(matrix_replicate()),
+      type = as.data.frame(shared$matrix_type()),
+      id = as.data.frame(shared$matrix_id()),
+      dilution = as.data.frame(shared$raw_matrix_dilution()),
+      replicate = as.data.frame(shared$matrix_replicate()),
       assay_type = input$assay_type %||% "rba",
       num_standards = as.integer(input$num_standards),
       saved_at = Sys.time()
@@ -1635,18 +1641,18 @@ server <- function(input, output, session) {
     if (file.exists(fpath)) {
       layout <- tryCatch(readRDS(fpath), error = function(e) NULL)
       if (!is.null(layout)) {
-        if (!is.null(layout$type)) matrix_type(enforce_plate_shape(layout$type))
-        if (!is.null(layout$id)) matrix_id(enforce_plate_shape(layout$id))
+        if (!is.null(layout$type)) shared$matrix_type(enforce_plate_shape(layout$type))
+        if (!is.null(layout$id)) shared$matrix_id(enforce_plate_shape(layout$id))
         if (!is.null(layout$dilution)) {
-          raw_matrix_dilution(enforce_plate_shape(layout$dilution))
+          shared$raw_matrix_dilution(enforce_plate_shape(layout$dilution))
           # Re-parse dilution values
           raw <- enforce_plate_shape(layout$dilution)
           result <- parse_dilution_matrix(raw)
-          matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
-          dilution_validity(result$validity)
-          dilution_error(any(!result$validity))
+          shared$matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
+          shared$dilution_validity(result$validity)
+          shared$dilution_error(any(!result$validity))
         }
-        if (!is.null(layout$replicate)) matrix_replicate(enforce_plate_shape(layout$replicate))
+        if (!is.null(layout$replicate)) shared$matrix_replicate(enforce_plate_shape(layout$replicate))
 
         showNotification(tr("layout_loaded_msg", input$app_language %||% "en"),
                          type = "message", duration = 3)
@@ -1734,16 +1740,16 @@ server <- function(input, output, session) {
       }
 
       # Apply imported matrices
-      if (!is.null(type_imported)) matrix_type(type_imported)
-      if (!is.null(id_imported)) matrix_id(id_imported)
+      if (!is.null(type_imported)) shared$matrix_type(type_imported)
+      if (!is.null(id_imported)) shared$matrix_id(id_imported)
       if (!is.null(dil_imported)) {
-        raw_matrix_dilution(dil_imported)
+        shared$raw_matrix_dilution(dil_imported)
         result <- parse_dilution_matrix(dil_imported)
-        matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
-        dilution_validity(result$validity)
-        dilution_error(any(!result$validity))
+        shared$matrix_dilution(enforce_plate_shape(as.data.frame(result$values)))
+        shared$dilution_validity(result$validity)
+        shared$dilution_error(any(!result$validity))
       }
-      if (!is.null(rep_imported)) matrix_replicate(rep_imported)
+      if (!is.null(rep_imported)) shared$matrix_replicate(rep_imported)
 
       showNotification(tr("layout_import_success", input$app_language %||% "en"),
                        type = "message", duration = 3)
@@ -1759,9 +1765,9 @@ server <- function(input, output, session) {
   
   # Reactive: get unique replicate groups from the replicate matrix  
   replicate_groups <- reactive({
-    req(matrix_replicate())
-    rep_mat <- matrix_replicate()
-    type_mat <- matrix_type()
+    req(shared$matrix_replicate())
+    rep_mat <- shared$matrix_replicate()
+    type_mat <- shared$matrix_type()
     
     # Get replicate labels for Sample wells only
     groups <- c()
@@ -1777,16 +1783,13 @@ server <- function(input, output, session) {
     sort(unique(groups))
   })
   
-  # Tissue weight reactive storage
-  tissue_weights_rv <- reactiveVal(list())
-  
   output$tissue_weight_table <- renderRHandsontable({
     req(input$assay_type == "elisa")
     groups <- replicate_groups()
     if (length(groups) == 0) return(NULL)
 
     # Use isolate() to avoid feedback loop on user edits
-    tw <- isolate(tissue_weights_rv())
+    tw <- isolate(shared$tissue_weights_rv())
 
     # Build wide-format: rows = parameters, columns = replicate groups
     weight_vals <- sapply(groups, function(g) {
@@ -1828,7 +1831,7 @@ server <- function(input, output, session) {
         extraction_uL = df[2, g]    # Row 2 = Extraction vol (uL)
       )
     }
-    tissue_weights_rv(tw)
+    shared$tissue_weights_rv(tw)
   })
   
   # --------------------------------------------------------------------------
@@ -2102,13 +2105,13 @@ server <- function(input, output, session) {
     }, error = function(e) FALSE)
     
     if (is_multiwave) {
-      rv$is_multiwavelength <- TRUE
+      shared$rv$is_multiwavelength <- TRUE
       plates <- import_multiwavelength_plates(file_path)
-      rv$wavelength_plates <- plates
-      rv$wavelengths <- names(plates)
+      shared$rv$wavelength_plates <- plates
+      shared$rv$wavelengths <- names(plates)
       plate_data <- plates[[1]]
       info <- base::attr(plate_data, "import_info")
-      matrix_measresults(plate_data)
+      shared$matrix_measresults(plate_data)
       
       showNotification(
         sprintf("✅ Multi-wavelength file detected: %s\n%d wells detected per plate\nFormat: %s%s",
@@ -2120,7 +2123,7 @@ server <- function(input, output, session) {
         duration = 7
       )
     } else {
-      rv$is_multiwavelength <- FALSE
+      shared$rv$is_multiwavelength <- FALSE
       
       plate <- tryCatch({
         import_plate_data(file_path)
@@ -2131,7 +2134,7 @@ server <- function(input, output, session) {
       
       req(!is.null(plate))
       
-      matrix_measresults(plate)
+      shared$matrix_measresults(plate)
       info <- base::attr(plate, "import_info")
       
       showNotification(
@@ -2186,7 +2189,7 @@ server <- function(input, output, session) {
     selected_plates <- detected[selected_indices]
 
     if (length(selected_plates) == 1) {
-      rv$is_multiwavelength <- FALSE
+      shared$rv$is_multiwavelength <- FALSE
       pl_idx <- selected_indices[1]
       pl <- selected_plates[[1]]
       plate_data <- raw[pl$start_row:(pl$start_row + pl$nrows - 1),
@@ -2196,7 +2199,7 @@ server <- function(input, output, session) {
       )
       plate_numeric <- enforce_plate_shape(plate_numeric)
       plate_numeric <- apply_exclusions(plate_numeric, pl_idx)
-      matrix_measresults(plate_numeric)
+      shared$matrix_measresults(plate_numeric)
 
       n_excluded <- sum(sapply(names(rv_file_preview$excluded_wells), function(k) {
         grepl(paste0("^plate_", pl_idx, "_"), k) && isTRUE(rv_file_preview$excluded_wells[[k]])
@@ -2206,7 +2209,7 @@ server <- function(input, output, session) {
       showNotification(msg, type = "message")
 
     } else {
-      rv$is_multiwavelength <- TRUE
+      shared$rv$is_multiwavelength <- TRUE
       plates <- list()
       for (i in seq_along(selected_plates)) {
         pl_idx <- selected_indices[i]
@@ -2221,9 +2224,9 @@ server <- function(input, output, session) {
         plates[[paste0("Plate_", i)]] <- plate_numeric
       }
 
-      rv$wavelength_plates <- plates
-      rv$wavelengths <- names(plates)
-      matrix_measresults(plates[[1]])
+      shared$rv$wavelength_plates <- plates
+      shared$rv$wavelengths <- names(plates)
+      shared$matrix_measresults(plates[[1]])
       
       showNotification(
         sprintf("✅ %d plates imported from visual selection.", length(plates)),
@@ -2234,14 +2237,14 @@ server <- function(input, output, session) {
   
   observeEvent(input$clear_upload, {
     shinyjs::reset("upload_counts")
-    matrix_measresults(create_plate_matrix())
+    shared$matrix_measresults(create_plate_matrix())
     showNotification("File cleared", type = "message")
   })
   
   # Upload preview
   output$upload_summary <- renderUI({
-    req(matrix_measresults())
-    plate <- matrix_measresults()
+    req(shared$matrix_measresults())
+    plate <- shared$matrix_measresults()
     info <- base::attr(plate, "import_info")  # Use base R attr() to avoid xfun warning
     
     if (!is.null(info)) {
@@ -2262,8 +2265,8 @@ server <- function(input, output, session) {
   })
   
   output$meas_preview <- renderTable({
-    req(matrix_measresults())
-    head(matrix_measresults(), 3)
+    req(shared$matrix_measresults())
+    head(shared$matrix_measresults(), 3)
   })
   
   # --------------------------------------------------------------------------
@@ -2310,7 +2313,7 @@ server <- function(input, output, session) {
   })
   
   output$dilution_error_feedback <- renderUI({
-    if (dilution_error()) {
+    if (shared$dilution_error()) {
       tags$div(style = "color: red; font-weight: bold;",
               "⚠️ Invalid dilution entries (red cells)")
     }
@@ -2325,7 +2328,7 @@ server <- function(input, output, session) {
     checks <- list()
 
     # Check 1: Plate data uploaded
-    plate <- matrix_measresults()
+    plate <- shared$matrix_measresults()
     plate_ok <- !is.null(plate) && any(!is.na(as.numeric(unlist(plate))))
     checks[[length(checks) + 1]] <- if (plate_ok) {
       tags$div(style = "color: #388E3C;", icon("check-circle"), " Plate data uploaded")
@@ -2334,7 +2337,7 @@ server <- function(input, output, session) {
     }
 
     # Check 2: Standards defined
-    type_mat <- matrix_type()
+    type_mat <- shared$matrix_type()
     n_std <- if (!is.null(type_mat)) sum(unlist(type_mat) == "Standard", na.rm = TRUE) else 0
     checks[[length(checks) + 1]] <- if (n_std >= 4) {
       tags$div(style = "color: #388E3C;", icon("check-circle"), paste(" ", n_std, "standard wells defined"))
@@ -2363,7 +2366,7 @@ server <- function(input, output, session) {
     }
 
     # Check 4: Dilution validity
-    dil_ok <- !dilution_error()
+    dil_ok <- !shared$dilution_error()
     checks[[length(checks) + 1]] <- if (dil_ok) {
       tags$div(style = "color: #388E3C;", icon("check-circle"), " Dilution factors valid")
     } else {
@@ -2381,11 +2384,11 @@ server <- function(input, output, session) {
     assay <- input$assay_type %||% "rba"
 
     # Plate data must be confirmed/imported (not just file selected)
-    plate <- matrix_measresults()
+    plate <- shared$matrix_measresults()
     plate_data_ok <- !is.null(plate) && any(!is.na(plate))
 
     # Dilution validity
-    dilution_ok <- !dilution_error()
+    dilution_ok <- !shared$dilution_error()
 
     # QC validation - only required for RBA
     if (assay == "rba") {
@@ -2417,15 +2420,15 @@ server <- function(input, output, session) {
       
       # Convert to long format
       df_long <- matrix_to_long(
-        matrix_type(), matrix_id(), matrix_dilution(),
-        matrix_replicate(), matrix_measresults(), std_conc()
+        shared$matrix_type(), shared$matrix_id(), shared$matrix_dilution(),
+        shared$matrix_replicate(), shared$matrix_measresults(), std_conc()
       )
       
       incProgress(0.2, detail = "Validating data...")
 
       # Validate ELISA control wells exist before normalization
       if (input$assay_type == "elisa") {
-        type_mat <- matrix_type()
+        type_mat <- shared$matrix_type()
         well_types <- as.character(type_mat)
         required_controls <- c("Blank", "NSB", "B0")
         missing_controls <- required_controls[!required_controls %in% well_types]
@@ -2482,22 +2485,22 @@ server <- function(input, output, session) {
       write.csv(df_normalized, csv_path, row.names = FALSE)
       
       # NEW: If multi-wavelength, save additional wavelength CSVs
-      if (isTRUE(rv$is_multiwavelength) && !is.null(rv$wavelengths)) {
+      if (isTRUE(shared$rv$is_multiwavelength) && !is.null(shared$rv$wavelengths)) {
         
-        message(sprintf("Processing %d wavelengths...", length(rv$wavelengths)))
+        message(sprintf("Processing %d wavelengths...", length(shared$rv$wavelengths)))
 
         # Build the converter once — layout matrices are identical across
         # wavelengths, so pivoting them inside the loop would be redundant.
         converter <- matrix_to_long_with_cached_layout(
-          matrix_type(), matrix_id(), matrix_dilution(),
-          matrix_replicate(), std_conc()
+          shared$matrix_type(), shared$matrix_id(), shared$matrix_dilution(),
+          shared$matrix_replicate(), std_conc()
         )
 
         # Save each wavelength as separate CSV
-        for (wl in rv$wavelengths) {
+        for (wl in shared$rv$wavelengths) {
 
           # Get the plate data for this wavelength
-          plate_wl <- rv$wavelength_plates[[wl]]
+          plate_wl <- shared$rv$wavelength_plates[[wl]]
 
           # Convert to long format reusing the cached layout
           df_long_wl <- converter(plate_wl)
@@ -2538,12 +2541,12 @@ server <- function(input, output, session) {
         
         # Save wavelength manifest
         write_json_safe(
-          list(wavelengths = rv$wavelengths),
+          list(wavelengths = shared$rv$wavelengths),
           file.path(output_dir, "wavelength_manifest.json")
         )
         
         showNotification(
-          sprintf("Saved data for %d wavelengths", length(rv$wavelengths)),
+          sprintf("Saved data for %d wavelengths", length(shared$rv$wavelengths)),
           type = "message",
           duration = 5
         )
@@ -2592,7 +2595,7 @@ server <- function(input, output, session) {
           toxin_class = input$toxin_class,
           toxin_variant = input$toxin_variant %||% NA,
           toxin_standard_label = chosen_standard_label(),
-          molecular_weight_g_mol = mw_g_mol(),
+          molecular_weight_g_mol = shared$mw_g_mol(),
           detection_method = "radioligand",
           units = "mol/L"
         )
@@ -2618,7 +2621,7 @@ server <- function(input, output, session) {
 
       # Save tissue weights (ELISA only)
       if (input$assay_type == "elisa") {
-        tw <- tissue_weights_rv()
+        tw <- shared$tissue_weights_rv()
         if (length(tw) > 0) {
           # New format: {"R1": {"weight": 50.0, "extraction_uL": 500}, ...}
           write_json_safe(tw, file.path(output_dir, "tissue_weights.json"))
@@ -2651,7 +2654,7 @@ server <- function(input, output, session) {
       formats_map <- list(html = "html_document", pdf = "pdf_document", docx = "word_document")
 
       # Determine template
-      is_mw <- isTRUE(rv$is_multiwavelength)
+      is_mw <- isTRUE(shared$rv$is_multiwavelength)
       app_root <- if (file.exists("reports")) "." else dirname(session$userData$csv_path)
       template_dir <- file.path(app_root, "reports")
       if (!dir.exists(template_dir)) template_dir <- "reports"
@@ -2674,7 +2677,7 @@ server <- function(input, output, session) {
               output_dir = out_dir_abs,
               lang = report_lang
             )
-            if (is_mw) render_params$wavelengths <- rv$wavelengths
+            if (is_mw) render_params$wavelengths <- shared$rv$wavelengths
 
             out_name <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
 
