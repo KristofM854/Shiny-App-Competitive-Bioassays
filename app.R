@@ -550,99 +550,119 @@ ui <- fluidPage(
         style = "display: flex; justify-content: space-between; padding: 15px;",
         actionButton("back_to_layout", "\u2190 Back: Plate Layout",
                     class = "btn btn-default btn-lg"),
+        actionButton("next_to_analysis", "Next: Analysis Settings \u2192",
+                    class = "btn btn-primary btn-lg")
+      )
+    ),
+
+    # ======================================================================
+    # TAB 4: Analysis Settings
+    # ======================================================================
+    tabPanel(
+      "4. Analysis Settings",
+      value = "tab_analysis",
+      br(),
+
+      div(
+        id = "analysis_settings_section",
+        style = "max-width: 700px;",
+        h4(id = "analysis_settings_title", "Analysis Settings"),
+
+        # Primary setting (always visible)
+        checkboxGroupInput("regression_weight", "DRC regression weighting:",
+                   choices = c("Unweighted" = "none",
+                               "1/Y (moderate)" = "inv_y",
+                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
+                   selected = "none"),
+        helpText("Select multiple weightings to compare results side by side."),
+
+        # Advanced options (collapsed by default)
+        tags$details(
+          style = "margin-top: 15px; padding: 10px; background: #FAFAFA; border-radius: 4px;",
+          tags$summary(style = "cursor: pointer; font-weight: bold; color: #666;",
+                       "Advanced Options"),
+          br(),
+
+          fluidRow(
+            column(6,
+              numericInput("quant_range_min", "Lower %B/B0 bound:",
+                          value = 20, min = 5, max = 50, step = 5)
+            ),
+            column(6,
+              numericInput("quant_range_max", "Upper %B/B0 bound:",
+                          value = 80, min = 50, max = 95, step = 5)
+            )
+          ),
+          helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
+
+          hr(),
+
+          radioButtons("ci_method", "Confidence interval method:",
+                      choices = c("t-distribution (default)" = "t_dist",
+                                  "Bootstrap (1000 resamples)" = "bootstrap"),
+                      selected = "t_dist", inline = TRUE),
+
+          checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
+          conditionalPanel(
+            condition = "input.enable_outlier_detection == true",
+            numericInput("outlier_min_n", "Minimum replicates for outlier test:",
+                        value = 3, min = 3, max = 10, step = 1),
+            helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed."),
+            hr(),
+            radioButtons("normality_assumption", "Normality assumption for outlier detection:",
+                        choices = c("Assume normality (default)" = "assume",
+                                    "Test with Shapiro-Wilk" = "test_shapiro"),
+                        selected = "assume"),
+            conditionalPanel(
+              condition = "input.normality_assumption == 'test_shapiro'",
+              helpText("Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.")
+            )
+          )
+        )
+      ),
+      br(),
+      div(
+        style = "display: flex; justify-content: space-between; padding: 15px;",
+        actionButton("back_to_upload", "\u2190 Back: Upload & Preview",
+                    class = "btn btn-default btn-lg"),
         actionButton("next_to_report", "Next: Generate Report \u2192",
                     class = "btn btn-primary btn-lg")
       )
     ),
 
     # ======================================================================
-    # TAB 4: Generate Report
+    # TAB 5: Generate Report
     # ======================================================================
     tabPanel(
-      "4. Generate Report",
+      "5. Generate Report",
       value = "tab_report",
       br(),
 
-      fluidRow(
-        column(
-          width = 6,
+      div(
+        style = "max-width: 600px; margin: 0 auto;",
 
-          # Analysis settings
-          div(
-            id = "analysis_settings_section",
-            h4(id = "analysis_settings_title", "Analysis Settings"),
-
-            # Primary setting (always visible)
-            checkboxGroupInput("regression_weight", "DRC regression weighting:",
-                       choices = c("Unweighted" = "none",
-                                   "1/Y (moderate)" = "inv_y",
-                                   "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
-                       selected = "none"),
-            helpText("Select multiple weightings to compare results side by side."),
-
-            # Advanced options (collapsed by default)
-            tags$details(
-              style = "margin-top: 15px; padding: 10px; background: #FAFAFA; border-radius: 4px;",
-              tags$summary(style = "cursor: pointer; font-weight: bold; color: #666;",
-                           "Advanced Options"),
-              br(),
-
-              fluidRow(
-                column(6,
-                  numericInput("quant_range_min", "Lower %B/B0 bound:",
-                              value = 20, min = 5, max = 50, step = 5)
-                ),
-                column(6,
-                  numericInput("quant_range_max", "Upper %B/B0 bound:",
-                              value = 80, min = 50, max = 95, step = 5)
-                )
-              ),
-              helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
-
-              hr(),
-
-              radioButtons("ci_method", "Confidence interval method:",
-                          choices = c("t-distribution (default)" = "t_dist",
-                                      "Bootstrap (1000 resamples)" = "bootstrap"),
-                          selected = "t_dist", inline = TRUE),
-
-              checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
-              conditionalPanel(
-                condition = "input.enable_outlier_detection == true",
-                numericInput("outlier_min_n", "Minimum replicates for outlier test:",
-                            value = 3, min = 3, max = 10, step = 1),
-                helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed.")
-              )
-            )
-          )
-        ),
-
-        column(
-          width = 6,
-
-          # Report generation
-          div(
-            id = "convert_section",
-            h4("Report Output"),
-            checkboxGroupInput("export_formats", "Report formats:",
-                              choices = c("HTML" = "html", "Word" = "docx"),
-                              selected = "html"),
-            selectInput("report_language", "Report language:",
-                       choices = c("English" = "en", "Espa\u00f1ol" = "es"),
-                       selected = "en",
-                       width = "200px"),
-            br(),
-            actionButton("convert",
-                        label = tagList(icon("file-arrow-down"),
-                                       "Generate Report"),
-                        class = "btn btn-primary btn-lg",
-                        style = "width: 100%; font-size: 20px; font-weight: 700;
-                                padding: 14px; border-radius: 12px;"),
-            br(), br(),
-            downloadButton("download_report", "Download Last Report",
-                          class = "btn btn-success btn-lg",
-                          style = "width: 100%;")
-          )
+        # Report generation
+        div(
+          id = "convert_section",
+          h4("Report Output"),
+          checkboxGroupInput("export_formats", "Report formats:",
+                            choices = c("HTML" = "html", "Word" = "docx"),
+                            selected = "html"),
+          selectInput("report_language", "Report language:",
+                     choices = c("English" = "en", "Espa\u00f1ol" = "es"),
+                     selected = "en",
+                     width = "200px"),
+          br(),
+          actionButton("convert",
+                      label = tagList(icon("file-arrow-down"),
+                                     "Generate Report"),
+                      class = "btn btn-primary btn-lg",
+                      style = "width: 100%; font-size: 20px; font-weight: 700;
+                              padding: 14px; border-radius: 12px;"),
+          br(), br(),
+          downloadButton("download_report", "Download Last Report",
+                        class = "btn btn-success btn-lg",
+                        style = "width: 100%;")
         )
       ),
       br(),
@@ -657,7 +677,7 @@ ui <- fluidPage(
       br(),
       div(
         style = "text-align: left; padding: 15px;",
-        actionButton("back_to_upload", "\u2190 Back: Upload & Preview",
+        actionButton("back_to_analysis", "\u2190 Back: Analysis Settings",
                     class = "btn btn-default btn-lg")
       )
     )
@@ -859,8 +879,8 @@ server <- function(input, output, session) {
   observeEvent(input$back_to_layout, {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
   })
-  observeEvent(input$next_to_report, {
-    # Validate ELISA prerequisites before allowing report tab
+  observeEvent(input$next_to_analysis, {
+    # Validate ELISA prerequisites before allowing analysis settings tab
     if (input$assay_type == "elisa") {
       type_mat <- matrix_type()
       if (!is.null(type_mat)) {
@@ -897,10 +917,16 @@ server <- function(input, output, session) {
       return()
     }
 
-    updateTabsetPanel(session, "wizard_tabs", selected = "tab_report")
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
   })
   observeEvent(input$back_to_upload, {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+  })
+  observeEvent(input$next_to_report, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_report")
+  })
+  observeEvent(input$back_to_analysis, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
   })
 
   # --------------------------------------------------------------------------
@@ -1108,6 +1134,9 @@ server <- function(input, output, session) {
     updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang))
     updateCheckboxInput(session, "enable_outlier_detection", label = tr("outlier_detection_label", lang))
     updateNumericInput(session, "outlier_min_n", label = tr("outlier_min_n_label", lang))
+    updateRadioButtons(session, "normality_assumption", label = tr("normality_assumption_label", lang),
+                       choices = c(setNames("assume", tr("normality_assume", lang)),
+                                   setNames("test_shapiro", tr("normality_test_shapiro", lang))))
   })
 
   output$assay_description <- renderUI({
@@ -2583,7 +2612,8 @@ server <- function(input, output, session) {
         quant_range_max = input$quant_range_max %||% 80,
         ci_method = input$ci_method %||% "t_dist",
         enable_outlier_detection = isTRUE(input$enable_outlier_detection),
-        outlier_min_n = input$outlier_min_n %||% 3
+        outlier_min_n = input$outlier_min_n %||% 3,
+        normality_assumption = input$normality_assumption %||% "assume"
       )
       write_json_safe(analysis_config, file.path(output_dir, "analysis_config.json"))
 
