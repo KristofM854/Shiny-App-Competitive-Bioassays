@@ -1636,9 +1636,12 @@ if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
 ```{r ci-method-note, results='asis'}
 if (isTRUE(analysis_config$ci_method == "bootstrap")) {
   cat(sprintf("\n*%s*\n\n", tr("ci_bootstrap_note", lang)))
+  cat("*Replicate-level CIs computed via percentile bootstrap (1000 resamples).*\n\n")
 } else {
   cat(sprintf("\n*%s*\n\n", tr("ci_tdist_note", lang)))
+  cat("*Replicate-level CIs reflect measurement variability using Student's t-distribution (df = n-1).*\n\n")
 }
+cat(sprintf("*%s*\n\n", tr("ci_delta_method_note", lang)))
 ```
 
 ```{r ci-asymmetric-footnote, results='asis'}
