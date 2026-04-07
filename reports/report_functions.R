@@ -219,3 +219,312 @@ calculate_elisa_bb0 <- function(data_long, use_percent = TRUE) {
 
   return(data_with_bb0)
 }
+
+#' Assess heteroscedasticity in residuals from an unweighted DRC model
+#'
+#' Runs a Brown-Forsythe / Levene-type test on squared residuals grouped by
+#' standard concentration level.
+#' Falls back to a variance-ratio heuristic when there are too few groups or
+#' replicates for a formal test (< 3 groups or < 2 replicates per group).
+#'
+#' @param model A fitted drc model object (unweighted)
+#' @param data_long Data frame of standards used for fitting
+#' @param response_var Name of the response variable column
+#' @return A list with test_name, statistic, p_value, interpretation,
+#'         recommendation, and variance_ratio
+assess_heteroscedasticity <- function(model, data_long, response_var) {
+
+  result <- list(
+    test_name = NA_character_,
+    statistic = NA_real_,
+    p_value = NA_real_,
+    interpretation = "Could not assess heteroscedasticity.",
+    recommendation = "No recommendation available.",
+    variance_ratio = NA_real_
+  )
+
+  tryCatch({
+    # Extract residuals
+    resid_vals <- residuals(model)
+    conc_levels <- data_long$StandardConc
+
+    if (length(resid_vals) != nrow(data_long)) {
+      result$interpretation <- "Residual count does not match data rows; skipping test."
+      return(result)
+    }
+
+    # Compute per-group variance statistics
+    groups <- split(resid_vals, conc_levels)
+    groups <- groups[sapply(groups, length) >= 1]  # drop empty
+
+    if (length(groups) < 2) {
+      result$interpretation <- "Fewer than 2 concentration groups; cannot assess heteroscedasticity."
+      return(result)
+    }
+
+    group_vars <- sapply(groups, function(g) if (length(g) >= 2) var(g) else NA_real_)
+    valid_vars <- group_vars[!is.na(group_vars) & group_vars > 0]
+    if (length(valid_vars) >= 2) {
+      result$variance_ratio <- max(valid_vars) / min(valid_vars)
+    }
+
+    # Determine if formal test is feasible:
+    # Need >= 3 groups each with >= 2 replicates
+    reps_per_group <- sapply(groups, length)
+    formal_feasible <- length(groups) >= 3 && all(reps_per_group >= 2)
+
+    if (formal_feasible) {
+      # Brown-Forsythe / Levene test (using median, robust to non-normality)
+      # Try car::leveneTest first, fall back to manual implementation
+      bf_result <- tryCatch({
+        if (requireNamespace("car", quietly = TRUE)) {
+          df_test <- data.frame(
+            residual = resid_vals,
+            group = factor(conc_levels)
+          )
+          lt <- car::leveneTest(residual ~ group, data = df_test, center = "median")
+          list(
+            test_name = "Brown-Forsythe (Levene, median)",
+            statistic = lt[["F value"]][1],
+            p_value = lt[["Pr(>F)"]][1]
+          )
+        } else {
+          NULL
+        }
+      }, error = function(e) NULL)
+
+      if (is.null(bf_result)) {
+        # Manual Brown-Forsythe implementation
+        group_medians <- sapply(groups, median)
+        abs_devs <- mapply(function(g, med) abs(g - med),
+                           groups, group_medians, SIMPLIFY = FALSE)
+        all_devs <- unlist(abs_devs)
+        group_labels <- rep(names(groups), times = sapply(abs_devs, length))
+        group_factor <- factor(group_labels)
+
+        grand_mean <- mean(all_devs)
+        k <- nlevels(group_factor)
+        n_total <- length(all_devs)
+
+        group_means <- tapply(all_devs, group_factor, mean)
+        group_ns <- tapply(all_devs, group_factor, length)
+
+        ss_between <- sum(group_ns * (group_means - grand_mean)^2)
+        ss_within <- sum((all_devs - group_means[group_factor])^2)
+
+        df_between <- k - 1
+        df_within <- n_total - k
+
+        if (df_within > 0 && ss_within > 0) {
+          f_stat <- (ss_between / df_between) / (ss_within / df_within)
+          p_val <- pf(f_stat, df_between, df_within, lower.tail = FALSE)
+          bf_result <- list(
+            test_name = "Brown-Forsythe (manual)",
+            statistic = f_stat,
+            p_value = p_val
+          )
+        }
+      }
+
+      if (!is.null(bf_result)) {
+        result$test_name <- bf_result$test_name
+        result$statistic <- bf_result$statistic
+        result$p_value <- bf_result$p_value
+
+        if (!is.na(bf_result$p_value) && bf_result$p_value < 0.05) {
+          result$interpretation <- sprintf(
+            "Significant heteroscedasticity detected (F = %.2f, p = %.4f). Residual variance differs across concentration levels.",
+            bf_result$statistic, bf_result$p_value)
+          result$recommendation <- "Weighted regression (1/Y or 1/Y^2) is recommended to account for unequal variance."
+        } else {
+          result$interpretation <- sprintf(
+            "No significant heteroscedasticity detected (F = %.2f, p = %.4f). Residual variance is approximately constant.",
+            bf_result$statistic, bf_result$p_value)
+          result$recommendation <- "Unweighted regression is appropriate for these data."
+        }
+        return(result)
+      }
+    }
+
+    # Fallback: variance-ratio heuristic
+    result$test_name <- "Variance-ratio heuristic"
+    if (!is.na(result$variance_ratio)) {
+      result$statistic <- result$variance_ratio
+      if (result$variance_ratio > 10) {
+        result$interpretation <- sprintf(
+          "Large variance ratio (%.1f) across concentration levels suggests strong heteroscedasticity.",
+          result$variance_ratio)
+        result$recommendation <- "Weighted regression (1/Y or 1/Y^2) is strongly recommended."
+      } else if (result$variance_ratio > 3) {
+        result$interpretation <- sprintf(
+          "Moderate variance ratio (%.1f) across concentration levels suggests possible heteroscedasticity.",
+          result$variance_ratio)
+        result$recommendation <- "Weighted regression (1/Y or 1/Y^2) may improve the fit."
+      } else {
+        result$interpretation <- sprintf(
+          "Low variance ratio (%.1f) across concentration levels; variance appears approximately constant.",
+          result$variance_ratio)
+        result$recommendation <- "Unweighted regression is appropriate for these data."
+      }
+    } else {
+      result$interpretation <- "Insufficient replicates to compute per-group variance."
+      result$recommendation <- "Collect additional replicates for a robust heteroscedasticity assessment."
+    }
+
+  }, error = function(e) {
+    result$interpretation <<- paste("Heteroscedasticity assessment failed:", e$message)
+  })
+
+  return(result)
+}
+
+#' Assess model stability and convergence quality for a fitted DRC model
+#'
+#' Extracts convergence status, standard-error availability, parameter
+#' magnitudes, boundary-hitting indicators, and captured warnings to assign
+#' an overall stability grade.
+#'
+#' @param fit_object A single entry from the all_models list (contains $model,
+#'        $fit_method, $coefs, $R2, etc.)
+#' @param model_name A human-readable label for the model
+#' @return A list with converged, fit_method, se_available, boundary_flag,
+#'         suspicious_params, warnings, and stability_grade
+assess_model_stability <- function(fit_object, model_name) {
+
+  result <- list(
+    model_name = model_name,
+    converged = FALSE,
+    fit_method = NA_character_,
+    se_available = FALSE,
+    boundary_flag = FALSE,
+    suspicious_params = character(0),
+    warnings = character(0),
+    stability_grade = "failed"
+  )
+
+  tryCatch({
+    # Handle interpolation fallback
+    if (is.null(fit_object$model)) {
+      result$fit_method <- fit_object$fit_method %||% "interpolation"
+      result$converged <- FALSE
+      result$stability_grade <- "failed"
+      result$warnings <- c(result$warnings,
+                           "No parametric model could be fitted; using interpolation fallback.")
+      return(result)
+    }
+
+    fit <- fit_object$model
+    result$fit_method <- fit_object$fit_method %||% "LL.4"
+
+    # Convergence: drc models that return without error have converged
+    result$converged <- TRUE
+
+    # Standard errors
+    se_info <- tryCatch({
+      s <- summary(fit)
+      se_vals <- s$coefficients[, "Std. Error"]
+      list(available = all(!is.na(se_vals) & is.finite(se_vals)),
+           values = se_vals)
+    }, error = function(e) {
+      list(available = FALSE, values = NULL)
+    })
+    result$se_available <- se_info$available
+
+    if (!result$se_available) {
+      result$warnings <- c(result$warnings,
+                           "Standard errors could not be computed; parameter uncertainty is unknown.")
+    }
+
+    # Check parameter magnitudes for suspiciously large values
+    coefs <- coef(fit)
+    param_names <- c("Hill slope (b)", "Bottom (c)", "Top (d)", "IC50 (e)")
+    if (length(coefs) >= 4) {
+      hill <- abs(coefs[1])
+      bottom <- coefs[2]
+      top <- coefs[3]
+      ic50 <- coefs[4]
+
+      if (hill > 10) {
+        result$suspicious_params <- c(result$suspicious_params,
+                                      sprintf("Hill slope = %.2f (unusually steep)", hill))
+      }
+      if (hill < 0.3) {
+        result$suspicious_params <- c(result$suspicious_params,
+                                      sprintf("Hill slope = %.2f (unusually shallow)", hill))
+      }
+      if (!is.na(ic50) && ic50 <= 0) {
+        result$suspicious_params <- c(result$suspicious_params,
+                                      sprintf("IC50 = %.4g (non-positive)", ic50))
+      }
+
+      # Check if SE >> estimate (parameter poorly determined)
+      if (result$se_available && !is.null(se_info$values)) {
+        for (i in seq_along(coefs)) {
+          if (i <= length(se_info$values) && i <= length(param_names)) {
+            est <- abs(coefs[i])
+            se <- se_info$values[i]
+            if (!is.na(se) && !is.na(est) && est > 0 && se / est > 2) {
+              result$suspicious_params <- c(result$suspicious_params,
+                                            sprintf("%s: SE/|estimate| = %.1f (poorly determined)",
+                                                    param_names[i], se / est))
+            }
+          }
+        }
+      }
+    }
+
+    # Boundary-hitting check: compare estimates to any bounds that were used
+    # drc stores bounds in fit$lowerl / fit$upperl if set
+    lowerl <- tryCatch(fit$lowerl, error = function(e) NULL)
+    upperl <- tryCatch(fit$upperl, error = function(e) NULL)
+
+    if (!is.null(lowerl) && length(lowerl) == length(coefs)) {
+      for (i in seq_along(coefs)) {
+        if (!is.na(lowerl[i]) && abs(coefs[i] - lowerl[i]) < 1e-6) {
+          result$boundary_flag <- TRUE
+          result$warnings <- c(result$warnings,
+                               sprintf("Parameter %d is at its lower bound (%.4g).",
+                                       i, lowerl[i]))
+        }
+      }
+    }
+    if (!is.null(upperl) && length(upperl) == length(coefs)) {
+      for (i in seq_along(coefs)) {
+        if (!is.na(upperl[i]) && abs(coefs[i] - upperl[i]) < 1e-6) {
+          result$boundary_flag <- TRUE
+          result$warnings <- c(result$warnings,
+                               sprintf("Parameter %d is at its upper bound (%.4g).",
+                                       i, upperl[i]))
+        }
+      }
+    }
+
+    # Determine stability grade
+    n_issues <- length(result$suspicious_params) + length(result$warnings)
+
+    if (!result$converged) {
+      result$stability_grade <- "failed"
+    } else if (result$fit_method == "LL.3") {
+      # LL.3 is a fallback; at best "acceptable"
+      if (result$se_available && n_issues == 0) {
+        result$stability_grade <- "acceptable"
+      } else {
+        result$stability_grade <- "unstable"
+      }
+    } else if (!result$se_available || result$boundary_flag) {
+      result$stability_grade <- "unstable"
+    } else if (n_issues >= 3) {
+      result$stability_grade <- "unstable"
+    } else if (n_issues >= 1) {
+      result$stability_grade <- "acceptable"
+    } else {
+      result$stability_grade <- "good"
+    }
+
+  }, error = function(e) {
+    result$stability_grade <<- "failed"
+    result$warnings <<- c(result$warnings, paste("Stability assessment error:", e$message))
+  })
+
+  return(result)
+}
