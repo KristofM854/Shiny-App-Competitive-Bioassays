@@ -70,16 +70,15 @@ These items appear in code, but should not be considered fully closed without ta
 These are the main components from the earlier roadmap that still appear unimplemented or not yet evidenced in the repo.
 
 ## High / medium priority items still outstanding
-- [ ] **Single-pass multi-wavelength import pipeline**
-  - Current state: still no clear evidence that classic import was unified into one parse call
-  - Needed: one function that detects, parses, annotates, and returns normalized import output for both single- and multi-wavelength files
+- [x] **Single-pass multi-wavelength import pipeline**
+  - **Already implemented.** `parse_plate_file()` exists in `utils_import_v3.R:329-393` and is called from `server_upload.R:452`. Returns the exact normalized shape specified in the roadmap. Multi-wavelength detection uses single-pass `.read_raw_matrix()` → `.scan_wavelength_locations()` → `.extract_plates()`.
+  - **Bug fixed:** Visual mode confirmation observer referenced nonexistent `rv_file_preview$detected_plates`; rewrote to use `rv_file_preview$plate_registry` (data.frame with stable plate IDs). Also fixed exclusion tracking to use `rv_file_preview$exclusions` keyed by stable `plate_id` instead of fragile `"plate_N_well"` keys. Fixed checkbox ID mismatch (`select_plate_<plate_id>` vs `select_plate_<idx>`).
 
-- [ ] **Stable visual plate selector state model**
-  - Current state: not addressed by the recent change set
-  - Needed: stable plate identities based on file + position + label, not fragile UI order
+- [x] **Stable visual plate selector state model**
+  - **Already implemented.** `rv_file_preview$plate_registry` uses stable IDs derived from `"sheet1_rowN_col2"` (file position), not sequential indices. Exclusions stored in `rv_file_preview$exclusions` keyed by stable `plate_id`. Well toggle JS uses `plate_id` consistently.
 
-- [ ] **Cached visual plate preview / selector preprocessing**
-  - Current state: not evidenced in the recent change set
+- [x] **Cached visual plate preview / selector preprocessing**
+  - **Already implemented.** `rv_file_preview$preview_cache` stores pre-built HTML tagList computed once per upload (line 224-258). Detection observer (lines 138-262) runs once per file. Rendering outputs read from cache only.
   - Needed: avoid expensive recomputation in preview / selector rendering
 
 - [ ] **Multi-wavelength bias visualization**
