@@ -435,6 +435,105 @@ tryCatch({
 })
 ```
 
+## Multi-Wavelength Bias Visualization
+
+```{r bias-bland-altman, results='asis', fig.width=10, fig.height=6, warning=FALSE, message=FALSE}
+# M9: Bland-Altman bias plot for primary vs secondary wavelength
+tryCatch({
+  if (length(wavelengths) < 2) {
+    cat("*Bland-Altman bias plot requires at least 2 wavelengths.*\n\n")
+  } else {
+    primary_wl <- wavelengths[1]
+    secondary_wl <- wavelengths[2]
+
+    # Load results for each
+    primary_file <- file.path(output_dir, primary_wl, "unknown_results_summary.csv")
+    secondary_file <- file.path(output_dir, secondary_wl, "unknown_results_summary.csv")
+
+    if (!file.exists(primary_file) || !file.exists(secondary_file)) {
+      cat("*Results files not found for one or both wavelengths. Bland-Altman plot skipped.*\n\n")
+    } else {
+      res_primary <- tryCatch(read.csv(primary_file, stringsAsFactors = FALSE), error = function(e) NULL)
+      res_secondary <- tryCatch(read.csv(secondary_file, stringsAsFactors = FALSE), error = function(e) NULL)
+
+      if (is.null(res_primary) || is.null(res_secondary) ||
+          !("mean_concentration" %in% names(res_primary)) ||
+          !("mean_concentration" %in% names(res_secondary))) {
+        cat("*Insufficient data for Bland-Altman bias plot.*\n\n")
+      } else {
+        merge_key <- if ("replicate_group" %in% names(res_primary)) "replicate_group" else "sample_ids"
+        if (!(merge_key %in% names(res_primary)) || !(merge_key %in% names(res_secondary))) {
+          cat("*No common sample key for pairing results across wavelengths.*\n\n")
+        } else {
+          paired <- merge(
+            res_primary %>% dplyr::select(dplyr::all_of(merge_key), mean_concentration),
+            res_secondary %>% dplyr::select(dplyr::all_of(merge_key), mean_concentration),
+            by = merge_key, suffixes = c("_primary", "_secondary")
+          )
+          paired <- paired %>%
+            dplyr::filter(!is.na(mean_concentration_primary) & !is.na(mean_concentration_secondary) &
+                          is.finite(mean_concentration_primary) & is.finite(mean_concentration_secondary))
+
+          if (nrow(paired) < 3) {
+            cat(sprintf("*Too few paired samples (%d) for a meaningful Bland-Altman plot (need >= 3).*\n\n",
+                        nrow(paired)))
+          } else {
+            x_primary <- as.numeric(paired$mean_concentration_primary)
+            x_secondary <- as.numeric(paired$mean_concentration_secondary)
+
+            ba_mean_vals <- (x_primary + x_secondary) / 2
+            ba_diff_vals <- x_primary - x_secondary
+            mean_diff <- mean(ba_diff_vals)
+            sd_diff <- sd(ba_diff_vals)
+            loa_upper <- mean_diff + 1.96 * sd_diff
+            loa_lower <- mean_diff - 1.96 * sd_diff
+
+            ba_df <- data.frame(avg = ba_mean_vals, diff = ba_diff_vals)
+
+            ba_bias_plot <- ggplot2::ggplot(ba_df, ggplot2::aes(x = avg, y = diff)) +
+              ggplot2::geom_point(size = 3, alpha = 0.7, color = "#0072B2") +
+              ggplot2::geom_hline(yintercept = mean_diff, linetype = "dashed", color = "black", linewidth = 0.8) +
+              ggplot2::geom_hline(yintercept = loa_upper, linetype = "dotted", color = "red", linewidth = 0.7) +
+              ggplot2::geom_hline(yintercept = loa_lower, linetype = "dotted", color = "red", linewidth = 0.7) +
+              ggplot2::annotate("text", x = max(ba_df$avg), y = mean_diff,
+                                label = sprintf("Mean bias = %.4f", mean_diff),
+                                hjust = 1, vjust = -0.5, size = 3.5) +
+              ggplot2::annotate("text", x = max(ba_df$avg), y = loa_upper,
+                                label = sprintf("+1.96 SD = %.4f", loa_upper),
+                                hjust = 1, vjust = -0.5, color = "red", size = 3.5) +
+              ggplot2::annotate("text", x = max(ba_df$avg), y = loa_lower,
+                                label = sprintf("-1.96 SD = %.4f", loa_lower),
+                                hjust = 1, vjust = 1.5, color = "red", size = 3.5) +
+              ggplot2::labs(
+                title = sprintf("Bland-Altman Bias: %s (primary) vs %s (secondary)", primary_wl, secondary_wl),
+                subtitle = sprintf("n = %d paired samples | Mean bias = %.4f | 95%% LoA = [%.4f, %.4f]",
+                                   nrow(paired), mean_diff, loa_lower, loa_upper),
+                x = sprintf("Mean of %s and %s", primary_wl, secondary_wl),
+                y = sprintf("Difference (%s - %s)", primary_wl, secondary_wl)
+              ) +
+              ggplot2::theme_classic() +
+              ggplot2::theme(plot.subtitle = ggplot2::element_text(size = 10, color = "gray40"))
+
+            print(ba_bias_plot)
+            cat("\n\n")
+
+            cat(sprintf("**Interpretation:** The mean bias between %s and %s is %.4f. ",
+                        primary_wl, secondary_wl, mean_diff))
+            if (abs(mean_diff) < sd_diff * 0.5) {
+              cat("Bias is small relative to measurement variability, suggesting good agreement.\n\n")
+            } else {
+              cat("Systematic bias may be present; consider investigating wavelength-specific effects.\n\n")
+            }
+          }
+        }
+      }
+    }
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Bland-Altman bias visualization failed: %s*\n\n", e$message))
+})
+```
+
 ```{r final-comparison, results='asis'}
 cat(sprintf("## %s\n\n", tr("wavelength_performance", lang)))
 cat(sprintf("**%s**\n\n", tr("recommendations", lang)))

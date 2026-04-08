@@ -6,6 +6,41 @@
 server_layout <- function(input, output, session, shared) {
 
   # --------------------------------------------------------------------------
+  # Undo / Redo History
+  # --------------------------------------------------------------------------
+
+  history <- create_layout_history(max_size = 20)
+
+  # Flag to suppress history pushes while undo/redo is restoring state
+  restoring <- reactiveVal(FALSE)
+
+  # Push initial state once all matrices are available
+  observe({
+    req(shared$matrix_type(), shared$matrix_id(),
+        shared$raw_matrix_dilution(), shared$matrix_replicate())
+    history$push(shared)
+  }) |> bindEvent(shared$matrix_type(), once = TRUE)
+
+  # Toggle button disabled state
+  observe({
+    shinyjs::toggleState("undo_layout", condition = history$can_undo())
+    shinyjs::toggleState("redo_layout", condition = history$can_redo())
+  })
+
+  # Undo / Redo button observers
+  observeEvent(input$undo_layout, {
+    restoring(TRUE)
+    history$undo(shared)
+    restoring(FALSE)
+  })
+
+  observeEvent(input$redo_layout, {
+    restoring(TRUE)
+    history$redo(shared)
+    restoring(FALSE)
+  })
+
+  # --------------------------------------------------------------------------
   # Preset Plate Layouts
   # --------------------------------------------------------------------------
 
@@ -18,6 +53,7 @@ server_layout <- function(input, output, session, shared) {
       if (!is.null(preset$id_matrix)) shared$matrix_id(preset$id_matrix)
       if (!is.null(preset$dilution_matrix)) shared$matrix_dilution(preset$dilution_matrix)
       if (!is.null(preset$replicate_matrix)) shared$matrix_replicate(preset$replicate_matrix)
+      history$push(shared)
       showNotification("Preset layout loaded successfully.", type = "message", duration = 3)
     } else {
       showNotification("Preset file not found.", type = "warning", duration = 3)
@@ -44,6 +80,7 @@ server_layout <- function(input, output, session, shared) {
     shared$raw_matrix_dilution(raw_dil)
     shared$dilution_validity(matrix(TRUE, nrow = PLATE_NROW, ncol = PLATE_NCOL))
     shared$dilution_error(FALSE)
+    history$push(shared)
     showNotification(paste("All dilutions set to", val), type = "message", duration = 2)
   })
 
