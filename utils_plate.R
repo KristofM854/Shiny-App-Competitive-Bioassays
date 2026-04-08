@@ -123,12 +123,6 @@ create_id_matrix <- function(assay_type = "rba", num_standards = 8) {
         mat[s, 2:3] <- paste0("S", s)
       }
     }
-    # Column 12: four duplicate sample IDs (rows 1&2, 3&4, 5&6, 7&8)
-    col12_ids <- c("Spl_J1", "Spl_J1", "Spl_J2", "Spl_J2",
-                   "Spl_J3", "Spl_J3", "Spl_J4", "Spl_J4")
-    for (r in 1:PLATE_NROW) {
-      mat[r, 12] <- col12_ids[r]
-    }
   }
   
   as.data.frame(mat, stringsAsFactors = FALSE)
@@ -210,27 +204,28 @@ create_replicate_matrix <- function(assay_type = "rba") {
     # Col 6-7: BA,FA,BB,FB,BC,FC,BD,FD  
     # Col 8-9: CA,GA,CB,GB,CC,GC,CD,GD
     # Col 10-11: DA,HA,DB,HB,DC,HC,DD,HD
-    # Col 12: JA,JA,JB,JB,JC,JC,JD,JD
-    
+    # Col 12: EA,EA,EB,EB,EC,EC,ED,ED
+
     # Column pairs and their base letters
     column_pairs <- list(
-      c(4,5),   # A series: AA,EA,AB,EB,AC,EC,AD,ED
-      c(6,7),   # B series: BA,FA,BB,FB,BC,FC,BD,FD  
-      c(8,9),   # C series: CA,GA,CB,GB,CC,GC,CD,GD
-      c(10,11), # D series: DA,HA,DB,HB,DC,HC,DD,HD
-      c(12)     # J series: JA,JA,JB,JB,JC,JC,JD,JD (single column)
+      c(4,5),   # A series: AA,AE,AB,AF,AC,AG,AD,AH
+      c(6,7),   # B series: BA,BE,BB,BF,BC,BG,BD,BH
+      c(8,9),   # C series: CA,CE,CB,CF,CC,CG,CD,CH
+      c(10,11), # D series: DA,DE,DB,DF,DC,DG,DD,DH
+      c(12)     # E series: EA,EA,EB,EB,EC,EC,ED,ED (single column, paired)
     )
-    
-    pair_letters <- c("A", "B", "C", "D", "J")
-    
+
+    pair_letters <- c("A", "B", "C", "D", "E")
+
     for (pair_idx in seq_along(column_pairs)) {
       cols <- column_pairs[[pair_idx]]
       base_letter <- pair_letters[pair_idx]
-      
-      if (base_letter == "J") {
-        # Column 12: R33-R40 replicate groups
+
+      if (length(cols) == 1) {
+        # Single column: paired duplicates EA,EA,EB,EB,EC,EC,ED,ED
         for (r in 1:PLATE_NROW) {
-          mat[r, cols] <- paste0("R", 32 + r)
+          second_letter <- LETTERS[((r - 1) %/% 2) + 1]  # 1,2→A; 3,4→B; 5,6→C; 7,8→D
+          mat[r, cols] <- paste0(base_letter, second_letter)
         }
       } else {
         # Regular column pairs: alternating A,E,B,E,C,E,D,E pattern
