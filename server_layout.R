@@ -56,11 +56,17 @@ server_layout <- function(input, output, session, shared) {
       if (!is.null(preset$id_matrix)) shared$matrix_id(preset$id_matrix)
       if (!is.null(preset$dilution_matrix)) shared$matrix_dilution(preset$dilution_matrix)
       if (!is.null(preset$replicate_matrix)) shared$matrix_replicate(preset$replicate_matrix)
-      history$push(shared)
-      showNotification("Preset layout loaded successfully.", type = "message", duration = 3)
     } else {
-      showNotification("Preset file not found.", type = "warning", duration = 3)
+      # Fallback: generate from functions when .rds not found
+      assay <- if (grepl("elisa", input$preset_layout)) "elisa" else "rba"
+      n <- as.integer(input$num_standards %||% 8)
+      shared$matrix_type(create_type_matrix(assay, n))
+      shared$matrix_id(create_id_matrix(assay, n))
+      shared$matrix_dilution(create_dilution_matrix())
+      shared$matrix_replicate(create_replicate_matrix(assay))
     }
+    history$push(shared)
+    showNotification("Preset layout loaded successfully.", type = "message", duration = 3)
   })
 
   # --------------------------------------------------------------------------
