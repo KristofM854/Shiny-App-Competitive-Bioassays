@@ -1896,7 +1896,7 @@ tryCatch({
           dplyr::group_by(Replicate) %>%
           dplyr::summarise(
             tissue_weight = dplyr::first(TissueWeight_mg),
-            mean_tissue_conc = mean(concentration_ng_per_g, na.rm = TRUE),
+            mean_tissue_conc = mean(concentration_pg_per_g, na.rm = TRUE),
             .groups = "drop"
           ) %>%
           dplyr::mutate(
@@ -1920,7 +1920,7 @@ tryCatch({
           names(results_display)[names(results_display) == "tissue_weight_formatted"] <- "Tissue Mass [mg]"
         }
         if ("tissue_conc_formatted" %in% names(results_display)) {
-          names(results_display)[names(results_display) == "tissue_conc_formatted"] <- "Conc. (ng/g tissue)"
+          names(results_display)[names(results_display) == "tissue_conc_formatted"] <- "Conc. (pg/g tissue)"
         }
       }
     }
