@@ -519,9 +519,12 @@ for (wt_key in selected_weights) {
       list(f_stat = lof[2, "F value"], p_value = lof[2, "p value"])
     }, error = function(e) NULL)
 
+    aic_val <- tryCatch(AIC(fit), error = function(e) NA_real_)
+
     all_models[[wt_key]] <- list(
       model = fit, label = paste0(wt_info$label, " (", fit_method, ")"),
       R2 = r2, RMSE = rmse, coefs = coefs,
+      AIC = aic_val,
       fit_method = fit_method,
       convergence = conv_info,
       lack_of_fit = lof_result
@@ -543,6 +546,7 @@ for (wt_key in selected_weights) {
           interp_data = std_means,
           label = paste0(wt_info$label, " (log-linear interpolation)"),
           R2 = NA_real_, RMSE = NA_real_, coefs = NULL,
+          AIC = NA_real_,
           fit_method = "interpolation"
         )
       } else {
@@ -863,20 +867,30 @@ if (multi_weight_mode && length(all_models) > 1) {
   cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("weight_comparison_title", lang)))
   cat(tr("weight_comparison_desc", lang), "\n\n")
 
-  # --- Comparison table: R², RMSE, parameters (+ stability if available) ---
+  # --- Comparison table: R², RMSE, AIC, parameters (+ stability if available) ---
   comp_rows <- lapply(names(all_models), function(k) {
     m <- all_models[[k]]
     coefs <- m$coefs  # b (Hill), c (Bottom), d (Top), e (IC50)
-    row <- data.frame(
-      Method = m$label,
-      R2 = round(m$R2, 5),
-      RMSE = round(m$RMSE, 3),
-      Hill = round(abs(coefs[1]), 4),
-      Bottom = round(coefs[2], 2),
-      Top = round(coefs[3], 2),
-      IC50 = if (isTRUE(is_elisa)) format(round(coefs[4], 2), big.mark = ",") else format(coefs[4], scientific = TRUE, digits = 3),
-      stringsAsFactors = FALSE
-    )
+    if (is.null(coefs)) {
+      row <- data.frame(
+        Method = m$label,
+        R2 = NA, RMSE = NA, AIC = NA,
+        Hill = NA, Bottom = NA, Top = NA, IC50 = NA,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      row <- data.frame(
+        Method = m$label,
+        R2 = round(m$R2, 5),
+        RMSE = round(m$RMSE, 3),
+        AIC = if (!is.null(m$AIC) && !is.na(m$AIC)) round(m$AIC, 1) else NA,
+        Hill = round(abs(coefs[1]), 4),
+        Bottom = round(coefs[2], 2),
+        Top = round(coefs[3], 2),
+        IC50 = if (isTRUE(is_elisa)) format(round(coefs[4], 2), big.mark = ",") else format(coefs[4], scientific = TRUE, digits = 3),
+        stringsAsFactors = FALSE
+      )
+    }
     # Append stability grade if already assessed
     if (!is.null(m$stability)) {
       grade_icon <- function(g) switch(g,
@@ -888,7 +902,7 @@ if (multi_weight_mode && length(all_models) > 1) {
     row
   })
   comp_df <- do.call(rbind, comp_rows)
-  col_names <- c(tr("qc_metric", lang), "R\u00B2", "RMSE",
+  col_names <- c(tr("qc_metric", lang), "R\u00B2", "RMSE", "AIC",
                   "Hill slope", "Bottom", "Top", "IC50")
   if ("Stability" %in% names(comp_df)) {
     col_names <- c(col_names, "Stability")
@@ -897,16 +911,29 @@ if (multi_weight_mode && length(all_models) > 1) {
 
   render_table(comp_df, caption = tr("weight_comparison_title", lang))
 
+  # --- AIC recommendation note ---
+  aic_vals <- sapply(all_models, function(m) if (!is.null(m$AIC)) m$AIC else NA_real_)
+  if (any(!is.na(aic_vals))) {
+    best_key <- names(which.min(aic_vals))
+    best_label <- all_models[[best_key]]$label
+    best_aic <- min(aic_vals, na.rm = TRUE)
+    cat(sprintf("\n\n**AIC recommends: %s** (lowest AIC = %.1f). ", best_label, best_aic))
+    cat(sprintf("Current report uses **%s** (first selected).\n\n", all_models[[primary_key]]$label))
+  }
+
   # --- Overlay DRC curves ---
   curve_colors <- c("none" = "#000000", "inv_y" = "#0072B2", "inv_y2" = "#D55E00")
   curve_data_list <- list()
   for (k in names(all_models)) {
+    if (is.null(all_models[[k]]$model)) next
     pred_df <- data.frame(conc = conc_range)
     pred_df$p <- predict(all_models[[k]]$model, newdata = pred_df)
     pred_df$method <- all_models[[k]]$label
     curve_data_list[[k]] <- pred_df
   }
+  if (length(curve_data_list) > 0) {
   curve_data <- do.call(rbind, curve_data_list)
+  plotted_keys <- names(curve_data_list)
 
   standards_plot <- data_long %>%
     dplyr::filter(!is.na(concentration), SampleType == "Standard")
@@ -921,8 +948,8 @@ if (multi_weight_mode && length(all_models) > 1) {
     scale_color_manual(
       name = "Weighting",
       values = setNames(
-        curve_colors[names(all_models)],
-        sapply(all_models, function(m) m$label)
+        curve_colors[plotted_keys],
+        sapply(all_models[plotted_keys], function(m) m$label)
       )
     ) +
     theme_classic() +
@@ -951,6 +978,7 @@ if (multi_weight_mode && length(all_models) > 1) {
   } else {
     print(cmp_plot)
   }
+  } # end if (length(curve_data_list) > 0)
 
   cat(sprintf("\n\n*%s*\n\n",
       tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
