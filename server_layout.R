@@ -5,6 +5,9 @@
 
 server_layout <- function(input, output, session, shared) {
 
+  # Trigger for re-rendering tissue weight table (used by Apply button)
+  extraction_trigger <- reactiveVal(0)
+
   # --------------------------------------------------------------------------
   # Undo / Redo History
   # --------------------------------------------------------------------------
@@ -58,8 +61,6 @@ server_layout <- function(input, output, session, shared) {
     } else {
       showNotification("Preset file not found.", type = "warning", duration = 3)
     }
-    # Reset dropdown to allow re-selection
-    updateSelectInput(session, "preset_layout", selected = "")
   })
 
   # --------------------------------------------------------------------------
@@ -476,8 +477,23 @@ server_layout <- function(input, output, session, shared) {
     sort(unique(groups))
   })
 
+  # Apply uniform extraction volume to all groups
+  observeEvent(input$apply_uniform_extraction, {
+    val <- as.numeric(input$uniform_extraction)
+    req(is.numeric(val), val > 0)
+    tw <- shared$tissue_weights_rv()
+    if (length(tw) > 0) {
+      for (g in names(tw)) tw[[g]]$extraction_uL <- val
+      shared$tissue_weights_rv(tw)
+      extraction_trigger(extraction_trigger() + 1)
+      showNotification(paste("All extraction volumes set to", val, "\u00b5L"),
+                       type = "message", duration = 2)
+    }
+  })
+
   output$tissue_weight_table <- renderRHandsontable({
     req(input$assay_type == "elisa")
+    extraction_trigger()  # Force re-render when Apply is clicked
     groups <- replicate_groups()
     if (length(groups) == 0) return(NULL)
 
