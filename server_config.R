@@ -18,14 +18,23 @@ server_config <- function(input, output, session, shared) {
 
   observeEvent(input$qs_elisa_cortisol, {
     updateSelectInput(session, "assay_type", selected = "elisa")
-    updateSelectInput(session, "preset_layout", selected = "elisa_cortisol_cayman")
+    # Generate matrices directly from functions (bypasses stale .rds files)
+    n <- 8L
+    shared$matrix_type(create_type_matrix("elisa", n))
+    shared$matrix_id(create_id_matrix("elisa", n))
+    shared$matrix_dilution(create_dilution_matrix())
+    shared$matrix_replicate(create_replicate_matrix("elisa"))
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
     showNotification("ELISA Cortisol preset loaded. Upload your plate data.", type = "message", duration = 5)
   })
 
   observeEvent(input$qs_elisa_custom, {
     updateSelectInput(session, "assay_type", selected = "elisa")
-    updateSelectInput(session, "preset_layout", selected = "elisa_custom_blank")
+    # Generate matrices directly from functions (bypasses stale .rds files)
+    shared$matrix_type(create_type_matrix("elisa", 0))
+    shared$matrix_id(create_id_matrix("elisa", 0))
+    shared$matrix_dilution(create_dilution_matrix())
+    shared$matrix_replicate(create_replicate_matrix("elisa"))
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
     showNotification("ELISA custom template loaded. Configure your plate layout.", type = "message", duration = 5)
   })
