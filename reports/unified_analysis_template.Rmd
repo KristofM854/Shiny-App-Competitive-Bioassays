@@ -2096,24 +2096,34 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     )
   
   if (nrow(sample_plot_data) > 0) {
-    
+
+    # Dynamic font sizing based on number of groups
+    n_groups <- length(unique(sample_plot_data$Replicate_wrapped))
+    x_font_size <- if (n_groups > 20) 7 else if (n_groups > 10) 9 else 11
+
+    # For very large experiments, add panel column before creating ggplot
+    use_faceting <- n_groups > 30
+    if (use_faceting) {
+      sample_plot_data$panel <- ceiling(as.numeric(factor(sample_plot_data$Replicate)) / 15)
+    }
+
     # Create boxplot
-    sample_box <- ggplot(sample_plot_data, 
-                        aes(x = factor(Replicate_wrapped), 
+    sample_box <- ggplot(sample_plot_data,
+                        aes(x = factor(Replicate_wrapped),
                             y = estimated_concentration)) +
       geom_boxplot(outlier.shape = NA) +
       geom_jitter(aes(color = within_range,
                      text = paste0(
                        "Replicate: ", Replicate, "<br>",
                        "Sample ID: ", SampleID, "<br>",
-                       "Concentration: ", 
+                       "Concentration: ",
                        if (isTRUE(is_elisa)) {
                          format(estimated_concentration, digits = 4, big.mark = ",")
                        } else {
                          scales::scientific(estimated_concentration, digits = 2)
                        }, "<br>",
                        "Range Status: ", within_range
-                     )), 
+                     )),
                  width = 0.15, size = 2) +
       xlab("Replicate Group") +
       ylab(if (isTRUE(is_elisa)) {
@@ -2124,14 +2134,14 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
       theme_classic() +
       theme(
         legend.title = element_blank(),
-        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = x_font_size),
         legend.position = "top"
       )
-    
+
     # Add log scale if appropriate
-    conc_range <- max(sample_plot_data$estimated_concentration, na.rm = TRUE) / 
+    conc_range <- max(sample_plot_data$estimated_concentration, na.rm = TRUE) /
                   min(sample_plot_data$estimated_concentration, na.rm = TRUE)
-    
+
     if (!isTRUE(is_elisa) || conc_range > 100) {
       sample_box <- sample_box +
         scale_y_log10(labels = if (isTRUE(is_elisa)) {
@@ -2141,15 +2151,8 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         })
     }
 
-    # Dynamic font sizing based on number of groups
-    n_groups <- length(unique(sample_plot_data$Replicate_wrapped))
-    x_font_size <- if (n_groups > 20) 7 else if (n_groups > 10) 9 else 11
-    sample_box <- sample_box +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = x_font_size))
-
-    # For very large experiments, split into faceted panels
-    if (n_groups > 30) {
-      sample_plot_data$panel <- ceiling(as.numeric(factor(sample_plot_data$Replicate)) / 15)
+    # Add faceting for large experiments
+    if (use_faceting) {
       sample_box <- sample_box + facet_wrap(~panel, scales = "free_x", ncol = 1)
     }
 

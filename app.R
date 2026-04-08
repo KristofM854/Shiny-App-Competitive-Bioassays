@@ -186,7 +186,7 @@ ui <- fluidPage(
       div(
         style = "display: flex; justify-content: flex-end; padding: 0 15px 10px;",
         actionButton("next_to_layout_top", "Next: Plate Layout \u2192",
-                    class = "btn btn-primary btn-sm")
+                    class = "btn btn-primary btn-lg")
       ),
 
       # Quick Start panel
@@ -343,9 +343,9 @@ ui <- fluidPage(
         div(
           style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
           actionButton("back_to_config_top", "\u2190 Back: Configuration",
-                      class = "btn btn-default btn-sm"),
+                      class = "btn btn-default btn-lg"),
           actionButton("next_to_upload_top", "Next: Upload & Preview \u2192",
-                      class = "btn btn-primary btn-sm")
+                      class = "btn btn-primary btn-lg")
         ),
 
         # Preset plate layouts + layout management
@@ -545,9 +545,9 @@ ui <- fluidPage(
         div(
           style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
           actionButton("back_to_layout_top", "\u2190 Back: Plate Layout",
-                      class = "btn btn-default btn-sm"),
+                      class = "btn btn-default btn-lg"),
           actionButton("next_to_analysis_top", "Next: Analysis Settings \u2192",
-                      class = "btn btn-primary btn-sm")
+                      class = "btn btn-primary btn-lg")
         ),
 
         radioButtons("import_method", "Import method:",
@@ -619,9 +619,9 @@ ui <- fluidPage(
       div(
         style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
         actionButton("back_to_upload_top", "\u2190 Back: Upload & Preview",
-                    class = "btn btn-default btn-sm"),
+                    class = "btn btn-default btn-lg"),
         actionButton("next_to_report_top", "Next: Generate Report \u2192",
-                    class = "btn btn-primary btn-sm")
+                    class = "btn btn-primary btn-lg")
       ),
 
       div(
@@ -705,7 +705,7 @@ ui <- fluidPage(
       div(
         style = "display: flex; justify-content: flex-start; padding: 0 15px 10px;",
         actionButton("back_to_analysis_top", "\u2190 Back: Analysis Settings",
-                    class = "btn btn-default btn-sm")
+                    class = "btn btn-default btn-lg")
       ),
 
       fluidRow(
