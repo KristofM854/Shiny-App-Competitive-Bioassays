@@ -488,17 +488,16 @@ server_upload <- function(input, output, session, shared) {
   # Handle visual import confirmation
   observeEvent(input$confirm_visual_import, {
     req(rv_file_preview$raw_data)
-    req(length(rv_file_preview$detected_plates) > 0)
+    registry <- rv_file_preview$plate_registry
+    req(!is.null(registry), nrow(registry) > 0)
     lang <- input$app_language %||% "en"
 
-    file_path <- rv_file_preview$file_path
     raw <- rv_file_preview$raw_data
-    detected <- rv_file_preview$detected_plates
 
-    # Determine which plates are selected
+    # Determine which plates are selected (checkboxes keyed by stable plate_id)
     selected_indices <- c()
-    for (idx in seq_along(detected)) {
-      checkbox_val <- input[[paste0("select_plate_", idx)]]
+    for (idx in seq_len(nrow(registry))) {
+      checkbox_val <- input[[paste0("select_plate_", registry$plate_id[idx])]]
       if (isTRUE(checkbox_val)) {
         selected_indices <- c(selected_indices, idx)
       }
@@ -509,39 +508,41 @@ server_upload <- function(input, output, session, shared) {
       return()
     }
 
-    # Helper: apply well exclusions to a plate
-    apply_exclusions <- function(plate_numeric, plate_idx) {
-      for (r in 1:8) {
-        for (c in 1:ncol(plate_numeric)) {
-          well_id <- paste0(LETTERS[r], c)
-          key <- paste0("plate_", plate_idx, "_", well_id)
-          if (isTRUE(rv_file_preview$excluded_wells[[key]])) {
-            plate_numeric[r, c] <- NA_real_
+    # Helper: apply well exclusions to a plate using stable plate_id
+    apply_exclusions <- function(plate_numeric, plate_id) {
+      excluded <- rv_file_preview$exclusions[[plate_id]]
+      if (length(excluded) > 0) {
+        for (well_id in excluded) {
+          r <- match(substr(well_id, 1, 1), LETTERS)
+          cc <- as.integer(sub("^[A-H]", "", well_id))
+          if (!is.na(r) && !is.na(cc) && r <= nrow(plate_numeric) && cc <= ncol(plate_numeric)) {
+            plate_numeric[r, cc] <- NA_real_
           }
         }
       }
       plate_numeric
     }
 
-    # Extract selected plates
-    selected_plates <- detected[selected_indices]
-
-    if (length(selected_plates) == 1) {
-      shared$rv$is_multiwavelength <- FALSE
-      pl_idx <- selected_indices[1]
-      pl <- selected_plates[[1]]
-      plate_data <- raw[pl$start_row:(pl$start_row + pl$nrows - 1),
-                        pl$start_col:(pl$start_col + pl$ncols - 1), drop = FALSE]
+    # Helper: extract and convert a plate from raw matrix
+    extract_plate <- function(reg_row) {
+      plate_data <- raw[reg_row$start_row:(reg_row$start_row + reg_row$nrows - 1),
+                        reg_row$start_col:(reg_row$start_col + reg_row$ncols - 1), drop = FALSE]
       plate_numeric <- suppressWarnings(
         as.data.frame(apply(plate_data, 2, as.numeric), stringsAsFactors = FALSE)
       )
-      plate_numeric <- enforce_plate_shape(plate_numeric)
-      plate_numeric <- apply_exclusions(plate_numeric, pl_idx)
+      enforce_plate_shape(plate_numeric)
+    }
+
+    sel_registry <- registry[selected_indices, , drop = FALSE]
+
+    if (nrow(sel_registry) == 1) {
+      shared$rv$is_multiwavelength <- FALSE
+      reg_row <- sel_registry[1, ]
+      plate_numeric <- extract_plate(reg_row)
+      plate_numeric <- apply_exclusions(plate_numeric, reg_row$plate_id)
       shared$matrix_measresults(plate_numeric)
 
-      n_excluded <- sum(sapply(names(rv_file_preview$excluded_wells), function(k) {
-        grepl(paste0("^plate_", pl_idx, "_"), k) && isTRUE(rv_file_preview$excluded_wells[[k]])
-      }))
+      n_excluded <- length(rv_file_preview$exclusions[[reg_row$plate_id]])
       msg <- "\u2705 Single plate imported from visual selection."
       if (n_excluded > 0) msg <- paste0(msg, sprintf(" (%d wells excluded)", n_excluded))
       showNotification(msg, type = "message")
@@ -549,17 +550,16 @@ server_upload <- function(input, output, session, shared) {
     } else {
       shared$rv$is_multiwavelength <- TRUE
       plates <- list()
-      for (i in seq_along(selected_plates)) {
-        pl_idx <- selected_indices[i]
-        pl <- selected_plates[[i]]
-        plate_data <- raw[pl$start_row:(pl$start_row + pl$nrows - 1),
-                          pl$start_col:(pl$start_col + pl$ncols - 1), drop = FALSE]
-        plate_numeric <- suppressWarnings(
-          as.data.frame(apply(plate_data, 2, as.numeric), stringsAsFactors = FALSE)
-        )
-        plate_numeric <- enforce_plate_shape(plate_numeric)
-        plate_numeric <- apply_exclusions(plate_numeric, pl_idx)
-        plates[[paste0("Plate_", i)]] <- plate_numeric
+      for (i in seq_len(nrow(sel_registry))) {
+        reg_row <- sel_registry[i, ]
+        plate_numeric <- extract_plate(reg_row)
+        plate_numeric <- apply_exclusions(plate_numeric, reg_row$plate_id)
+        plate_label <- if (!is.null(reg_row$label) && nzchar(reg_row$label)) {
+          reg_row$label
+        } else {
+          paste0("Plate_", i)
+        }
+        plates[[plate_label]] <- plate_numeric
       }
 
       shared$rv$wavelength_plates <- plates
