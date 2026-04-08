@@ -48,8 +48,10 @@ source("i18n.R")
 # Source modular server logic
 source("server_common.R")
 source("server_config.R")
+source("layout_history.R")
 source("server_layout.R")
 source("server_upload.R")
+source("report_pipeline.R")
 source("server_report.R")
 
 # Auto-generate preset .rds files if they don't exist
@@ -361,9 +363,17 @@ ui <- fluidPage(
                             class = "btn btn-success btn-sm", style = "width: 100%;")
               )
             ),
-            column(4,
+            column(2,
               div(style = "margin-top: 25px;",
                 uiOutput("layout_load_ui")
+              )
+            ),
+            column(2,
+              div(style = "margin-top: 25px; display: flex; gap: 6px;",
+                actionButton("undo_layout", label = tagList(icon("undo"), "Undo"),
+                            class = "btn btn-default btn-sm"),
+                actionButton("redo_layout", label = tagList(icon("redo"), "Redo"),
+                            class = "btn btn-default btn-sm")
               )
             )
           )
@@ -554,7 +564,8 @@ ui <- fluidPage(
         style = "max-width: 700px;",
         h5("Plate Data Heatmap"),
         p("Visual verification of uploaded plate data."),
-        plotly::plotlyOutput("plate_heatmap", height = "300px")
+        plotly::plotlyOutput("plate_heatmap", height = "300px"),
+        div(class = "sr-only", textOutput("plate_heatmap_description"))
       ),
       br(),
 
