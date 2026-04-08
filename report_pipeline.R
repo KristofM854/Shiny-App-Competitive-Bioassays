@@ -63,7 +63,7 @@ normalize_assay_data <- function(df_long, assay_type, type_mat, session) {
 
   # Validate ELISA control wells exist before normalization
   if (assay_type == "elisa") {
-    well_types <- as.character(type_mat)
+    well_types <- as.character(unlist(type_mat))
     required_controls <- c("Blank", "NSB", "B0")
     missing_controls <- required_controls[!required_controls %in% well_types]
     if (length(missing_controls) > 0) {
