@@ -153,6 +153,28 @@ if (is.null(analysis_config$normality_assumption)) {
 }
 # Resolve configurable CV threshold (app-level override or fallback to global constant)
 cv_limit <- analysis_config$cv_limit %||% QC_THRESHOLDS$cv_limit
+
+# Helper: format numbers with scientific notation for extreme values
+fmt_smart <- function(x, digits = 4) {
+  if (is.na(x) || !is.finite(x)) return("NA")
+  if (abs(x) >= 1e5 || (abs(x) > 0 & abs(x) < 1e-4)) {
+    formatC(x, format = "e", digits = digits)
+  } else {
+    formatC(x, format = "f", digits = digits)
+  }
+}
+```
+
+```{css details-style, echo=FALSE}
+details > summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #336699;
+  margin-bottom: 8px;
+}
+details {
+  margin-bottom: 12px;
+}
 ```
 
 ```{r load-data, include=FALSE}
@@ -299,6 +321,9 @@ if (nzchar(trimws(notes_text)) && notes_text != "No notes added.") {
 
 ## `r tr("std_curve_config", lang)`
 
+<details>
+<summary>Click to expand standard concentrations</summary>
+
 ```{r standards-table}
 # Extract and display standard concentrations
 standards_data <- data_long %>%
@@ -329,6 +354,8 @@ render_table(
   col_names = c("Standard", unit_label)
 )
 ```
+
+</details>
 
 ## `r tr("methods_title", lang)`
 
@@ -742,6 +769,9 @@ if (nrow(high_var_standards) > 0) {
 }
 ```
 
+<details>
+<summary>Click to expand QC traffic light summary</summary>
+
 ```{r qc-traffic-light, results='asis'}
 # Traffic-light QC summary card
 tryCatch({
@@ -826,6 +856,11 @@ tryCatch({
   cat("\n\n*QC summary could not be generated.*\n\n")
 })
 ```
+
+</details>
+
+<details>
+<summary>Click to expand weighting comparison</summary>
 
 ```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
 # Show comparison of multiple weighting methods if the user selected more than one
@@ -968,9 +1003,9 @@ tryCatch({
     cat(sprintf("**Test:** %s\n\n", hetero_result$test_name %||% "N/A"))
 
     if (!is.na(hetero_result$statistic)) {
-      cat(sprintf("**Statistic:** %.3f", hetero_result$statistic))
+      cat(sprintf("**Statistic:** %s", fmt_smart(hetero_result$statistic, 3)))
       if (!is.na(hetero_result$p_value)) {
-        cat(sprintf("&emsp;**p-value:** %.4f", hetero_result$p_value))
+        cat(sprintf("&emsp;**p-value:** %s", fmt_smart(hetero_result$p_value, 4)))
       }
       cat("\n\n")
     }
@@ -989,6 +1024,11 @@ tryCatch({
   cat(sprintf("\n\n*Weighting suitability assessment could not be performed: %s*\n\n", e$message))
 })
 ```
+
+</details>
+
+<details>
+<summary>Click to expand model stability assessment</summary>
 
 ```{r model-stability-assessment, results='asis'}
 # Convergence and stability diagnostics for all fitted models
@@ -1055,6 +1095,11 @@ tryCatch({
   cat(sprintf("\n\n*Model stability assessment could not be performed: %s*\n\n", e$message))
 })
 ```
+
+</details>
+
+<details>
+<summary>Click to expand LLOQ/ULOQ determination</summary>
 
 ```{r lloq-uloq, results='asis'}
 # Formal LLOQ/ULOQ determination by back-calculated standard accuracy
@@ -1144,6 +1189,11 @@ tryCatch({
 })
 ```
 
+</details>
+
+<details>
+<summary>Click to expand dose-response curve</summary>
+
 ```{r dose-response-plots, fig.width=12, fig.height=8, fig.cap="Dose-response curve showing fitted 4-parameter logistic model with observed standard concentrations"}
 # Create unified dose-response curve plot
 plot_data <- data_long %>% filter(!is.na(concentration))
@@ -1205,7 +1255,12 @@ if (knitr::is_html_output()) {
 }
 ```
 
+</details>
+
 ## `r tr("model_parameters", lang)`
+
+<details>
+<summary>Click to expand 4-PL model coefficients</summary>
 
 ```{r model-stats}
 # Extract and display model coefficients with correct parameter order
@@ -1256,6 +1311,8 @@ tryCatch({
 })
 ```
 
+</details>
+
 **`r tr("model_fit_stats", lang)`**
 
 - **R²** = `r round(R2, 3)`
@@ -1283,7 +1340,8 @@ write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 
 ### `r tr("std_backcalc_title", lang)`
 
-<!-- Back-calculation promoted to visible section (critical QC data) -->
+<details>
+<summary>Click to expand standard back-calculation and recovery</summary>
 
 ```{r standard-backcalculation, results='asis'}
 # Back-calculate concentrations for each standard well using the fitted model
@@ -1356,6 +1414,8 @@ if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
   cat(tr("recovery_outside", lang), "\n\n")
 }
 ```
+
+</details>
 
 ## `r tr("sample_results", lang)`
 
@@ -1779,6 +1839,9 @@ if (nrow(samples_to_analyze) > 0) {
 }
 ```
 
+<details>
+<summary>Click to expand sample results summary</summary>
+
 ```{r sample-results-table, results='asis'}
 # Wrap entire chunk in tryCatch for debugging
 tryCatch({
@@ -1925,6 +1988,11 @@ tryCatch({
 })
 ```
 
+</details>
+
+<details>
+<summary>Click to expand outlier detection results</summary>
+
 ```{r outlier-results, results='asis'}
 if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") && nrow(outlier_flags) > 0) {
   cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
@@ -1946,6 +2014,7 @@ if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") 
 ```
 
 ```{r outlier-method-log, results='asis'}
+# Part of outlier details block
 if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
   cat("\n**Outlier detection method per replicate group (Shapiro-Wilk pre-test enabled):**\n\n")
   for (i in seq_len(nrow(outlier_method_log))) {
@@ -1955,6 +2024,8 @@ if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
   cat("\n")
 }
 ```
+
+</details>
 
 ```{r ci-method-note, results='asis'}
 if (isTRUE(analysis_config$ci_method == "bootstrap")) {
@@ -2141,14 +2212,14 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
       }) +
       theme_classic() +
       theme(
-        legend.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, size = x_font_size),
         axis.title.x = element_text(margin = margin(t = 12)),
         axis.title.y = element_text(margin = margin(r = 12)),
         legend.position = "top",
         panel.spacing.y = unit(1.5, "lines"),
         strip.text = element_blank()
-      )
+      ) +
+      labs(color = "Within linear range?")
 
     # Add log scale if appropriate
     conc_range <- max(sample_plot_data$estimated_concentration, na.rm = TRUE) /
@@ -2170,9 +2241,9 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
     # Render plot
     if (knitr::is_html_output()) {
-      # Wrap in collapsible details element
-      p <- plotly::ggplotly(sample_box, tooltip = "text", height = fig_h * 96)
-      cat('<details>\n<summary style="cursor:pointer; font-weight:bold; color:#336699; margin-bottom:8px;">Click to expand sample variability visualization</summary>\n')
+      p <- plotly::ggplotly(sample_box, tooltip = "text", height = fig_h * 96) %>%
+        plotly::layout(margin = list(b = 120, l = 80))
+      cat('<details>\n<summary>Click to expand sample variability visualization</summary>\n')
       print(htmltools::tagList(p))
       cat('\n</details>\n')
     } else {
@@ -2225,6 +2296,9 @@ tryCatch({
 
 </details>
 
+<details>
+<summary>Click to expand plate positional quality</summary>
+
 ```{r plate-positional-qc, results='asis'}
 cat("\n\n### Plate Positional Quality\n\n")
 if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
@@ -2258,7 +2332,12 @@ if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
 }
 ```
 
+</details>
+
 ## `r tr("drc_with_samples", lang)`
+
+<details>
+<summary>Click to expand dose-response curve with sample estimates</summary>
 
 ```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
@@ -2348,6 +2427,8 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
   }
 }
 ```
+
+</details>
 
 ## Parallelism and Relative Potency
 
@@ -2494,6 +2575,9 @@ tryCatch({
 })
 ```
 
+<details>
+<summary>Click to expand tissue normalization traceability</summary>
+
 ```{r tissue-normalization-traceability, results='asis'}
 # M8: Tissue Normalization Traceability (ELISA + tissue weights only)
 tryCatch({
@@ -2540,7 +2624,12 @@ tryCatch({
 })
 ```
 
+</details>
+
 ### Exclusion Audit
+
+<details>
+<summary>Click to expand exclusion audit trail</summary>
 
 ```{r exclusion-audit, results='asis'}
 # M5: Formal Exclusion Audit Table
@@ -2574,6 +2663,8 @@ tryCatch({
   cat(sprintf("\n\n*Exclusion audit could not be generated: %s*\n\n", e$message))
 })
 ```
+
+</details>
 
 ---
 

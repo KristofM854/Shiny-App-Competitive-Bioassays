@@ -332,14 +332,18 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
         result$p_value <- bf_result$p_value
 
         if (!is.na(bf_result$p_value) && bf_result$p_value < 0.05) {
+          f_str <- if (abs(bf_result$statistic) >= 1e5) formatC(bf_result$statistic, format = "e", digits = 2) else sprintf("%.2f", bf_result$statistic)
+          p_str <- if (bf_result$p_value < 1e-4) formatC(bf_result$p_value, format = "e", digits = 2) else sprintf("%.4f", bf_result$p_value)
           result$interpretation <- sprintf(
-            "Significant heteroscedasticity detected (F = %.2f, p = %.4f). Residual variance differs across concentration levels.",
-            bf_result$statistic, bf_result$p_value)
+            "Significant heteroscedasticity detected (F = %s, p = %s). Residual variance differs across concentration levels.",
+            f_str, p_str)
           result$recommendation <- "Weighted regression (1/Y or 1/Y^2) is recommended to account for unequal variance."
         } else {
+          f_str <- if (abs(bf_result$statistic) >= 1e5) formatC(bf_result$statistic, format = "e", digits = 2) else sprintf("%.2f", bf_result$statistic)
+          p_str <- if (bf_result$p_value < 1e-4) formatC(bf_result$p_value, format = "e", digits = 2) else sprintf("%.4f", bf_result$p_value)
           result$interpretation <- sprintf(
-            "No significant heteroscedasticity detected (F = %.2f, p = %.4f). Residual variance is approximately constant.",
-            bf_result$statistic, bf_result$p_value)
+            "No significant heteroscedasticity detected (F = %s, p = %s). Residual variance is approximately constant.",
+            f_str, p_str)
           result$recommendation <- "Unweighted regression is appropriate for these data."
         }
         return(result)

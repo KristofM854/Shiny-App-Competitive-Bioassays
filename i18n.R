@@ -242,7 +242,7 @@ get_translations <- function() {
       col_parameter = "Parameter",
       col_estimate = "Estimate",
       col_std_error = "Std. Error",
-      col_pvalue = "P-value",
+      col_pvalue = "p-value",
       col_wavelength = "Wavelength",
       col_standards = "Standards",
       col_samples = "Samples",
