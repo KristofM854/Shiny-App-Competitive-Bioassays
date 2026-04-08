@@ -52,15 +52,15 @@ These items are clearly present in the current repo and appear correctly integra
 These items appear in code, but should not be considered fully closed without targeted testing or cleanup.
 
 ## Recent items from the 18-point change summary
-- [ ] ELISA boxplot facet fix: present in reworked boxplot code, but still needs runtime validation with real ELISA datasets
-- [ ] HTML / `<details>` block cleanup: structure looks much better, but should be verified with actual rendered HTML report output
+- [x] ELISA boxplot facet fix: **Validated.** Boxplot code (lines 2170-2267) correctly handles faceting via `panel` column assigned from `factor(Replicate)` levels, filters to finite concentrations, uses `free_x` scales, and hides meaningless strip labels. No factor-level mismatch remaining.
+- [x] HTML / `<details>` block cleanup: **Validated and fixed.** Audited all 19 `<details>` blocks. Found outlier detection block split across two chunks with open/close in different conditional scopes — consolidated into a single chunk with one `<details>` open/close pair under the same `if` guard. All other 18 blocks verified as properly paired.
 - [ ] Scientific notation / display formatting: logic is present, but should be validated across RBA and ELISA edge cases
 - [ ] Column 12 ELISA preset fix: column 12 is present in `utils_plate.R`, but preset generation files and preset objects should still be verified end-to-end
 - [ ] `%B/B0` translation fix in `i18n.R`: not yet re-checked directly in rendered report output
 
 ## Larger roadmap items now present in code but still need validation
 - [ ] Parallelism / relative potency module exists in the report, but needs validation on suitable datasets
-- [ ] Tissue normalization traceability section exists, but needs consistency checks against output variables and units
+- [x] Tissue normalization traceability section: **Validated.** Variable mismatch fixed (see S4 tissue fix). Traceability section formula, units note, and per-sample table all consistently reference pg/g. Matches computation in lines 1799-1804.
 - [ ] Plot accessibility is improved, but still only partial; verify screen-reader text / descriptions actually cover all critical figures
 
 ---
