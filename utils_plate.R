@@ -123,6 +123,12 @@ create_id_matrix <- function(assay_type = "rba", num_standards = 8) {
         mat[s, 2:3] <- paste0("S", s)
       }
     }
+    # Column 12: four duplicate sample IDs (rows 1&2, 3&4, 5&6, 7&8)
+    col12_ids <- c("Spl_J1", "Spl_J1", "Spl_J2", "Spl_J2",
+                   "Spl_J3", "Spl_J3", "Spl_J4", "Spl_J4")
+    for (r in 1:PLATE_NROW) {
+      mat[r, 12] <- col12_ids[r]
+    }
   }
   
   as.data.frame(mat, stringsAsFactors = FALSE)
