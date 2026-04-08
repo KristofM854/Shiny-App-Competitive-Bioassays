@@ -59,7 +59,7 @@ These items appear in code, but should not be considered fully closed without ta
 - [x] `%B/B0` translation fix in `i18n.R`: **Validated.** All 8 occurrences use single `%`. Verified that `tr("elisa_method", lang)`, `tr("quant_range_min_label", lang)`, etc. are called without extra args (no sprintf pass-through). Will render correctly.
 
 ## Larger roadmap items now present in code but still need validation
-- [ ] Parallelism / relative potency module exists in the report, but needs validation on suitable datasets
+- [x] Parallelism / relative potency module: **Validated.** `assess_parallelism()` in `report_functions.R:632-774` uses `drc::compParm()` for slope comparison and EC50 ratio with Wald CIs. Handles 0/1/2+ curves with explicit "not applicable" messaging. Template chunk `parallelism-assessment` at line 2444 renders results or reason. Minor gap: section header is hardcoded English (no i18n) — added i18n keys.
 - [x] Tissue normalization traceability section: **Validated.** Variable mismatch fixed (see S4 tissue fix). Traceability section formula, units note, and per-sample table all consistently reference pg/g. Matches computation in lines 1799-1804.
 - [ ] Plot accessibility is improved, but still only partial; verify screen-reader text / descriptions actually cover all critical figures
 
@@ -81,9 +81,8 @@ These are the main components from the earlier roadmap that still appear unimple
   - **Already implemented.** `rv_file_preview$preview_cache` stores pre-built HTML tagList computed once per upload (line 224-258). Detection observer (lines 138-262) runs once per file. Rendering outputs read from cache only.
   - Needed: avoid expensive recomputation in preview / selector rendering
 
-- [ ] **Multi-wavelength bias visualization**
-  - Current state: not confirmed
-  - Needed: visual diagnostics such as Bland–Altman or equivalent bias plots in the multi-wavelength report
+- [x] **Multi-wavelength bias visualization**
+  - **Already implemented.** `multiwavelength_analysis_template.Rmd` contains Bland-Altman plots at two levels: (1) all pairwise comparisons in the concordance section (lines 397-425), and (2) a dedicated primary-vs-secondary bias visualization (lines 438-535). CCC computed with 95% CI via Fisher Z-transform.
 
 ## Partially addressed but not complete
 - [ ] **Plot accessibility and descriptive figure text — complete coverage**

@@ -352,6 +352,11 @@ get_translations <- function() {
       concordance_moderate = "Moderate agreement (CCC 0.90-0.95)",
       concordance_poor = "Poor agreement (CCC < 0.90)",
 
+      # Parallelism / relative potency (report)
+      parallelism_title = "Parallelism and Relative Potency",
+      parallelism_not_applicable = "Not applicable: %s",
+      parallelism_no_model = "Not applicable: No fitted model available for parallelism assessment.",
+
       # Plate layout import/save (app UI)
       layout_import_title = "Import Plate Layout",
       layout_import_desc = "Upload a CSV or Excel file with plate layout (SampleType, SampleID, Dilution, Replicate matrices).",
@@ -701,6 +706,11 @@ get_translations <- function() {
       concordance_good = "Buena concordancia (CCC 0.95-0.99)",
       concordance_moderate = "Concordancia moderada (CCC 0.90-0.95)",
       concordance_poor = "Concordancia pobre (CCC < 0.90)",
+
+      # Parallelism / relative potency (report)
+      parallelism_title = "Paralelismo y Potencia Relativa",
+      parallelism_not_applicable = "No aplicable: %s",
+      parallelism_no_model = "No aplicable: No hay modelo ajustado disponible para la evaluaci\u00F3n de paralelismo.",
 
       # Plate layout import/save (app UI)
       layout_import_title = "Importar Dise\u00F1o de Placa",
