@@ -55,6 +55,11 @@ No code changes — this task was about verifying the existing code is sound.
 
 ## Validation performed (structural review, not runtime)
 
+### Critical bug found and fixed
+**Line 589**: `predict(model_fit, newdata = model_fits)` called unconditionally — crashes when `drc_failed_completely == TRUE` and `model_fit` is NULL. Fixed by adding `if (!drc_failed_completely && !is.null(model_fit))` guard; falls back to `NA_real_` predictions.
+
+**Line 785** (QC traffic light): `coef(model_fit)` also fails on NULL model, but is inside `tryCatch` so it degrades gracefully to "*QC summary could not be generated.*" — acceptable, no fix needed.
+
 ### Variable scoping audit
 Verified that all critical variables are defined before use across chunk boundaries:
 - `conc_range`: defined in `model-fitting` (line 583), used in `weight-comparison` (line 929) ✓
