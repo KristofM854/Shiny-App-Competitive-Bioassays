@@ -2082,7 +2082,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
 ## `r tr("sample_variability", lang)`
 
-```{r sample-boxplot, fig.width=10, fig.height=7, warning=FALSE, message=FALSE, fig.cap="Sample concentration estimates with confidence intervals"}
+```{r sample-boxplot, fig.width=10, fig.height=7, results='asis', warning=FALSE, message=FALSE}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   sample_plot_data <- sample_results %>%
@@ -2105,6 +2105,14 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     use_faceting <- n_groups > 30
     if (use_faceting) {
       sample_plot_data$panel <- ceiling(as.numeric(factor(sample_plot_data$Replicate)) / 15)
+    }
+
+    # Dynamic figure height: taller when faceted
+    fig_h <- if (use_faceting) {
+      n_panels <- max(sample_plot_data$panel)
+      max(7, n_panels * 4.5)
+    } else {
+      7
     }
 
     # Create boxplot
@@ -2135,7 +2143,11 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
       theme(
         legend.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, size = x_font_size),
-        legend.position = "top"
+        axis.title.x = element_text(margin = margin(t = 12)),
+        axis.title.y = element_text(margin = margin(r = 12)),
+        legend.position = "top",
+        panel.spacing.y = unit(1.5, "lines"),
+        strip.text = element_blank()
       )
 
     # Add log scale if appropriate
@@ -2156,9 +2168,13 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
       sample_box <- sample_box + facet_wrap(~panel, scales = "free_x", ncol = 1)
     }
 
-    # Render plot - same pattern as working standard DRC
+    # Render plot
     if (knitr::is_html_output()) {
-      plotly::ggplotly(sample_box, tooltip = "text")
+      # Wrap in collapsible details element
+      p <- plotly::ggplotly(sample_box, tooltip = "text", height = fig_h * 96)
+      cat('<details>\n<summary style="cursor:pointer; font-weight:bold; color:#336699; margin-bottom:8px;">Click to expand sample variability visualization</summary>\n')
+      print(htmltools::tagList(p))
+      cat('\n</details>\n')
     } else {
       print(sample_box)
     }

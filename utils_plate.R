@@ -228,12 +228,9 @@ create_replicate_matrix <- function(assay_type = "rba") {
       base_letter <- pair_letters[pair_idx]
       
       if (base_letter == "J") {
-        # Special case for column 12: JA,JA,JB,JB,JC,JC,JD,JD
+        # Column 12: R33-R40 replicate groups
         for (r in 1:PLATE_NROW) {
-          # Pairs: rows 1&2→JA, rows 3&4→JB, rows 5&6→JC, rows 7&8→JD
-          second_letter <- LETTERS[((r - 1) %/% 2) + 1]  # 1,2→A; 3,4→B; 5,6→C; 7,8→D
-          sample_label <- paste0("J", second_letter)
-          mat[r, cols] <- sample_label
+          mat[r, cols] <- paste0("R", 32 + r)
         }
       } else {
         # Regular column pairs: alternating A,E,B,E,C,E,D,E pattern
