@@ -1896,7 +1896,7 @@ tryCatch({
           dplyr::group_by(Replicate) %>%
           dplyr::summarise(
             tissue_weight = dplyr::first(TissueWeight_mg),
-            mean_tissue_conc = mean(concentration_ng_per_g, na.rm = TRUE),
+            mean_tissue_conc = mean(concentration_pg_per_g, na.rm = TRUE),
             .groups = "drop"
           ) %>%
           dplyr::mutate(
@@ -1920,7 +1920,7 @@ tryCatch({
           names(results_display)[names(results_display) == "tissue_weight_formatted"] <- "Tissue Mass [mg]"
         }
         if ("tissue_conc_formatted" %in% names(results_display)) {
-          names(results_display)[names(results_display) == "tissue_conc_formatted"] <- "Conc. (ng/g tissue)"
+          names(results_display)[names(results_display) == "tissue_conc_formatted"] <- "Conc. (pg/g tissue)"
         }
       }
     }
@@ -2007,39 +2007,36 @@ tryCatch({
 </details>
 
 ```{r outlier-results, results='asis'}
-if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") && nrow(outlier_flags) > 0) {
-  cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
-  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("outlier_title", lang)))
-  cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
-
-  n_outliers <- nrow(outlier_flags)
-  n_groups <- length(unique(outlier_flags$Replicate))
-  cat(tr("outlier_found", lang, n_outliers, n_groups), "\n\n")
-
-  outlier_display <- outlier_flags %>%
-    dplyr::select(Well, Replicate, method)
-  names(outlier_display) <- c("Well", "Replicate Group", "Method")
-
-  render_table(outlier_display, caption = tr("outlier_title", lang))
-} else if (isTRUE(analysis_config$enable_outlier_detection)) {
-  cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
-  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("outlier_title", lang)))
-  cat(tr("outlier_none", lang), "\n\n")
-}
-```
-
-```{r outlier-method-log, results='asis'}
-# Part of outlier details block
-if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
-  cat("\n**Outlier detection method per replicate group (Shapiro-Wilk pre-test enabled):**\n\n")
-  for (i in seq_len(nrow(outlier_method_log))) {
-    row <- outlier_method_log[i, ]
-    cat(sprintf("- %s: %s (Shapiro-Wilk p = %.4f)\n", row$Replicate, row$method_used, row$shapiro_p))
-  }
-  cat("\n")
-}
-# Close the outlier details block (opened in outlier-results chunk)
 if (isTRUE(analysis_config$enable_outlier_detection)) {
+  cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
+  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("outlier_title", lang)))
+
+  if (exists("outlier_flags") && nrow(outlier_flags) > 0) {
+    cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
+
+    n_outliers <- nrow(outlier_flags)
+    n_groups <- length(unique(outlier_flags$Replicate))
+    cat(tr("outlier_found", lang, n_outliers, n_groups), "\n\n")
+
+    outlier_display <- outlier_flags %>%
+      dplyr::select(Well, Replicate, method)
+    names(outlier_display) <- c("Well", "Replicate Group", "Method")
+
+    render_table(outlier_display, caption = tr("outlier_title", lang))
+  } else {
+    cat(tr("outlier_none", lang), "\n\n")
+  }
+
+  # Method log (Shapiro-Wilk pre-test details)
+  if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
+    cat("\n**Outlier detection method per replicate group (Shapiro-Wilk pre-test enabled):**\n\n")
+    for (i in seq_len(nrow(outlier_method_log))) {
+      row <- outlier_method_log[i, ]
+      cat(sprintf("- %s: %s (Shapiro-Wilk p = %.4f)\n", row$Replicate, row$method_used, row$shapiro_p))
+    }
+    cat("\n")
+  }
+
   cat('\n</details>\n\n')
 }
 ```
@@ -2260,7 +2257,8 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     if (knitr::is_html_output()) {
       p <- plotly::ggplotly(sample_box, tooltip = "text", height = fig_h * 96) %>%
         plotly::layout(margin = list(b = 120, l = 80))
-      cat('<details>\n<summary>Click to expand sample variability visualization</summary>\n')
+      cat('<details>\n<summary>Click to expand sample variability visualization</summary>\n\n')
+      cat(sprintf("*%s*\n\n", tr("sample_variability_desc", lang)))
       print(htmltools::tagList(p))
       cat('\n</details>\n')
     } else {
@@ -2444,7 +2442,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
 </details>
 
-## Parallelism and Relative Potency
+## `r tr("parallelism_title", lang)`
 
 ```{r parallelism-assessment, results='asis'}
 # Task C (HP7): Optional parallelism / relative potency assessment
@@ -2479,10 +2477,10 @@ tryCatch({
       cat(sprintf("*%d curve groups were compared.*\n\n", parallelism_result$curves_found))
 
     } else {
-      cat(sprintf("*Not applicable:* %s\n\n", parallelism_result$reason))
+      cat(sprintf("*%s*\n\n", tr("parallelism_not_applicable", lang, parallelism_result$reason)))
     }
   } else {
-    cat("*Not applicable:* No fitted model available for parallelism assessment.\n\n")
+    cat(sprintf("*%s*\n\n", tr("parallelism_no_model", lang)))
   }
 }, error = function(e) {
   cat(sprintf("*Parallelism assessment could not be completed: %s*\n\n", e$message))

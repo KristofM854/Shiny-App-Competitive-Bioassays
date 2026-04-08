@@ -187,6 +187,7 @@ get_translations <- function() {
       detailed_summary = "Detailed Sample Results Summary",
       detailed_caption = "Detailed Sample Results with Model-Based Confidence Intervals",
       sample_variability = "Sample Variability Visualization",
+      sample_variability_desc = "Box-and-jitter plot showing estimated concentrations per replicate group. Points are colored by whether they fall within the validated linear range. Use this to assess replicate consistency and identify outliers.",
       drc_with_samples = "Dose-Response Curve with Unknown Samples",
       drc_combined_title = "Dose-Response Curve with Standards and Unknown Samples",
       within_range = "Within Range",
@@ -351,6 +352,11 @@ get_translations <- function() {
       concordance_good = "Good agreement (CCC 0.95-0.99)",
       concordance_moderate = "Moderate agreement (CCC 0.90-0.95)",
       concordance_poor = "Poor agreement (CCC < 0.90)",
+
+      # Parallelism / relative potency (report)
+      parallelism_title = "Parallelism and Relative Potency",
+      parallelism_not_applicable = "Not applicable: %s",
+      parallelism_no_model = "Not applicable: No fitted model available for parallelism assessment.",
 
       # Plate layout import/save (app UI)
       layout_import_title = "Import Plate Layout",
@@ -537,6 +543,7 @@ get_translations <- function() {
       detailed_summary = "Resumen Detallado de Resultados de Muestras",
       detailed_caption = "Resultados Detallados con Intervalos de Confianza Basados en el Modelo",
       sample_variability = "Visualizaci\u00F3n de Variabilidad de Muestras",
+      sample_variability_desc = "Gr\u00E1fico de caja y dispersi\u00F3n que muestra las concentraciones estimadas por grupo de r\u00E9plica. Los puntos se colorean seg\u00FAn si caen dentro del rango lineal validado. \u00DAselo para evaluar la consistencia de r\u00E9plicas e identificar valores at\u00EDpicos.",
       drc_with_samples = "Curva Dosis-Respuesta con Muestras Desconocidas",
       drc_combined_title = "Curva Dosis-Respuesta con Est\u00E1ndares y Muestras Desconocidas",
       within_range = "Dentro del Rango",
@@ -701,6 +708,11 @@ get_translations <- function() {
       concordance_good = "Buena concordancia (CCC 0.95-0.99)",
       concordance_moderate = "Concordancia moderada (CCC 0.90-0.95)",
       concordance_poor = "Concordancia pobre (CCC < 0.90)",
+
+      # Parallelism / relative potency (report)
+      parallelism_title = "Paralelismo y Potencia Relativa",
+      parallelism_not_applicable = "No aplicable: %s",
+      parallelism_no_model = "No aplicable: No hay modelo ajustado disponible para la evaluaci\u00F3n de paralelismo.",
 
       # Plate layout import/save (app UI)
       layout_import_title = "Importar Dise\u00F1o de Placa",
