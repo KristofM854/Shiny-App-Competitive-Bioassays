@@ -54,9 +54,9 @@ These items appear in code, but should not be considered fully closed without ta
 ## Recent items from the 18-point change summary
 - [x] ELISA boxplot facet fix: **Validated.** Boxplot code (lines 2170-2267) correctly handles faceting via `panel` column assigned from `factor(Replicate)` levels, filters to finite concentrations, uses `free_x` scales, and hides meaningless strip labels. No factor-level mismatch remaining.
 - [x] HTML / `<details>` block cleanup: **Validated and fixed.** Audited all 19 `<details>` blocks. Found outlier detection block split across two chunks with open/close in different conditional scopes — consolidated into a single chunk with one `<details>` open/close pair under the same `if` guard. All other 18 blocks verified as properly paired.
-- [ ] Scientific notation / display formatting: logic is present, but should be validated across RBA and ELISA edge cases
-- [ ] Column 12 ELISA preset fix: column 12 is present in `utils_plate.R`, but preset generation files and preset objects should still be verified end-to-end
-- [ ] `%B/B0` translation fix in `i18n.R`: not yet re-checked directly in rendered report output
+- [x] Scientific notation / display formatting: **Validated.** Consistent `isTRUE(is_elisa)` branching across all display contexts: standards table, LLOQ/ULOQ, comparison table, back-calculation, tooltips, axis labels. ELISA uses comma-formatted decimals; RBA uses `scientific = TRUE`. Recovery percentages correctly use decimal format in both modes.
+- [x] Column 12 ELISA preset fix: **Validated.** `create_replicate_matrix("elisa")` explicitly includes `c(12)` in `column_pairs` (line 215) with paired duplicates EA-ED. `create_type_matrix` defaults columns 4-12 to "Sample". `enforce_plate_shape` guarantees 8x12. All preset generators call these functions directly (not stale .rds files).
+- [x] `%B/B0` translation fix in `i18n.R`: **Validated.** All 8 occurrences use single `%`. Verified that `tr("elisa_method", lang)`, `tr("quant_range_min_label", lang)`, etc. are called without extra args (no sprintf pass-through). Will render correctly.
 
 ## Larger roadmap items now present in code but still need validation
 - [ ] Parallelism / relative potency module exists in the report, but needs validation on suitable datasets
