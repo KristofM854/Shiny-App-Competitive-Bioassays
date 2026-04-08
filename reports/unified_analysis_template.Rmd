@@ -586,7 +586,11 @@ if (isTRUE(is_elisa)) {
 }
 
 model_fits <- data.frame(conc = conc_range)
-model_fits$p <- predict(model_fit, newdata = model_fits)
+if (!drc_failed_completely && !is.null(model_fit)) {
+  model_fits$p <- predict(model_fit, newdata = model_fits)
+} else {
+  model_fits$p <- NA_real_
+}
 
 # Calculate EC20 and EC80 immediately after model fitting so they are available
 # for within-range classification in all downstream plots and tables.
