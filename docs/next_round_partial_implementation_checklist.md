@@ -86,31 +86,23 @@ For each case, verify:
 
 ---
 
-# 3. Plot accessibility has improved, but is still only partially complete
+# 3. Plot accessibility — coverage extended ✅ COMPLETE (as feasible)
 
-## Current state
-Accessibility support is better than before. The repo now includes:
-- ARIA labels on matrix sections
-- `aria-live` in important validation areas
-- descriptive text for some figures
-- a screen-reader-only description for the Shiny plate heatmap
-- more narrative text in report sections
+## What was changed
+- Plate heatmap in `app.R` now wrapped in `<figure>` with `role="figure"`, `aria-describedby` linking to a `<figcaption>`, and `aria-live="polite"` on the dynamic sr-only text block
+- This is the **only plot** in the Shiny app UI (verified by grepping for `plotlyOutput`/`plotOutput` — only one instance)
 
-## Why this is still only partially complete
-Plotly outputs in the Shiny app still do not have full accessibility coverage.
-The current improvements help, but they do not amount to comprehensive accessible figure support.
+## Report figures — coverage assessment
+All 4 report plotly outputs already have adjacent descriptive text:
+1. **DRC standard curve** (line 1267): `fig.cap` + `<details>` summary
+2. **Weight comparison overlay** (line 977): `cat(tr("weight_comparison_desc"))` narrative
+3. **Sample boxplot** (line 2258): `cat(tr("sample_variability_desc"))` narrative + `<details>` summary
+4. **DRC with samples** (line 2435): `fig.cap` + `<details>` summary
 
-## What remains to be done
-- Add explicit descriptive companions for all major Shiny figures, not only some of them
-- Wrap Plotly outputs in semantic containers where practical
-- Link figures to descriptions via `aria-describedby` where feasible
-- Ensure every major report/app figure has a nearby explanation of what the user should read from it
-- Review whether key plots need hidden screen-reader text blocks
-
-## Completion criteria
-- All major Shiny plots have descriptive text associated with them
-- Plotly outputs are wrapped/accessibly described as far as technically feasible
-- No critical figure is left without explanation or alternative descriptive support
+## Remaining limitations
+- Plotly renders as `<div>` + `<svg>` — Shiny/knitr does not support `alt` on plotly elements natively
+- Full WCAG AA compliance for interactive SVG plots would require Plotly library-level changes or a custom JavaScript accessibility bridge — out of scope for this app
+- `<details>` blocks with `<summary>` text serve as the practical semantic containers in the report
 
 ---
 
