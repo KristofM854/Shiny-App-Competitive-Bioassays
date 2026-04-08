@@ -769,10 +769,8 @@ if (nrow(high_var_standards) > 0) {
 }
 ```
 
-<details>
-<summary>Click to expand QC traffic light summary</summary>
-
 ```{r qc-traffic-light, results='asis'}
+cat('\n<details>\n<summary>Click to expand QC traffic light summary</summary>\n\n')
 # Traffic-light QC summary card
 tryCatch({
   # Gather metrics
@@ -855,16 +853,13 @@ tryCatch({
 }, error = function(e) {
   cat("\n\n*QC summary could not be generated.*\n\n")
 })
+cat('\n</details>\n\n')
 ```
-
-</details>
-
-<details>
-<summary>Click to expand weighting comparison</summary>
 
 ```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
 # Show comparison of multiple weighting methods if the user selected more than one
 if (multi_weight_mode && length(all_models) > 1) {
+  cat('\n<details>\n<summary>Click to expand weighting comparison</summary>\n\n')
   cat(sprintf("\n\n### %s\n\n", tr("weight_comparison_title", lang)))
   cat(tr("weight_comparison_desc", lang), "\n\n")
 
@@ -959,6 +954,7 @@ if (multi_weight_mode && length(all_models) > 1) {
 
   cat(sprintf("\n\n*%s*\n\n",
       tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
+  cat('\n</details>\n\n')
 }
 
 # Simple heteroscedasticity diagnostic for unweighted model
@@ -1025,11 +1021,6 @@ tryCatch({
 })
 ```
 
-</details>
-
-<details>
-<summary>Click to expand model stability assessment</summary>
-
 ```{r model-stability-assessment, results='asis'}
 # Convergence and stability diagnostics for all fitted models
 tryCatch({
@@ -1041,6 +1032,7 @@ tryCatch({
     })
     names(stability_results) <- names(all_models)
 
+    cat('\n<details>\n<summary>Click to expand model stability assessment</summary>\n\n')
     cat("\n\n### Model Stability Assessment\n\n")
 
     # Build summary table
@@ -1090,20 +1082,17 @@ tryCatch({
     for (k in names(stability_results)) {
       all_models[[k]]$stability <- stability_results[[k]]
     }
+    cat('\n</details>\n\n')
   }
 }, error = function(e) {
   cat(sprintf("\n\n*Model stability assessment could not be performed: %s*\n\n", e$message))
 })
 ```
 
-</details>
-
-<details>
-<summary>Click to expand LLOQ/ULOQ determination</summary>
-
 ```{r lloq-uloq, results='asis'}
 # Formal LLOQ/ULOQ determination by back-calculated standard accuracy
 tryCatch({
+  cat('\n<details>\n<summary>Click to expand LLOQ/ULOQ determination</summary>\n\n')
   cat(sprintf("\n\n### %s\n\n", tr("lloq_uloq_title", lang)))
   cat(tr("lloq_uloq_desc", lang), "\n\n")
 
@@ -1184,12 +1173,11 @@ tryCatch({
     cat(tr("lloq_uloq_none", lang), "\n\n")
   }
 
+  cat('\n</details>\n\n')
 }, error = function(e) {
   cat(sprintf("\n\n*LLOQ/ULOQ determination failed: %s*\n\n", e$message))
 })
 ```
-
-</details>
 
 <details>
 <summary>Click to expand dose-response curve</summary>
@@ -1990,11 +1978,9 @@ tryCatch({
 
 </details>
 
-<details>
-<summary>Click to expand outlier detection results</summary>
-
 ```{r outlier-results, results='asis'}
 if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") && nrow(outlier_flags) > 0) {
+  cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
   cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
   cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
 
@@ -2008,6 +1994,7 @@ if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") 
 
   render_table(outlier_display, caption = tr("outlier_title", lang))
 } else if (isTRUE(analysis_config$enable_outlier_detection)) {
+  cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
   cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
   cat(tr("outlier_none", lang), "\n\n")
 }
@@ -2023,9 +2010,11 @@ if (exists("outlier_method_log") && nrow(outlier_method_log) > 0) {
   }
   cat("\n")
 }
+# Close the outlier details block (opened in outlier-results chunk)
+if (isTRUE(analysis_config$enable_outlier_detection)) {
+  cat('\n</details>\n\n')
+}
 ```
-
-</details>
 
 ```{r ci-method-note, results='asis'}
 if (isTRUE(analysis_config$ci_method == "bootstrap")) {
@@ -2296,10 +2285,8 @@ tryCatch({
 
 </details>
 
-<details>
-<summary>Click to expand plate positional quality</summary>
-
 ```{r plate-positional-qc, results='asis'}
+cat('\n<details>\n<summary>Click to expand plate positional quality</summary>\n\n')
 cat("\n\n### Plate Positional Quality\n\n")
 if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
   plate_data <- data_long %>% filter(is.finite(MeasurementValue))
@@ -2330,9 +2317,8 @@ if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
     render_table(row_display, caption = "Response by Row")
   }
 }
+cat('\n</details>\n\n')
 ```
-
-</details>
 
 ## `r tr("drc_with_samples", lang)`
 
@@ -2575,13 +2561,11 @@ tryCatch({
 })
 ```
 
-<details>
-<summary>Click to expand tissue normalization traceability</summary>
-
 ```{r tissue-normalization-traceability, results='asis'}
 # M8: Tissue Normalization Traceability (ELISA + tissue weights only)
 tryCatch({
   if (isTRUE(is_elisa) && exists("tissue_weights") && !is.null(tissue_weights) && length(tissue_weights) > 0) {
+    cat('\n<details>\n<summary>Click to expand tissue normalization traceability</summary>\n\n')
     cat("\n\n### Tissue Normalization Method\n\n")
 
     cat("Tissue-based concentrations are calculated using the following formula:\n\n")
@@ -2618,13 +2602,12 @@ tryCatch({
 
       cat(sprintf("\n**Units:** Final tissue concentrations are reported as pg/g tissue (= pg analyte per gram of tissue).\n\n"))
     }
+    cat('\n</details>\n\n')
   }
 }, error = function(e) {
   cat(sprintf("\n\n*Tissue normalization traceability could not be generated: %s*\n\n", e$message))
 })
 ```
-
-</details>
 
 ### Exclusion Audit
 
