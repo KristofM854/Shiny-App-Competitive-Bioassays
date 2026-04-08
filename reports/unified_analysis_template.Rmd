@@ -846,7 +846,7 @@ tryCatch({
   )
   names(qc_df) <- c(tr("qc_metric", lang), tr("qc_value", lang), tr("qc_status", lang))
 
-  cat(sprintf("\n\n### %s\n\n", tr("qc_card_title", lang)))
+  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("qc_card_title", lang)))
   cat(sprintf("*%s: %s*\n\n", "Regression", weight_desc))
   render_table(qc_df, caption = tr("qc_card_title", lang))
 
@@ -860,7 +860,7 @@ cat('\n</details>\n\n')
 # Show comparison of multiple weighting methods if the user selected more than one
 if (multi_weight_mode && length(all_models) > 1) {
   cat('\n<details>\n<summary>Click to expand weighting comparison</summary>\n\n')
-  cat(sprintf("\n\n### %s\n\n", tr("weight_comparison_title", lang)))
+  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("weight_comparison_title", lang)))
   cat(tr("weight_comparison_desc", lang), "\n\n")
 
   # --- Comparison table: R², RMSE, parameters (+ stability if available) ---
@@ -947,7 +947,7 @@ if (multi_weight_mode && length(all_models) > 1) {
   }
 
   if (knitr::is_html_output()) {
-    print(plotly::ggplotly(cmp_plot))
+    print(htmltools::tagList(plotly::ggplotly(cmp_plot)))
   } else {
     print(cmp_plot)
   }
@@ -1033,7 +1033,7 @@ tryCatch({
     names(stability_results) <- names(all_models)
 
     cat('\n<details>\n<summary>Click to expand model stability assessment</summary>\n\n')
-    cat("\n\n### Model Stability Assessment\n\n")
+    cat("\n\n<h4>Model Stability Assessment</h4>\n\n")
 
     # Build summary table
     grade_icon <- function(g) {
@@ -1093,7 +1093,7 @@ tryCatch({
 # Formal LLOQ/ULOQ determination by back-calculated standard accuracy
 tryCatch({
   cat('\n<details>\n<summary>Click to expand LLOQ/ULOQ determination</summary>\n\n')
-  cat(sprintf("\n\n### %s\n\n", tr("lloq_uloq_title", lang)))
+  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("lloq_uloq_title", lang)))
   cat(tr("lloq_uloq_desc", lang), "\n\n")
 
   # Back-calculate each standard point
@@ -1981,7 +1981,7 @@ tryCatch({
 ```{r outlier-results, results='asis'}
 if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") && nrow(outlier_flags) > 0) {
   cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
-  cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
+  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("outlier_title", lang)))
   cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
 
   n_outliers <- nrow(outlier_flags)
@@ -1995,7 +1995,7 @@ if (isTRUE(analysis_config$enable_outlier_detection) && exists("outlier_flags") 
   render_table(outlier_display, caption = tr("outlier_title", lang))
 } else if (isTRUE(analysis_config$enable_outlier_detection)) {
   cat('\n<details>\n<summary>Click to expand outlier detection results</summary>\n\n')
-  cat(sprintf("\n\n### %s\n\n", tr("outlier_title", lang)))
+  cat(sprintf("\n\n<h4>%s</h4>\n\n", tr("outlier_title", lang)))
   cat(tr("outlier_none", lang), "\n\n")
 }
 ```
@@ -2247,7 +2247,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 <details>
 <summary>Click to expand plate heatmap</summary>
 
-```{r plate-heatmap, fig.width=10, fig.height=6, warning=FALSE, message=FALSE}
+```{r plate-heatmap, fig.width=10, fig.height=6, results='asis', warning=FALSE, message=FALSE}
 tryCatch({
   cat(tr("heatmap_desc", lang), "\n\n")
 
@@ -2287,7 +2287,7 @@ tryCatch({
 
 ```{r plate-positional-qc, results='asis'}
 cat('\n<details>\n<summary>Click to expand plate positional quality</summary>\n\n')
-cat("\n\n### Plate Positional Quality\n\n")
+cat("\n\n<h4>Plate Positional Quality</h4>\n\n")
 if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
   plate_data <- data_long %>% filter(is.finite(MeasurementValue))
   if (nrow(plate_data) > 0) {
@@ -2566,7 +2566,7 @@ tryCatch({
 tryCatch({
   if (isTRUE(is_elisa) && exists("tissue_weights") && !is.null(tissue_weights) && length(tissue_weights) > 0) {
     cat('\n<details>\n<summary>Click to expand tissue normalization traceability</summary>\n\n')
-    cat("\n\n### Tissue Normalization Method\n\n")
+    cat("\n\n<h4>Tissue Normalization Method</h4>\n\n")
 
     cat("Tissue-based concentrations are calculated using the following formula:\n\n")
     cat("$$C_{tissue} = \\frac{C_{extract} \\times V_{extraction}}{m_{tissue}}$$\n\n")
