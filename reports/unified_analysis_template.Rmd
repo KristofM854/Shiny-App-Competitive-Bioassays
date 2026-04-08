@@ -2441,7 +2441,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
 </details>
 
-## Parallelism and Relative Potency
+## `r tr("parallelism_title", lang)`
 
 ```{r parallelism-assessment, results='asis'}
 # Task C (HP7): Optional parallelism / relative potency assessment
@@ -2476,10 +2476,10 @@ tryCatch({
       cat(sprintf("*%d curve groups were compared.*\n\n", parallelism_result$curves_found))
 
     } else {
-      cat(sprintf("*Not applicable:* %s\n\n", parallelism_result$reason))
+      cat(sprintf("*%s*\n\n", tr("parallelism_not_applicable", lang, parallelism_result$reason)))
     }
   } else {
-    cat("*Not applicable:* No fitted model available for parallelism assessment.\n\n")
+    cat(sprintf("*%s*\n\n", tr("parallelism_no_model", lang)))
   }
 }, error = function(e) {
   cat(sprintf("*Parallelism assessment could not be completed: %s*\n\n", e$message))
