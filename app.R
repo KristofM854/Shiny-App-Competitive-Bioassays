@@ -739,7 +739,7 @@ ui <- fluidPage(
           div(
             id = "notes_feedback_section",
             h4("Notes & Feedback"),
-            textAreaInput("notes", "Notes (optional):",
+            textAreaInput("notes", "Notes (optional) - will appear in the report:",
                          value = "", placeholder = "Observations, sample info, run notes...",
                          rows = 8),
             br(),
