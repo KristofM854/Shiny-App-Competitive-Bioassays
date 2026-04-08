@@ -2257,7 +2257,8 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     if (knitr::is_html_output()) {
       p <- plotly::ggplotly(sample_box, tooltip = "text", height = fig_h * 96) %>%
         plotly::layout(margin = list(b = 120, l = 80))
-      cat('<details>\n<summary>Click to expand sample variability visualization</summary>\n')
+      cat('<details>\n<summary>Click to expand sample variability visualization</summary>\n\n')
+      cat(sprintf("*%s*\n\n", tr("sample_variability_desc", lang)))
       print(htmltools::tagList(p))
       cat('\n</details>\n')
     } else {
