@@ -127,6 +127,40 @@ server_common <- function(input, output, session, shared) {
   # Tab Navigation
   # --------------------------------------------------------------------------
 
+  # Helper: validate prerequisites before advancing to Analysis Settings
+  validate_before_analysis <- function() {
+    if (input$assay_type == "elisa") {
+      type_mat <- shared$matrix_type()
+      if (!is.null(type_mat)) {
+        well_types <- as.character(unlist(type_mat))
+        required_controls <- c("Blank", "NSB", "B0")
+        missing_controls <- required_controls[!required_controls %in% well_types]
+        if (length(missing_controls) > 0) {
+          showModal(modalDialog(
+            title = "Missing ELISA Control Wells",
+            paste0("Your plate layout is missing required control wells: ",
+                   paste(missing_controls, collapse = ", "), ". ",
+                   "Please go back to Plate Layout and assign these ",
+                   "well types in the Type matrix."),
+            footer = modalButton("OK"), easyClose = TRUE
+          ))
+          return(FALSE)
+        }
+      }
+    }
+    plate <- shared$matrix_measresults()
+    if (is.null(plate) || !any(!is.na(as.numeric(unlist(plate))))) {
+      showModal(modalDialog(
+        title = "No Plate Data",
+        "Please upload plate reader data before generating a report.",
+        footer = modalButton("OK"), easyClose = TRUE
+      ))
+      return(FALSE)
+    }
+    TRUE
+  }
+
+  # Bottom navigation buttons
   observeEvent(input$next_to_layout, {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
   })
@@ -140,44 +174,9 @@ server_common <- function(input, output, session, shared) {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
   })
   observeEvent(input$next_to_analysis, {
-    # Validate ELISA prerequisites before allowing analysis settings tab
-    if (input$assay_type == "elisa") {
-      type_mat <- shared$matrix_type()
-      if (!is.null(type_mat)) {
-        well_types <- as.character(unlist(type_mat))
-        required_controls <- c("Blank", "NSB", "B0")
-        missing_controls <- required_controls[!required_controls %in% well_types]
-
-        if (length(missing_controls) > 0) {
-          showModal(modalDialog(
-            title = "Missing ELISA Control Wells",
-            paste0(
-              "Your plate layout is missing required control wells: ",
-              paste(missing_controls, collapse = ", "), ". ",
-              "Please go back to Plate Layout and assign these ",
-              "well types in the Type matrix."
-            ),
-            footer = modalButton("OK"),
-            easyClose = TRUE
-          ))
-          return()
-        }
-      }
+    if (validate_before_analysis()) {
+      updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
     }
-
-    # Check that plate data has been uploaded
-    plate <- shared$matrix_measresults()
-    if (is.null(plate) || !any(!is.na(as.numeric(unlist(plate))))) {
-      showModal(modalDialog(
-        title = "No Plate Data",
-        "Please upload plate reader data before generating a report.",
-        footer = modalButton("OK"),
-        easyClose = TRUE
-      ))
-      return()
-    }
-
-    updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
   })
   observeEvent(input$back_to_upload, {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
@@ -186,6 +185,34 @@ server_common <- function(input, output, session, shared) {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_report")
   })
   observeEvent(input$back_to_analysis, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
+  })
+
+  # Top navigation buttons (duplicate _top IDs)
+  observeEvent(input$next_to_layout_top, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
+  })
+  observeEvent(input$back_to_config_top, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_config")
+  })
+  observeEvent(input$next_to_upload_top, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+  })
+  observeEvent(input$back_to_layout_top, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
+  })
+  observeEvent(input$next_to_analysis_top, {
+    if (validate_before_analysis()) {
+      updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
+    }
+  })
+  observeEvent(input$back_to_upload_top, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+  })
+  observeEvent(input$next_to_report_top, {
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_report")
+  })
+  observeEvent(input$back_to_analysis_top, {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
   })
 

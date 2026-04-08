@@ -198,7 +198,10 @@ server_report <- function(input, output, session, shared, config_reactives) {
       type_vec <- as.character(unlist(type_mat))
       has_samples <- any(type_vec == "Sample", na.rm = TRUE)
       tw <- shared$tissue_weights_rv()
-      has_weights <- length(tw) > 0 && any(sapply(tw, function(x) !is.null(x) && x > 0))
+      has_weights <- length(tw) > 0 && any(sapply(tw, function(x) {
+        if (is.list(x)) !is.null(x$weight) && !is.na(x$weight) && x$weight > 0
+        else !is.null(x) && !is.na(x) && x > 0
+      }))
       if (has_samples && !has_weights) {
         checks[[length(checks) + 1]] <- tags$div(
           style = "color: #FF9800;", icon("exclamation-triangle"),

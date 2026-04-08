@@ -183,6 +183,11 @@ ui <- fluidPage(
       "1. Configuration",
       value = "tab_config",
       br(),
+      div(
+        style = "display: flex; justify-content: flex-end; padding: 0 15px 10px;",
+        actionButton("next_to_layout_top", "Next: Plate Layout \u2192",
+                    class = "btn btn-primary btn-sm")
+      ),
 
       # Quick Start panel
       div(
@@ -335,8 +340,14 @@ ui <- fluidPage(
         style = "padding-bottom: 40px;",
 
         uiOutput("step1_header"),
+        div(
+          style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
+          actionButton("back_to_config_top", "\u2190 Back: Configuration",
+                      class = "btn btn-default btn-sm"),
+          actionButton("next_to_upload_top", "Next: Upload & Preview \u2192",
+                      class = "btn btn-primary btn-sm")
+        ),
 
-        # Preset plate layouts
         # Preset plate layouts + layout management
         div(
           id = "preset_layout_section",
@@ -491,6 +502,20 @@ ui <- fluidPage(
               "Enter tissue weight (mg) and extraction volume (\u00b5L) per replicate group. ",
               "Leave blank if not applicable. Default extraction volume: 500 \u00b5L."
             ),
+            div(
+              style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
+              div(
+                style = "display: flex; align-items: center; gap: 6px;",
+                tags$label("Set all extraction vol to:", `for` = "uniform_extraction",
+                           style = "margin: 0; white-space: nowrap; font-size: 12px;"),
+                tags$input(type = "number", id = "uniform_extraction", value = "500",
+                           min = "0", step = "10", class = "form-control",
+                           style = "width: 80px; height: 30px; padding: 2px 6px;")
+              ),
+              actionButton("apply_uniform_extraction", "Apply",
+                           class = "btn btn-sm btn-info",
+                           style = "height: 30px; padding: 2px 12px;")
+            ),
             rHandsontableOutput("tissue_weight_table"),
             tags$small(style = "color: #888;", "Scroll right if more groups are present.")
           )
@@ -517,6 +542,13 @@ ui <- fluidPage(
       div(
         id = "upload_section",
         uiOutput("step2_header"),
+        div(
+          style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
+          actionButton("back_to_layout_top", "\u2190 Back: Plate Layout",
+                      class = "btn btn-default btn-sm"),
+          actionButton("next_to_analysis_top", "Next: Analysis Settings \u2192",
+                      class = "btn btn-primary btn-sm")
+        ),
 
         radioButtons("import_method", "Import method:",
                     choices = c("Classic Import" = "classic",
@@ -568,17 +600,6 @@ ui <- fluidPage(
         div(class = "sr-only", textOutput("plate_heatmap_description"))
       ),
       br(),
-
-      # Notes
-      div(
-        id = "notes_feedback_section",
-        textAreaInput("notes", "Notes (optional):",
-                     value = "", placeholder = "Observations...", rows = 5),
-        tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
-              target = "_blank", class = "btn btn-lg btn-info",
-              style = "margin-top: 20px;", "Give Feedback")
-      ),
-      br(),
       div(
         style = "display: flex; justify-content: space-between; padding: 15px;",
         actionButton("back_to_layout", "\u2190 Back: Plate Layout",
@@ -595,6 +616,13 @@ ui <- fluidPage(
       "4. Analysis Settings",
       value = "tab_analysis",
       br(),
+      div(
+        style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
+        actionButton("back_to_upload_top", "\u2190 Back: Upload & Preview",
+                    class = "btn btn-default btn-sm"),
+        actionButton("next_to_report_top", "Next: Generate Report \u2192",
+                    class = "btn btn-primary btn-sm")
+      ),
 
       div(
         id = "analysis_settings_section",
@@ -674,37 +702,56 @@ ui <- fluidPage(
       "5. Generate Report",
       value = "tab_report",
       br(),
-
       div(
-        style = "max-width: 600px; margin: 0 auto;",
+        style = "display: flex; justify-content: flex-start; padding: 0 15px 10px;",
+        actionButton("back_to_analysis_top", "\u2190 Back: Analysis Settings",
+                    class = "btn btn-default btn-sm")
+      ),
 
-        # Report generation
-        div(
-          id = "convert_section",
-          h4("Report Output"),
-          checkboxGroupInput("export_formats", "Report formats:",
-                            choices = c("HTML" = "html", "Word" = "docx"),
-                            selected = "html"),
-          selectInput("report_language", "Report language:",
-                     choices = c("English" = "en", "Espa\u00f1ol" = "es"),
-                     selected = "en",
-                     width = "200px"),
-          br(),
-          actionButton("convert",
-                      label = tagList(icon("file-arrow-down"),
-                                     "Generate Report"),
-                      class = "btn btn-primary btn-lg",
-                      style = "width: 100%; font-size: 20px; font-weight: 700;
-                              padding: 14px; border-radius: 12px;"),
-          br(), br(),
-          downloadButton("download_report", "Download Last Report",
-                        class = "btn btn-success btn-lg",
-                        style = "width: 100%;")
+      fluidRow(
+        column(8,
+          # Report generation
+          div(
+            id = "convert_section",
+            h4("Report Output"),
+            checkboxGroupInput("export_formats", "Report formats:",
+                              choices = c("HTML" = "html", "Word" = "docx"),
+                              selected = "html"),
+            selectInput("report_language", "Report language:",
+                       choices = c("English" = "en", "Espa\u00f1ol" = "es"),
+                       selected = "en",
+                       width = "200px"),
+            br(),
+            actionButton("convert",
+                        label = tagList(icon("file-arrow-down"),
+                                       "Generate Report"),
+                        class = "btn btn-primary btn-lg",
+                        style = "width: 100%; font-size: 20px; font-weight: 700;
+                                padding: 14px; border-radius: 12px;"),
+            br(), br(),
+            downloadButton("download_report", "Download Last Report",
+                          class = "btn btn-success btn-lg",
+                          style = "width: 100%;")
+          )
+        ),
+        column(4,
+          # Notes & Feedback
+          div(
+            id = "notes_feedback_section",
+            h4("Notes & Feedback"),
+            textAreaInput("notes", "Notes (optional):",
+                         value = "", placeholder = "Observations, sample info, run notes...",
+                         rows = 8),
+            br(),
+            tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
+                  target = "_blank", class = "btn btn-info btn-block",
+                  icon("comment"), " Give Feedback")
+          )
         )
       ),
       br(),
 
-      # Pre-Flight Check panel
+      # Pre-Flight Check panel (full-width below the two columns)
       div(
         id = "preflight_section",
         style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
