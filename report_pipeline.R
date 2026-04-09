@@ -161,7 +161,8 @@ save_analysis_artifacts <- function(df_normalized, config, session) {
           )
       })
 
-      csv_path_wl <- file.path(config$output_dir, paste0("long_data_output_", wl, ".csv"))
+      wl_safe <- gsub("[/\\\\:*?\"<>|]", "_", wl)
+      csv_path_wl <- file.path(config$output_dir, paste0("long_data_output_", wl_safe, ".csv"))
       write.csv(df_normalized_wl, csv_path_wl, row.names = FALSE)
       message(sprintf("Saved: %s", basename(csv_path_wl)))
     }
