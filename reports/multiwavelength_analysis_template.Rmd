@@ -134,7 +134,8 @@ for (i in seq_along(wavelengths)) {
   cat(sprintf("\n\n# %s\n\n", tr("wavelength_analysis", lang, wl)))
   cat(sprintf("**%s**\n\n", tr("analysis_n_of", lang, i, length(wavelengths))))
 
-  csv_file <- file.path(output_dir, paste0("long_data_output_", wl, ".csv"))
+  wl_safe <- gsub("[/\\\\:*?\"<>|]", "_", wl)
+  csv_file <- file.path(output_dir, paste0("long_data_output_", wl_safe, ".csv"))
   if (!file.exists(csv_file)) {
     cat(sprintf("**Error:** Data file not found for %s\n\n", wl))
     next
@@ -186,8 +187,9 @@ tryCatch({
 summary_data <- list()
 
 for (wl in wavelengths) {
-  csv_file <- file.path(output_dir, paste0("long_data_output_", wl, ".csv"))
-  wl_output_dir <- file.path(output_dir, wl)
+  wl_safe <- gsub("[/\\\\:*?\"<>|]", "_", wl)
+  csv_file <- file.path(output_dir, paste0("long_data_output_", wl_safe, ".csv"))
+  wl_output_dir <- file.path(output_dir, wl_safe)
   stats_file <- file.path(wl_output_dir, "model_stats.json")
   summary_file <- file.path(wl_output_dir, "unknown_results_summary.csv")
 

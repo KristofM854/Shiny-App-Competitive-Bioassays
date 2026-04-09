@@ -7,10 +7,37 @@
 #   Strategy 2: Find largest contiguous 8xN numeric block (>=70% valid cells)
 #
 # Functions:
-#   detect_plate_location() - Find plate data region in file
-#   import_plate_data()     - Import and validate plate as 8x12 matrix
-#   preview_import()        - Quick validation preview
+#   read_file_raw()           - Read a plate reader file into a raw data.frame
+#   detect_plate_location()   - Find plate data region in file (or raw data)
+#   import_plate_data()       - Import and validate plate as 8x12 matrix
+#   parse_plate_file()        - Unified single-pass entry point
+#   preview_import()          - Quick validation preview
 # ==============================================================================
+
+#' Read a plate reader file into a raw data.frame (no headers)
+#'
+#' Shared low-level reader used by both detection and import functions
+#' so the file is read exactly once per import attempt.
+#'
+#' @param file_path Path to Excel, CSV, or TXT file
+#' @param sheet Sheet name or index (Excel only, default 1)
+#' @return A data.frame of raw file contents (character columns)
+#' @export
+read_file_raw <- function(file_path, sheet = 1) {
+  ext <- tolower(tools::file_ext(file_path))
+  if (ext %in% c("xlsx", "xls")) {
+    suppressMessages(
+      readxl::read_excel(file_path, sheet = sheet, col_names = FALSE,
+                         .name_repair = "minimal")
+    )
+  } else if (ext == "csv") {
+    read.csv(file_path, header = FALSE, stringsAsFactors = FALSE)
+  } else if (ext == "txt") {
+    read.table(file_path, header = FALSE, sep = "\t", stringsAsFactors = FALSE)
+  } else {
+    stop("Unsupported file format: ", ext)
+  }
+}
 
 #' Detect plate data location in Excel file
 #' 
@@ -22,24 +49,11 @@
 #' @param sheet Sheet name or index (for Excel files)
 #' @return List with: start_row, start_col, nrows, ncols, format, or NULL if not found
 #' @export
-detect_plate_location <- function(file_path, sheet = 1) {
-  
-  ext <- tools::file_ext(file_path)
-  
-  # Read file without headers
-  raw <- if (ext %in% c("xlsx", "xls")) {
-    suppressMessages(
-      readxl::read_excel(file_path, sheet = sheet, col_names = FALSE, 
-                        .name_repair = "minimal")
-    )
-  } else if (ext == "csv") {
-    read.csv(file_path, header = FALSE, stringsAsFactors = FALSE)
-  } else if (ext == "txt") {
-    read.table(file_path, header = FALSE, sep = "\t", stringsAsFactors = FALSE)
-  } else {
-    stop("Unsupported file format: ", ext)
-  }
-  
+detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
+
+  # Use pre-read data if supplied; otherwise read from disk
+  raw <- if (!is.null(raw_data)) raw_data else read_file_raw(file_path, sheet)
+
   # Convert to matrix for easier scanning
   mat <- as.matrix(raw)
   
@@ -175,28 +189,36 @@ detect_plate_location <- function(file_path, sheet = 1) {
 #' @param expected_cols Expected number of columns (default 12)
 #' @return Data frame with row names A-H and column names 1-12
 #' @export
-import_plate_data <- function(file_path, sheet = 1, 
-                             expected_rows = 8, expected_cols = 12) {
-  
-  # Detect plate location (with multi-sheet fallback for Excel)
-  location <- detect_plate_location(file_path, sheet)
+import_plate_data <- function(file_path, sheet = 1,
+                             expected_rows = 8, expected_cols = 12,
+                             raw_data = NULL, location = NULL) {
+
+  # Use pre-read data if supplied; otherwise read from disk
+  raw <- if (!is.null(raw_data)) raw_data else read_file_raw(file_path, sheet)
   used_sheet <- sheet
 
+  # Use pre-detected location if supplied; otherwise detect
   if (is.null(location)) {
-    ext <- tools::file_ext(file_path)
-    if (ext %in% c("xlsx", "xls")) {
-      # Try all other sheets
-      all_sheets <- readxl::excel_sheets(file_path)
-      for (s in seq_along(all_sheets)) {
-        if (s == sheet) next
-        location <- tryCatch(
-          detect_plate_location(file_path, sheet = s),
-          error = function(e) NULL
-        )
-        if (!is.null(location)) {
-          used_sheet <- s
-          message("Plate data found on sheet '", all_sheets[s], "' (sheet ", s, ").")
-          break
+    location <- detect_plate_location(file_path, sheet, raw_data = raw)
+
+    if (is.null(location)) {
+      ext <- tools::file_ext(file_path)
+      if (ext %in% c("xlsx", "xls")) {
+        # Try all other sheets
+        all_sheets <- readxl::excel_sheets(file_path)
+        for (s in seq_along(all_sheets)) {
+          if (s == sheet) next
+          other_raw <- read_file_raw(file_path, sheet = s)
+          location <- tryCatch(
+            detect_plate_location(file_path, sheet = s, raw_data = other_raw),
+            error = function(e) NULL
+          )
+          if (!is.null(location)) {
+            raw <- other_raw
+            used_sheet <- s
+            message("Plate data found on sheet '", all_sheets[s], "' (sheet ", s, ").")
+            break
+          }
         }
       }
     }
@@ -212,19 +234,6 @@ import_plate_data <- function(file_path, sheet = 1,
       "  - Without labels (pure numeric array)\n",
       "  - With or without column headers (1-12)"
     )
-  }
-  
-  # Read raw data again (using the sheet where plate was found)
-  ext <- tools::file_ext(file_path)
-  raw <- if (ext %in% c("xlsx", "xls")) {
-    suppressMessages(
-      readxl::read_excel(file_path, sheet = used_sheet, col_names = FALSE,
-                        .name_repair = "minimal")
-    )
-  } else if (ext == "csv") {
-    read.csv(file_path, header = FALSE, stringsAsFactors = FALSE)
-  } else {
-    read.table(file_path, header = FALSE, sep = "\t", stringsAsFactors = FALSE)
   }
   
   # Extract plate region
@@ -332,12 +341,18 @@ parse_plate_file <- function(file_path, sheet = 1) {
 
   fmt <- if (ext %in% c("xlsx", "xls")) "Excel" else if (ext == "csv") "CSV" else "TXT"
 
+  # ==================================================================
+  # SINGLE FILE READ — all subsequent logic uses this in-memory copy
+  # ==================================================================
+  raw <- read_file_raw(file_path, sheet)
+
   # ------------------------------------------------------------------
-  # Excel files: try multi-wavelength detection first (single file read)
+  # Excel files: try multi-wavelength detection first
   # ------------------------------------------------------------------
   if (ext %in% c("xlsx", "xls")) {
+    raw_mat <- as.matrix(raw)
     mw <- tryCatch(
-      detect_and_import_multiwavelength(file_path, sheet),
+      detect_and_import_multiwavelength(file_path, sheet, raw_matrix = raw_mat),
       error = function(e) list(wavelengths = NULL, plates = NULL)
     )
 
@@ -367,8 +382,9 @@ parse_plate_file <- function(file_path, sheet = 1) {
 
   # ------------------------------------------------------------------
   # Single-plate path (CSV / TXT / Excel without multi-wave markers)
+  # Reuses the same in-memory raw data — no second file read
   # ------------------------------------------------------------------
-  plate <- import_plate_data(file_path, sheet)   # may throw on bad files
+  plate <- import_plate_data(file_path, sheet, raw_data = raw)
   info  <- base::attr(plate, "import_info")
 
   wells   <- if (!is.null(info)) info$detected_wells else sum(!is.na(plate))
@@ -401,19 +417,20 @@ parse_plate_file <- function(file_path, sheet = 1) {
 #' @return List with summary info
 #' @export
 preview_import <- function(file_path, sheet = 1) {
-  
-  location <- detect_plate_location(file_path, sheet)
-  
+
+  raw <- read_file_raw(file_path, sheet)
+  location <- detect_plate_location(file_path, sheet, raw_data = raw)
+
   if (is.null(location)) {
     return(list(
       status = "error",
       message = "Plate data not detected in file. Expected 8 rows × 4+ columns of numeric data."
     ))
   }
-  
-  # Try to import
+
+  # Try to import (reuse raw + location)
   plate <- tryCatch(
-    import_plate_data(file_path, sheet),
+    import_plate_data(file_path, sheet, raw_data = raw, location = location),
     error = function(e) NULL
   )
   

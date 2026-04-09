@@ -621,6 +621,8 @@ compute_layered_uncertainty <- function(well_predictions, replicate_group,
 #'        concentration (or StandardConc), response variable, and a grouping
 #'        column (e.g. Replicate or CurveID)
 #' @param primary_model A fitted drc model object for the primary standard curve
+#'        (reserved for future use — currently a fresh multi-curve LL.4 is fitted
+#'        internally for the parallelism comparison)
 #' @param response_var Name of the response variable column
 #' @return A list with:
 #'   - applicable: logical, TRUE if parallelism assessment was possible
@@ -763,6 +765,11 @@ assess_parallelism <- function(data_long, primary_model, response_var) {
       details_parts <- c(details_parts,
         sprintf("Relative potency (EC50 ratio): %.4f [95%% CI: %.4f - %.4f]",
                 potency$estimate, potency$ci_lower, potency$ci_upper))
+    }
+    if (length(curve_groups) > 2) {
+      details_parts <- c(details_parts,
+        sprintf("Note: %d curve groups detected; comparison uses the first pair (%s vs %s).",
+                length(curve_groups), curve_groups[1], curve_groups[2]))
     }
     result$details <- paste(details_parts, collapse = " ")
 

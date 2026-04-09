@@ -186,9 +186,10 @@
 #' @export
 detect_and_import_multiwavelength <- function(file_path, sheet = 1,
                                               expected_rows = 8,
-                                              expected_cols = 12) {
-  # --- single file read ---
-  mat <- .read_raw_matrix(file_path, sheet)
+                                              expected_cols = 12,
+                                              raw_matrix = NULL) {
+  # --- single file read (skipped if pre-read matrix supplied) ---
+  mat <- if (!is.null(raw_matrix)) raw_matrix else .read_raw_matrix(file_path, sheet)
 
   # --- locate markers ---
   locations <- .scan_wavelength_locations(mat)

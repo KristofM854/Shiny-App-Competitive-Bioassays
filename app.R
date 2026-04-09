@@ -591,13 +591,17 @@ ui <- fluidPage(
       br(),
 
       # Data heatmap preview
-      div(
+      tags$figure(
         id = "heatmap_preview_section",
         style = "max-width: 700px;",
+        `aria-describedby` = "plate_heatmap_desc_text",
+        role = "figure",
         h5("Plate Data Heatmap"),
-        p("Visual verification of uploaded plate data."),
+        tags$figcaption(id = "plate_heatmap_desc_text",
+          "Visual verification of uploaded plate data. Wells are colored by measurement value."
+        ),
         plotly::plotlyOutput("plate_heatmap", height = "300px"),
-        div(class = "sr-only", textOutput("plate_heatmap_description"))
+        div(class = "sr-only", `aria-live` = "polite", textOutput("plate_heatmap_description"))
       ),
       br(),
       div(

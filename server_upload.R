@@ -555,7 +555,9 @@ server_upload <- function(input, output, session, shared) {
         plate_numeric <- extract_plate(reg_row)
         plate_numeric <- apply_exclusions(plate_numeric, reg_row$plate_id)
         plate_label <- if (!is.null(reg_row$label) && nzchar(reg_row$label)) {
-          reg_row$label
+          # Sanitize: labels flow into output filenames, so strip path separators
+          # and other filesystem-unsafe characters
+          gsub("[/\\\\:*?\"<>|]", "_", reg_row$label)
         } else {
           paste0("Plate_", i)
         }
