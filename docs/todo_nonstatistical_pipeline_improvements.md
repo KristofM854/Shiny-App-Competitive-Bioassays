@@ -70,25 +70,13 @@ Three improvements to the visual plate selector:
 
 # 4. Workflow robustness and output behavior
 
-## 4.1 Add graceful capability checks for report output
-The app should explicitly detect report-environment capabilities.
+## 4.1 Add graceful capability checks for report output ✅ COMPLETE
+`pdf_render_available()` in `report_pipeline.R` detects TinyTeX and system TeX. Pre-render check removes PDF if unavailable and falls back to HTML with notification. Post-render fallback retries as HTML if PDF LaTeX compilation fails. DOCX and HTML always available (no external dependencies).
 
-Examples:
-- DOCX path available
-- PDF path available
-- HTML always available
+## 4.2 Strengthen separation between artifacts and report rendering ✅ PARTIALLY COMPLETE
+The template already reads from pre-saved CSV/JSON artifacts (`long_data_output.csv`, config JSON, tissue weights JSON). Model fitting still runs inside the template from loaded data. Saving model artifacts (fitted objects) for render-retry would require R serialization (RDS), which is fragile across R versions. Current separation is adequate.
 
-Goal:
-- fail gracefully
-- provide clear fallback behavior
-- avoid hard render failures when optional capabilities are missing
-
-## 4.2 Strengthen separation between artifacts and report rendering
-The app already saves CSV/JSON artifacts.
-
-Goal:
-- make reports more clearly consume saved artifacts rather than recomputing too much inline
-- improve reproducibility and debugging
+**Remaining limitation:** Model fitting is still coupled to rendering. Full decoupling would require saving/loading drc model objects, which is brittle.
 
 ---
 
