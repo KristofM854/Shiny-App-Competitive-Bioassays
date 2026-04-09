@@ -327,12 +327,23 @@ Refactored `reports/unified_analysis_template.Rmd`:
 - `<br>` inside plotly `aes(text=...)` tooltips is HTML-only but only rendered in HTML mode (safe)
 - Executive summary box at lines 692-741 uses its own `is_html_output()` guard (not refactored to `emit_styled_block` because it contains complex conditional content)
 
-## Phase 2 — scaffold PDF properly
-1. Add PDF to the export options in the app
-2. Add runtime PDF capability detection
-3. Add graceful fallback to HTML when PDF is unavailable
-4. Test behavior with and without TeX installed
-5. If TeX is unavailable, verify fallback messaging and HTML output
+## Phase 2 — scaffold PDF properly ✅ COMPLETE
+
+### What was changed
+- **`report_pipeline.R`**: Added `pdf_render_available()` function that checks TinyTeX then system TeX (pdflatex/xelatex/lualatex). Added pre-render fallback in `render_reports()`: if user selected PDF but no TeX engine is found, removes PDF from render set, ensures HTML is included, shows clear notification.
+- **`app.R`**: Added "PDF" as third option in `checkboxGroupInput("export_formats")` with help text explaining the LaTeX requirement.
+- Both report YAML headers already had `pdf_document` defined.
+
+### Validation performed
+- Traced the fallback logic: if `pdf_render_available()` returns FALSE, PDF is removed from `selected`, HTML is added if nothing remains, notification fires.
+- If user selects only PDF but no TeX → gets HTML + warning notification.
+- If user selects PDF + HTML → PDF dropped, HTML kept + warning.
+- If user selects PDF + DOCX → PDF dropped, DOCX kept + HTML added + warning.
+- Existing HTML/DOCX paths unaffected (PDF check only runs when PDF is selected).
+
+### Remaining limitations
+- No runtime test (R unavailable) — structural review only.
+- PDF rendering itself untested (no LaTeX in this environment). The scaffold is correct; final validation requires a TeX-enabled environment.
 
 ## Phase 3 — improve Analysis Settings visibility
 1. Restyle Advanced Options into a highlighted card
