@@ -209,7 +209,28 @@ server_report <- function(input, output, session, shared, config_reactives) {
       }
     }
 
-    do.call(tagList, checks)
+    # --- Summary badge showing overall severity ---
+    has_errors <- any(sapply(checks, function(ch) grepl("#D32F2F", as.character(ch))))
+    has_warnings <- any(sapply(checks, function(ch) grepl("#FF9800", as.character(ch))))
+
+    if (has_errors) {
+      badge <- tags$div(
+        style = "padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; background: #FFEBEE; border-left: 4px solid #D32F2F; font-weight: bold; color: #C62828;",
+        icon("exclamation-circle"), " Blocking issues found \u2014 resolve before generating report"
+      )
+    } else if (has_warnings) {
+      badge <- tags$div(
+        style = "padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; background: #FFF3E0; border-left: 4px solid #FF9800; font-weight: bold; color: #E65100;",
+        icon("exclamation-triangle"), " Warnings found \u2014 report can be generated but review recommended"
+      )
+    } else {
+      badge <- tags$div(
+        style = "padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; background: #E8F5E9; border-left: 4px solid #388E3C; font-weight: bold; color: #2E7D32;",
+        icon("check-circle"), " All checks passed \u2014 ready to generate report"
+      )
+    }
+
+    do.call(tagList, c(list(badge), checks))
   })
 
   # --------------------------------------------------------------------------
