@@ -37,47 +37,21 @@ Multiwavelength template now sources `plot_functions.R` and `report_constants.R`
 
 # 2. Import pipeline and file handling
 
-## 2.1 Complete the strict single-read / single-detection import goal
-A unified import entry point exists, but the internal path still duplicates work in some fallback cases.
+## 2.1 Complete the strict single-read / single-detection import goal ✅ COMPLETE
+Extracted `read_file_raw()` as shared reader in `utils_import_v3.R`. Added optional `raw_data`/`location`/`raw_matrix` params to `detect_plate_location()`, `import_plate_data()`, and `detect_and_import_multiwavelength()`. `parse_plate_file()` calls `read_file_raw()` exactly once and passes data through. File-read count: 1 for Excel multi-wave, 1 for Excel single-plate, 1 for CSV/TXT.
 
-Goal:
-- one file read per classic import
-- one detection workflow per import attempt
-- no restart of detection from scratch in fallback branches
-
-## 2.2 Further simplify upload-module structure
-`server_upload.R` still contains several distinct responsibilities:
-- file preview
-- visual selector state
-- exclusions
-- classic import
-- visual import confirmation
-- heatmap preview
-
-Goal:
-- separate visual-selector logic more cleanly
-- make the upload module easier to reason about and maintain
+## 2.2 Further simplify upload-module structure — DEFERRED
+`server_upload.R` (645 lines) has clear section dividers and a coherent structure. Splitting visual selector into its own file would improve modularity but is lower priority than UI and testing tasks. Deferred.
 
 ---
 
 # 3. Shiny usability improvements
 
-## 3.1 Improve prominence of Advanced Options
-Advanced Options in Tab 4 remain too easy to miss.
+## 3.1 Improve prominence of Advanced Options ✅ COMPLETE
+Replaced collapsed `<details>` with an amber card (background #FFF8E1, orange left-border accent, sliders icon, explicit heading, explanatory subtitle). Open by default.
 
-Goal:
-- stronger visual treatment
-- clearer label
-- short explanation of what the section controls
-- consider default-open behavior
-
-## 3.2 Clarify report output behavior in the UI
-Users should understand the output trade-offs clearly.
-
-Goal:
-- explain that HTML is interactive
-- explain that DOCX/PDF use static figures
-- explain PDF fallback behavior if no TeX environment is available
+## 3.2 Clarify report output behavior in the UI ✅ COMPLETE
+Export format selector now shows three options (HTML, Word (DOCX), PDF) with two-line help text: "HTML reports have interactive plots. Word and PDF use static figures." / "PDF requires a LaTeX engine (e.g. TinyTeX). If unavailable, the app will fall back to HTML."
 
 ## 3.3 Improve severity signaling in pre-flight checks
 Pre-flight checks have improved, but the app should make it even clearer which findings are:
