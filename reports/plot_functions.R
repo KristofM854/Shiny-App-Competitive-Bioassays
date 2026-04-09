@@ -24,10 +24,16 @@ is_html_out <- function() isTRUE(knitr::is_html_output())
 #' HTML  -> interactive Plotly (with optional tooltip)
 #' DOCX / PDF -> static ggplot print
 #'
+#' Important: the return value must be a **visible expression** in the calling
+#' chunk so knitr's knit_print mechanism handles it.  Do NOT assign the result
+#' to a variable — use  render_plot(...)  as a bare statement.
+#'
 #' @param gg A ggplot object
 #' @param tooltip Character vector of aesthetics for Plotly tooltip (HTML only)
 #' @param height Plotly height in pixels (HTML only, default NULL = auto)
 #' @param plotly_layout Named list of additional plotly::layout() args (HTML only)
+#' @return For HTML: an htmltools tagList (knitr renders as interactive widget).
+#'         For DOCX/PDF: invisible NULL (static plot is a side-effect of print()).
 render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL) {
   if (is_html_out()) {
     p <- if (!is.null(tooltip)) {
@@ -38,9 +44,13 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL)
     if (!is.null(plotly_layout)) {
       p <- do.call(plotly::layout, c(list(p), plotly_layout))
     }
-    print(htmltools::tagList(p))
+    # Return the tagList — knitr's knit_print dispatches on the visible
+    # return value, which correctly handles widget HTML + JS dependencies
+    # in both results='asis' and default chunk modes.
+    htmltools::tagList(p)
   } else {
     print(gg)
+    invisible(NULL)
   }
 }
 
