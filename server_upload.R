@@ -84,14 +84,14 @@ server_upload <- function(input, output, session, shared) {
   output$download_report <- downloadHandler(
     filename = function() {
       fmt <- input$export_formats[1] %||% "html"
-      ext <- if (fmt == "docx") "docx" else "html"
+      ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
       paste0("bioassay_report_", format(Sys.Date(), "%Y%m%d"), ".", ext)
     },
     content = function(file) {
       out_dir <- session$userData$output_dir
-      # Find the most recent report file
+      # Find the most recent report file in the selected format
       fmt <- input$export_formats[1] %||% "html"
-      ext <- if (fmt == "docx") "docx" else "html"
+      ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
       report_files <- list.files(out_dir, pattern = paste0("\\.", ext, "$"), full.names = TRUE)
       if (length(report_files) > 0) {
         # Get most recent
