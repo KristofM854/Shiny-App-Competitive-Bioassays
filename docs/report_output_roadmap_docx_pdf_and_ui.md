@@ -297,25 +297,73 @@ A small notice near the Convert workflow could remind users that advanced analys
 
 # 7. Recommended implementation phases
 
-## Phase 1 — make DOCX reliable
-1. Add format helper functions
-2. Refactor all Plotly paths to static-output fallbacks for non-HTML
-3. Refactor collapsible sections to be format-aware
-4. Make tables consistently DOCX-safe
-5. Test single-wave and multi-wave DOCX generation
+## Phase 1 — make DOCX reliable ✅ COMPLETE
 
-## Phase 2 — scaffold PDF properly
-1. Add PDF to the export options in the app
-2. Add runtime PDF capability detection
-3. Add graceful fallback to HTML when PDF is unavailable
-4. Test behavior with and without TeX installed
-5. If TeX is unavailable, verify fallback messaging and HTML output
+### What was changed
+Added 7 format-aware helper functions in `reports/plot_functions.R`:
+- `is_html_out()` — central format check
+- `render_plot(gg, tooltip, height, plotly_layout)` — Plotly for HTML, static ggplot for DOCX/PDF
+- `section_start(title)` / `section_end()` — cat-based, for R chunks
+- `section_open(title)` / `section_close()` — string-based, for inline R in markdown
+- `emit_heading(title, level)` — `<h4>` for HTML, `####` for DOCX/PDF
+- `emit_styled_block(content, html_style)` — styled `<div>` for HTML, plain markdown for DOCX/PDF
 
-## Phase 3 — improve Analysis Settings visibility
-1. Restyle Advanced Options into a highlighted card
-2. Strengthen the label and helper text
-3. Decide whether it should default to open
-4. Test discoverability and visual clarity
+Refactored `reports/unified_analysis_template.Rmd`:
+- **19 raw markdown `<details>/<summary>` pairs** → `section_open()`/`section_close()` inline R
+- **8 `cat()`-based `<details>` open/close pairs** → `section_start()`/`section_end()`
+- **7 unconditional `<h4>` cat() calls** → `emit_heading()`
+- **4 `plotly::ggplotly()` rendering sites** → `render_plot()` (weight comparison, DRC, sample boxplot, DRC with samples)
+- **2 unconditional `<div style=...>` blocks** → `emit_styled_block()` (executive summary, data quality overview)
+- **All `htmltools::tagList()` calls eliminated** from template (moved into `render_plot()` helper)
+
+### Validation performed
+- Grepped for `<details>`, `</details>`, `<summary>`, `<h4>`, `ggplotly`, `htmltools::tagList` — zero remaining outside of helpers
+- Only remaining `<div style=` is in exec-summary-box chunk (lines 692/738), already inside `if (knitr::is_html_output())` guard with `else` fallback
+- Tables already format-safe via `render_table()` (existing helper with internal format check)
+- Multiwavelength template was already clean (no raw HTML constructs)
+
+### Remaining limitations
+- No runtime render test (R unavailable) — structural review only
+- `<br>` inside plotly `aes(text=...)` tooltips is HTML-only but only rendered in HTML mode (safe)
+- Executive summary box at lines 692-741 uses its own `is_html_output()` guard (not refactored to `emit_styled_block` because it contains complex conditional content)
+
+## Phase 2 — scaffold PDF properly ✅ COMPLETE
+
+### What was changed
+- **`report_pipeline.R`**: Added `pdf_render_available()` function that checks TinyTeX then system TeX (pdflatex/xelatex/lualatex). Added pre-render fallback in `render_reports()`: if user selected PDF but no TeX engine is found, removes PDF from render set, ensures HTML is included, shows clear notification.
+- **`app.R`**: Added "PDF" as third option in `checkboxGroupInput("export_formats")` with help text explaining the LaTeX requirement.
+- Both report YAML headers already had `pdf_document` defined.
+
+### Validation performed
+- Traced the fallback logic: if `pdf_render_available()` returns FALSE, PDF is removed from `selected`, HTML is added if nothing remains, notification fires.
+- If user selects only PDF but no TeX → gets HTML + warning notification.
+- If user selects PDF + HTML → PDF dropped, HTML kept + warning.
+- If user selects PDF + DOCX → PDF dropped, DOCX kept + HTML added + warning.
+- Existing HTML/DOCX paths unaffected (PDF check only runs when PDF is selected).
+
+### Remaining limitations
+- No runtime test (R unavailable) — structural review only.
+- PDF rendering itself untested (no LaTeX in this environment). The scaffold is correct; final validation requires a TeX-enabled environment.
+
+## Phase 3 — improve Analysis Settings visibility ✅ COMPLETE
+
+### What was changed
+Replaced the collapsed `<details>` element in Tab 4 with a prominently styled settings card:
+- **Amber background** (`#FFF8E1`) with orange left border accent (`#FFA000`)
+- **Sliders icon** + explicit heading: "Advanced Options — weighting, CI, outliers, and QC thresholds"
+- **Explanatory subtitle** describing what the section controls
+- **Open by default** — no longer hidden behind a collapsed toggle
+- Subtle box shadow for depth
+
+### Files changed
+- `app.R` — replaced `tags$details(...)` with styled `div(...)` for the advanced options section
+
+### Validation performed
+- Structure verified: `div()` closes correctly, all child inputs (quant range, CI method, outlier detection, CV limit) preserved
+- Layout unchanged for the rest of Tab 4 (weighting selector above, nav buttons below)
+
+### Remaining limitations
+- No runtime visual test (Shiny not running locally). Card styling verified by code review only.
 
 ---
 

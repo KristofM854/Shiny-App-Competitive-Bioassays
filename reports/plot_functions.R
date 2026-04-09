@@ -1,11 +1,132 @@
 # ==============================================================================
-# Table and Plot Functions  
+# Table and Plot Functions
 # Purpose: Standardized rendering functions for consistent report output
 # ==============================================================================
 
 # Source constants and core functions
 if (!exists("TABLE_CONFIG")) {
   source("report_constants.R")
+}
+
+# ==============================================================================
+# FORMAT-AWARE OUTPUT HELPERS
+# Central helpers for HTML / DOCX / PDF format switching.
+# All report templates should use these instead of scattering ad-hoc
+# knitr::is_html_output() checks.
+# ==============================================================================
+
+#' Check if the current output format supports HTML widgets
+#' @return TRUE for HTML output, FALSE for DOCX/PDF/other
+is_html_out <- function() isTRUE(knitr::is_html_output())
+
+#' Render a ggplot object in a format-appropriate way
+#'
+#' HTML  -> interactive Plotly (with optional tooltip)
+#' DOCX / PDF -> static ggplot print
+#'
+#' @param gg A ggplot object
+#' @param tooltip Character vector of aesthetics for Plotly tooltip (HTML only)
+#' @param height Plotly height in pixels (HTML only, default NULL = auto)
+#' @param plotly_layout Named list of additional plotly::layout() args (HTML only)
+render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL) {
+  if (is_html_out()) {
+    p <- if (!is.null(tooltip)) {
+      plotly::ggplotly(gg, tooltip = tooltip, height = height)
+    } else {
+      plotly::ggplotly(gg, height = height)
+    }
+    if (!is.null(plotly_layout)) {
+      p <- do.call(plotly::layout, c(list(p), plotly_layout))
+    }
+    print(htmltools::tagList(p))
+  } else {
+    print(gg)
+  }
+}
+
+#' Emit a collapsible section start (cat-based, for use inside R chunks)
+#'
+#' HTML  -> <details><summary>title</summary>
+#' DOCX / PDF -> ### title (plain markdown heading)
+#'
+#' @param title Section title text
+#' @param heading_level Markdown heading level for non-HTML (default "###")
+section_start <- function(title, heading_level = "###") {
+  if (is_html_out()) {
+    cat(sprintf('\n<details>\n<summary>%s</summary>\n\n', title))
+  } else {
+    cat(sprintf('\n%s %s\n\n', heading_level, title))
+  }
+}
+
+#' Emit a collapsible section end (cat-based, for use inside R chunks)
+#'
+#' HTML  -> </details>
+#' DOCX / PDF -> (no-op)
+section_end <- function() {
+  if (is_html_out()) {
+    cat('\n</details>\n\n')
+  }
+}
+
+#' Return collapsible section open tag (string-based, for inline R in markdown)
+#'
+#' @param title Section title text
+#' @param heading_level Markdown heading level for non-HTML (default "###")
+#' @return A character string (HTML or markdown)
+section_open <- function(title, heading_level = "###") {
+  if (is_html_out()) {
+    sprintf('<details>\n<summary>%s</summary>', title)
+  } else {
+    sprintf('%s %s', heading_level, title)
+  }
+}
+
+#' Return collapsible section close tag (string-based, for inline R in markdown)
+#' @return HTML </details> or empty string
+section_close <- function() {
+  if (is_html_out()) '</details>' else ''
+}
+
+#' Emit an HTML heading or markdown heading, depending on output format
+#'
+#' HTML  -> <h4>title</h4>  (or specified level)
+#' DOCX / PDF -> #### title  (markdown heading)
+#'
+#' @param title Heading text
+#' @param level Integer heading level (default 4)
+emit_heading <- function(title, level = 4L) {
+  if (is_html_out()) {
+    cat(sprintf("\n\n<h%d>%s</h%d>\n\n", level, title, level))
+  } else {
+    hashes <- paste(rep("#", level), collapse = "")
+    cat(sprintf("\n\n%s %s\n\n", hashes, title))
+  }
+}
+
+#' Emit inline-styled HTML block or plain markdown paragraph
+#'
+#' For styled executive-summary boxes, data-quality panels, etc.
+#' HTML  -> <div style="..."> content </div>
+#' DOCX / PDF -> plain markdown block (bold heading + body)
+#'
+#' @param content Character vector of lines (already formatted)
+#' @param html_style CSS style string for the HTML wrapper
+#' @param html_tag Tag name for HTML wrapper (default "div")
+emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
+  if (is_html_out() && !is.null(html_style)) {
+    cat(sprintf('\n<%s style="%s">\n', html_tag, html_style))
+    cat(paste(content, collapse = "\n"))
+    cat(sprintf('\n</%s>\n\n', html_tag))
+  } else {
+    # Strip HTML tags for plain markdown output
+    plain <- gsub("<br\\s*/?>", "\n", paste(content, collapse = "\n"))
+    plain <- gsub("<strong>|</strong>", "**", plain)
+    plain <- gsub("<em>|</em>", "*", plain)
+    plain <- gsub("<[^>]+>", "", plain)
+    cat(plain)
+    cat("\n\n")
+  }
 }
 
 # ==============================================================================

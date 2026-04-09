@@ -641,12 +641,18 @@ ui <- fluidPage(
                    selected = "none"),
         helpText("Select multiple weightings to compare results side by side."),
 
-        # Advanced options (collapsed by default)
-        tags$details(
-          style = "margin-top: 15px; padding: 10px; background: #FAFAFA; border-radius: 4px;",
-          tags$summary(style = "cursor: pointer; font-weight: bold; color: #666;",
-                       "Advanced Options"),
-          br(),
+        # Advanced analysis options — open by default for visibility
+        div(
+          style = paste0(
+            "margin-top: 18px; padding: 14px 16px; background: #FFF8E1; ",
+            "border-radius: 6px; border-left: 4px solid #FFA000; ",
+            "box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
+          ),
+          h4(style = "margin: 0 0 4px 0; color: #E65100;",
+             icon("sliders-h"), " Advanced Options \u2014 weighting, CI, outliers, and QC thresholds"),
+          tags$p(style = "margin: 0 0 12px 0; color: #555; font-size: 13px;",
+            "These settings control confidence interval method, outlier detection, quantification range, and quality thresholds."
+          ),
 
           fluidRow(
             column(6,
@@ -719,8 +725,10 @@ ui <- fluidPage(
             id = "convert_section",
             h4("Report Output"),
             checkboxGroupInput("export_formats", "Report formats:",
-                              choices = c("HTML" = "html", "Word" = "docx"),
+                              choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
                               selected = "html"),
+            tags$small(class = "text-muted",
+              "PDF requires a LaTeX engine (e.g. TinyTeX). If unavailable, the app will fall back to HTML."),
             selectInput("report_language", "Report language:",
                        choices = c("English" = "en", "Espa\u00f1ol" = "es"),
                        selected = "en",
