@@ -6,6 +6,28 @@
 # ============================================================================
 
 # --------------------------------------------------------------------------
+# PDF capability detection
+# --------------------------------------------------------------------------
+
+#' Check whether the current environment can render PDF reports
+#'
+#' Tests for a TeX engine in this order:
+#' 1. TinyTeX installed and available
+#' 2. System pdflatex / xelatex / lualatex on PATH
+#'
+#' @return TRUE if PDF rendering should work, FALSE otherwise
+pdf_render_available <- function() {
+  # Check TinyTeX first (most common in R setups)
+  if (requireNamespace("tinytex", quietly = TRUE)) {
+    if (tryCatch(tinytex::is_tinytex(), error = function(e) FALSE)) {
+      return(TRUE)
+    }
+  }
+  # Fall back to system TeX
+  any(nzchar(Sys.which(c("pdflatex", "xelatex", "lualatex"))))
+}
+
+# --------------------------------------------------------------------------
 # Stage 1: Flush pending layout state
 # --------------------------------------------------------------------------
 #' Synchronously flush any debounced dilution edits so the Convert observer
@@ -230,6 +252,21 @@ render_reports <- function(params, session) {
 
   formats_map <- list(html = "html_document", pdf = "pdf_document", docx = "word_document")
   is_mw <- isTRUE(params$is_multiwavelength)
+
+  # --- Graceful PDF fallback ---
+  selected <- params$selected_formats
+  if ("pdf" %in% selected && !pdf_render_available()) {
+    showNotification(
+      paste("PDF rendering is not available in this environment",
+            "because no LaTeX engine was detected.",
+            "An HTML report will be generated instead."),
+      type = "warning", duration = 12
+    )
+    selected <- setdiff(selected, "pdf")
+    if (length(selected) == 0) selected <- "html"
+    if (!"html" %in% selected) selected <- c(selected, "html")
+  }
+  params$selected_formats <- selected
 
   # Locate template directory
 
