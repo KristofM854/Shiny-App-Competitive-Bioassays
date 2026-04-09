@@ -53,20 +53,18 @@ Replaced collapsed `<details>` with an amber card (background #FFF8E1, orange le
 ## 3.2 Clarify report output behavior in the UI ✅ COMPLETE
 Export format selector now shows three options (HTML, Word (DOCX), PDF) with two-line help text: "HTML reports have interactive plots. Word and PDF use static figures." / "PDF requires a LaTeX engine (e.g. TinyTeX). If unavailable, the app will fall back to HTML."
 
-## 3.3 Improve severity signaling in pre-flight checks
-Pre-flight checks have improved, but the app should make it even clearer which findings are:
-- blocking,
-- warning-level,
-- informational only.
+## 3.3 Improve severity signaling in pre-flight checks ✅ COMPLETE
+Added a summary badge at the top of the pre-flight panel:
+- Red badge: "Blocking issues found — resolve before generating report"
+- Orange badge: "Warnings found — report can be generated but review recommended"
+- Green badge: "All checks passed — ready to generate report"
+The badge dynamically reflects whether any red (blocking) or orange (warning) items are present.
 
-Goal:
-- improve decision-making before report generation
-
-## 3.4 Improve visual selector feedback
-The visual selector is much stronger than before, but it could still communicate more clearly:
-- how many wells are excluded per plate
-- which selected plate becomes the primary one
-- what multi-plate selection implies for downstream analysis
+## 3.4 Improve visual selector feedback ✅ COMPLETE
+Three improvements to the visual plate selector:
+- Per-plate **exclusion count badge** (red pill: "3 wells excluded")
+- **Primary plate badge** (green pill: "Primary plate") on the first selected plate
+- **Multi-plate context help**: when multiple plates detected, explains that selecting multiple enables multi-wavelength comparison and first plate is primary
 
 ---
 
