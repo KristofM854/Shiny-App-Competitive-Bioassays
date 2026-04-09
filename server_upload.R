@@ -304,7 +304,12 @@ server_upload <- function(input, output, session, shared) {
         })
       ),
       tags$p(tags$small(style = "color: #666;",
-                        "Uncheck plates you do not want to analyze.")),
+        if (nrow(registry) > 1) {
+          "Uncheck plates you do not want to analyze. Selecting multiple plates enables multi-wavelength comparison. The first selected plate is used as the primary measurement."
+        } else {
+          "Uncheck this plate if the detection is incorrect."
+        }
+      )),
 
       # Well grid section for each selected plate
       uiOutput("visual_well_grids"),
@@ -387,11 +392,22 @@ server_upload <- function(input, output, session, shared) {
         })
       )
 
+      # Exclusion count and primary-plate indicator
+      n_excl <- length(plate_excl)
+      excl_badge <- if (n_excl > 0) {
+        tags$span(style = "background: #FFCDD2; color: #C62828; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px;",
+                  sprintf("%d well%s excluded", n_excl, if (n_excl == 1) "" else "s"))
+      } else NULL
+      primary_badge <- if (idx == 1) {
+        tags$span(style = "background: #C8E6C9; color: #2E7D32; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px;",
+                  "Primary plate")
+      } else NULL
+
       div(
         style = "margin: 10px 0;",
-        tags$b(pl$label),
+        tags$b(pl$label), excl_badge, primary_badge,
         tags$small(style = "color: #666; margin-left: 10px;",
-                   tr("excluded_wells_label", lang)),
+                   "Click wells to exclude/include"),
         tags$div(
           style = "overflow-x: auto; margin-top: 5px;",
           tags$table(

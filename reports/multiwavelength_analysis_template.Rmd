@@ -76,6 +76,17 @@ if (!i18n_found) {
 
 # write_json_safe is defined in global.R (loaded before rendering)
 
+# Source shared plot/table/format helpers
+helpers_candidates <- c(
+  file.path(script_dir, "plot_functions.R"),
+  file.path(script_dir, "report_constants.R"),
+  "plot_functions.R", "report_constants.R"
+)
+for (hf in unique(helpers_candidates)) {
+  hf <- tryCatch(normalizePath(hf, winslash = "/", mustWork = FALSE), error = function(e) hf)
+  if (file.exists(hf)) { source(hf); message("Sourced: ", hf) }
+}
+
 # Load analysis settings
 analysis_config <- tryCatch({
   cfg_file <- file.path(output_dir, "analysis_config.json")
@@ -254,14 +265,7 @@ if (length(summary_data) > 0) {
     tr("col_quantified", lang), tr("col_mean_cv", lang)
   )
 
-  # Use format appropriate for output type
-  out_fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
-  if (!is.null(out_fmt) && out_fmt %in% c("docx", "latex")) {
-    print(kable(summary_df, caption = tr("data_overview", lang), format = "pandoc"))
-  } else {
-    print(kable(summary_df, caption = tr("data_overview", lang)) %>%
-      kableExtra::kable_styling(full_width = FALSE, position = "center"))
-  }
+  render_table(summary_df, caption = tr("data_overview", lang))
 
   rmse_vals <- sapply(summary_data, function(x) {
     v <- x$rmse
@@ -388,13 +392,7 @@ tryCatch({
         )
         names(conc_table) <- c("Comparison", "n", tr("concordance_ccc", lang), "95% CI", "Bias", "Limits of Agreement", "Agreement")
 
-        out_fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
-        if (!is.null(out_fmt) && out_fmt %in% c("docx", "latex")) {
-          print(kable(conc_table, caption = tr("concordance_title", lang), format = "pandoc", row.names = FALSE))
-        } else {
-          print(kable(conc_table, caption = tr("concordance_title", lang), row.names = FALSE) %>%
-            kableExtra::kable_styling(full_width = FALSE, position = "center"))
-        }
+        render_table(conc_table, caption = tr("concordance_title", lang))
 
         # Bland-Altman plots for each pair
         cat(sprintf("\n\n### %s\n\n", tr("concordance_bland_altman", lang)))
