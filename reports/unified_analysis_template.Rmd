@@ -688,7 +688,7 @@ if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
     exec_warnings <- c(exec_warnings, sprintf("%d standard level(s) excluded for high CV", nrow(high_var_standards)))
   }
 
-  if (knitr::is_html_output()) {
+  if (is_html_out()) {
     cat('<div style="background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%); ',
         'padding: 16px 20px; border-radius: 8px; border-left: 4px solid #4CAF50; ',
         'margin: 15px 0 25px 0; font-size: 14px;">\n\n')
@@ -734,7 +734,7 @@ if (!drc_failed_completely && exists("R2") && !is.na(R2)) {
     cat(sprintf("**Top warnings:** %s\n\n", paste(exec_warnings, collapse = "; ")))
   }
 
-  if (knitr::is_html_output()) {
+  if (is_html_out()) {
     cat('</div>\n\n')
   } else {
     cat("---\n\n")
