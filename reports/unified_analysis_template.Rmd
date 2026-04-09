@@ -974,9 +974,19 @@ if (multi_weight_mode && length(all_models) > 1) {
       )
   }
 
-  render_plot(cmp_plot)
   } # end if (length(curve_data_list) > 0)
+}
+```
 
+```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
+# Separate chunk so render_plot() return value is visible to knitr
+if (exists("cmp_plot") && multi_weight_mode && length(all_models) > 1) {
+  render_plot(cmp_plot)
+}
+```
+
+```{r weight-comparison-close, results='asis'}
+if (multi_weight_mode && length(all_models) > 1) {
   cat(sprintf("\n\n*%s*\n\n",
       tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
   section_end()
@@ -1057,7 +1067,6 @@ tryCatch({
     })
     names(stability_results) <- names(all_models)
 
-    section_start("Click to expand model stability assessment")
     emit_heading("Model Stability Assessment", 4)
 
     # Build summary table
@@ -1107,7 +1116,6 @@ tryCatch({
     for (k in names(stability_results)) {
       all_models[[k]]$stability <- stability_results[[k]]
     }
-    section_end()
   }
 }, error = function(e) {
   cat(sprintf("\n\n*Model stability assessment could not be performed: %s*\n\n", e$message))
@@ -1846,7 +1854,7 @@ if (nrow(samples_to_analyze) > 0) {
 }
 ```
 
-`r section_open("Click to expand sample results summary")`
+### Sample Results Summary
 
 ```{r sample-results-table, results='asis'}
 # Wrap entire chunk in tryCatch for debugging
@@ -1993,8 +2001,6 @@ tryCatch({
   cat("This section will be skipped.\n\n")
 })
 ```
-
-`r section_close()`
 
 ```{r outlier-results, results='asis'}
 if (isTRUE(analysis_config$enable_outlier_detection)) {
@@ -2242,13 +2248,28 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
       sample_box <- sample_box + facet_wrap(~panel, scales = "free_x", ncol = 1)
     }
 
-    # Render plot (collapsible in HTML, plain heading in DOCX/PDF)
+    # Section wrapper + description
     section_start("Sample variability visualization")
     cat(sprintf("*%s*\n\n", tr("sample_variability_desc", lang)))
-    render_plot(sample_box, tooltip = "text", height = fig_h * 96,
-                plotly_layout = list(margin = list(b = 120, l = 80)))
-    section_end()
   }
+}
+```
+
+```{r sample-boxplot-render, fig.width=10, fig.height=7, warning=FALSE, message=FALSE}
+# Separate chunk so render_plot() return value is visible to knitr
+if (exists("sample_box") && !is.null(sample_box)) {
+  fig_h <- if (exists("use_faceting") && isTRUE(use_faceting)) {
+    n_panels <- max(sample_plot_data$panel)
+    max(7, n_panels * 4.5)
+  } else { 7 }
+  render_plot(sample_box, tooltip = "text", height = fig_h * 96,
+              plotly_layout = list(margin = list(b = 120, l = 80)))
+}
+```
+
+```{r sample-boxplot-close, results='asis'}
+if (exists("sample_box") && !is.null(sample_box)) {
+  section_end()
 }
 ```
 
