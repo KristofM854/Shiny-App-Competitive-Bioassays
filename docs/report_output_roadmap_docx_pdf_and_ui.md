@@ -345,11 +345,25 @@ Refactored `reports/unified_analysis_template.Rmd`:
 - No runtime test (R unavailable) — structural review only.
 - PDF rendering itself untested (no LaTeX in this environment). The scaffold is correct; final validation requires a TeX-enabled environment.
 
-## Phase 3 — improve Analysis Settings visibility
-1. Restyle Advanced Options into a highlighted card
-2. Strengthen the label and helper text
-3. Decide whether it should default to open
-4. Test discoverability and visual clarity
+## Phase 3 — improve Analysis Settings visibility ✅ COMPLETE
+
+### What was changed
+Replaced the collapsed `<details>` element in Tab 4 with a prominently styled settings card:
+- **Amber background** (`#FFF8E1`) with orange left border accent (`#FFA000`)
+- **Sliders icon** + explicit heading: "Advanced Options — weighting, CI, outliers, and QC thresholds"
+- **Explanatory subtitle** describing what the section controls
+- **Open by default** — no longer hidden behind a collapsed toggle
+- Subtle box shadow for depth
+
+### Files changed
+- `app.R` — replaced `tags$details(...)` with styled `div(...)` for the advanced options section
+
+### Validation performed
+- Structure verified: `div()` closes correctly, all child inputs (quant range, CI method, outlier detection, CV limit) preserved
+- Layout unchanged for the rest of Tab 4 (weighting selector above, nav buttons below)
+
+### Remaining limitations
+- No runtime visual test (Shiny not running locally). Card styling verified by code review only.
 
 ---
 
