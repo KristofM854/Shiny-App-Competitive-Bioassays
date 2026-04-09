@@ -324,6 +324,40 @@ render_reports <- function(params, session) {
       FALSE
     })
 
+    # --- Graceful PDF-to-HTML fallback on render failure ---
+    if (!render_ok && fmt == "pdf" && !"html" %in% names(output_paths)) {
+      showNotification(
+        "PDF compilation failed. Generating HTML report as fallback...",
+        type = "warning", duration = 8
+      )
+      html_ok <- tryCatch({
+        render_params <- list(output_dir = out_dir_abs, lang = params$report_lang)
+        if (is_mw) render_params$wavelengths <- params$wavelengths
+        out_name <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
+        out_file <- rmarkdown::render(
+          input = report_template,
+          output_format = formats_map[["html"]],
+          output_file = out_name,
+          output_dir = out_dir_abs,
+          params = render_params,
+          knit_root_dir = dirname(report_template),
+          envir = new.env(parent = globalenv())
+        )
+        output_paths[["html"]] <- out_file
+        TRUE
+      }, error = function(e2) {
+        showNotification(
+          sprintf("HTML fallback also failed: %s", e2$message),
+          type = "error", duration = 10
+        )
+        FALSE
+      })
+      if (html_ok) {
+        showNotification("HTML report created as PDF fallback.",
+                         type = "message", duration = 5)
+      }
+    }
+
     if (render_ok) {
       showNotification(sprintf("%s report created!", toupper(fmt)),
                        type = "message", duration = 5)
