@@ -19,6 +19,13 @@ if (!exists("TABLE_CONFIG")) {
 #' @return TRUE for HTML output, FALSE for DOCX/PDF/other
 is_html_out <- function() isTRUE(knitr::is_html_output())
 
+#' Check if the current output format is Word (DOCX)
+#' @return TRUE for DOCX output, FALSE otherwise
+is_docx_out <- function() {
+  fmt <- knitr::pandoc_to()
+  !is.null(fmt) && fmt == "docx"
+}
+
 #' Render a ggplot object in a format-appropriate way
 #'
 #' HTML  -> interactive Plotly (with optional tooltip)
@@ -129,11 +136,16 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
     cat(paste(content, collapse = "\n"))
     cat(sprintf('\n</%s>\n\n', html_tag))
   } else {
-    # Strip HTML tags for plain markdown output
+    # Strip HTML tags and convert entities for plain markdown output
     plain <- gsub("<br\\s*/?>", "\n", paste(content, collapse = "\n"))
     plain <- gsub("<strong>|</strong>", "**", plain)
     plain <- gsub("<em>|</em>", "*", plain)
     plain <- gsub("<[^>]+>", "", plain)
+    # Convert common HTML entities to Unicode
+    plain <- gsub("&mdash;", "\u2014", plain)
+    plain <- gsub("&ndash;", "\u2013", plain)
+    plain <- gsub("&emsp;", " ", plain)
+    plain <- gsub("&amp;", "&", plain)
     cat(plain)
     cat("\n\n")
   }
@@ -177,12 +189,16 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
         extra_css = paste0("white-space: nowrap; min-width: ", col_min_px, ";")
       )
 
+  } else if (is_docx_out()) {
+    # Word output: kableExtra functions (kable_styling, column_spec) do not
+    # work reliably with pandoc pipe tables.  Return the plain kable output
+    # which pandoc converts into a native Word table.
+    tbl
+
   } else {
-    # Word / PDF output:
-    # kableExtra::kable_styling(full_width = TRUE) forces Word to stretch the
-    # table across the full text width so columns are not arbitrarily narrow.
-    # column_spec() with width = "Xcm" sets guaranteed minimum widths for
-    # the rightmost columns that contain long numeric values.
+    # PDF (LaTeX) output:
+    # kableExtra::kable_styling(full_width = TRUE) stretches the table and
+    # column_spec() with width = "Xcm" sets guaranteed minimum widths.
     styled <- tbl %>%
       kableExtra::kable_styling(full_width = TRUE)
 
@@ -228,15 +244,27 @@ render_qc_table <- function(qc_results) {
         bootstrap_options = c("striped", "hover")
       )
       
+  } else if (is_docx_out()) {
+    # Word output: use plain kable (pandoc converts to native Word table)
+    qc_display <- qc_results[, c("Check", "Result")]
+    qc_display$Status <- ifelse(qc_results$Pass, "\u2705 Pass", "\u26a0 Review")
+    knitr::kable(
+      qc_display,
+      caption = "Quality Control Checks",
+      align = c("l", "l", "l"),
+      row.names = FALSE
+    )
   } else {
-    # Plain text for PDF/Word
-    cat("Quality Control Checks\n\n")
-    cat(sprintf("%-60s %-30s\n", "Check", "Result"))
-    cat(strrep("-", 90), "\n")
-    
-    for (i in seq_len(nrow(qc_results))) {
-      cat(sprintf("%-60s %-30s\n", qc_results$Check[i], qc_results$Result[i]))
-    }
+    # PDF (LaTeX) output: use kable with kableExtra styling
+    qc_display <- qc_results[, c("Check", "Result")]
+    qc_display$Status <- ifelse(qc_results$Pass, "Pass", "Review")
+    knitr::kable(
+      qc_display,
+      caption = "Quality Control Checks",
+      align = c("l", "l", "l"),
+      row.names = FALSE
+    ) %>%
+      kableExtra::kable_styling(full_width = FALSE)
   }
 }
 

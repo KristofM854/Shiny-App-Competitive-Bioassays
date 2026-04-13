@@ -229,10 +229,21 @@ message("📝 Report language: ", report_lang)
 # 7. Render Reports
 # ------------------------------------------------------------------------------
 
+# Build format specifications.  For DOCX we use an explicit
+# rmarkdown::word_document() call so we can guarantee fig_caption, PNG
+# device, and high-DPI figures.
+ref_docx_path <- file.path(script_dir, "reports", "reference.docx")
+docx_fmt <- rmarkdown::word_document(
+  toc = TRUE,
+  fig_caption = TRUE,
+  fig_width = 6,
+  fig_height = 4,
+  reference_docx = if (file.exists(ref_docx_path)) ref_docx_path else NULL
+)
 formats_map <- list(
   html = "html_document",
   pdf  = "pdf_document",
-  docx = "word_document"
+  docx = docx_fmt
 )
 
 # Track successful renders

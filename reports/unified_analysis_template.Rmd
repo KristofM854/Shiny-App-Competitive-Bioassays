@@ -13,6 +13,9 @@ output:
     css: report_style.css
   word_document:
     toc: true
+    fig_caption: true
+    fig_width: 6
+    fig_height: 4
   pdf_document:
     toc: true
 header-includes:
@@ -28,6 +31,17 @@ params:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# For DOCX/PDF output, force static PNG figures at high resolution
+if (!knitr::is_html_output()) {
+  knitr::opts_chunk$set(
+    dev = "png",
+    dpi = 300,
+    fig.width = 6,
+    fig.height = 4,
+    fig.retina = 1
+  )
+}
 
 # Load required libraries
 library(dplyr)
@@ -165,7 +179,7 @@ fmt_smart <- function(x, digits = 4) {
 }
 ```
 
-```{css details-style, echo=FALSE}
+```{css details-style, echo=FALSE, eval=knitr::is_html_output()}
 details > summary {
   cursor: pointer;
   font-weight: bold;
@@ -1036,7 +1050,7 @@ tryCatch({
     if (!is.na(hetero_result$statistic)) {
       cat(sprintf("**Statistic:** %s", fmt_smart(hetero_result$statistic, 3)))
       if (!is.na(hetero_result$p_value)) {
-        cat(sprintf("&emsp;**p-value:** %s", fmt_smart(hetero_result$p_value, 4)))
+        cat(sprintf(" \u2003 **p-value:** %s", fmt_smart(hetero_result$p_value, 4)))
       }
       cat("\n\n")
     }
@@ -1936,10 +1950,17 @@ tryCatch({
       any_truncated <- any(replicate_stats$ci_truncated, na.rm = TRUE)
       if (isTRUE(any_truncated)) {
         truncated_groups <- replicate_stats$Replicate[replicate_stats$ci_truncated]
-        cat(sprintf(
-          "\n<small>\u2020 Lower bound truncated to 0 (original value was negative) for: %s</small>\n\n",
-          paste(truncated_groups, collapse = ", ")
-        ))
+        if (is_html_out()) {
+          cat(sprintf(
+            "\n<small>\u2020 Lower bound truncated to 0 (original value was negative) for: %s</small>\n\n",
+            paste(truncated_groups, collapse = ", ")
+          ))
+        } else {
+          cat(sprintf(
+            "\n*\u2020 Lower bound truncated to 0 (original value was negative) for: %s*\n\n",
+            paste(truncated_groups, collapse = ", ")
+          ))
+        }
       }
     }
 
@@ -2306,6 +2327,7 @@ tryCatch({
         plot.title = element_text(hjust = 0.5)
       )
 
+    # Static heatmap for all outputs (no plotly conversion needed)
     print(heatmap_plot)
   }
 }, error = function(e) {
