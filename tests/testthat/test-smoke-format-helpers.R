@@ -10,6 +10,12 @@ test_that("is_html_out returns logical", {
   expect_length(result, 1)
 })
 
+test_that("is_docx_out returns logical", {
+  result <- is_docx_out()
+  expect_type(result, "logical")
+  expect_length(result, 1)
+})
+
 test_that("section_open returns a string for any format", {
   result <- section_open("Test Title")
   expect_type(result, "character")
