@@ -25,7 +25,7 @@ required_pkgs <- c(
   "ggplot2", "ggrepel", "ggthemes", "ggtext", "htmltools",
   "jsonlite", "kableExtra", "knitr", "patchwork", "plotly", "purrr",
   "readr", "readxl", "rintrojs", "rmarkdown", "rhandsontable",
-  "scales", "shiny", "shinyFeedback", "shinyjs",
+  "scales", "shiny", "shinyFeedback", "shinyjs","shinycssloaders",
   "stringr", "tibble", "tidyr", "xfun"
 )
 # Removed unused packages: blastula, fs, htmlwidgets, shinyBS, tinytex, zip
