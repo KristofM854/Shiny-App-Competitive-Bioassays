@@ -11,6 +11,9 @@ output:
     toc: true
   word_document:
     toc: true
+    fig_caption: true
+    fig_width: 6
+    fig_height: 4
 params:
   output_dir: NULL
   wavelengths: NULL
@@ -19,6 +22,17 @@ params:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# For DOCX/PDF output, force static PNG figures at high resolution
+if (!knitr::is_html_output()) {
+  knitr::opts_chunk$set(
+    dev = "png",
+    dpi = 300,
+    fig.width = 6,
+    fig.height = 4,
+    fig.retina = 1
+  )
+}
 
 library(dplyr)
 library(knitr)
