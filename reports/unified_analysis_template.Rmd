@@ -2087,6 +2087,18 @@ if (exists("model_stats") && exists("write_json_safe")) {
 }
 ```
 
+```{=openxml}
+<w:p>
+  <w:pPr>
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"
+               w:header="720" w:footer="720"/>
+    </w:sectPr>
+  </w:pPr>
+</w:p>
+```
+
 ## `r tr("detailed_summary", lang)`
 
 `r section_open("Click to expand detailed results table")`
@@ -2180,6 +2192,18 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 ```
 
 `r section_close()`
+
+```{=openxml}
+<w:p>
+  <w:pPr>
+    <w:sectPr>
+      <w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"
+               w:header="720" w:footer="720"/>
+    </w:sectPr>
+  </w:pPr>
+</w:p>
+```
 
 ## `r tr("sample_variability", lang)`
 
