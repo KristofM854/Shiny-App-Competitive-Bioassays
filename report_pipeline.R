@@ -250,7 +250,21 @@ save_analysis_artifacts <- function(df_normalized, config, session) {
 render_reports <- function(params, session) {
 
 
-  formats_map <- list(html = "html_document", pdf = "pdf_document", docx = "word_document")
+  # Build format specifications.  For DOCX we use an explicit
+  # rmarkdown::word_document() call so we can guarantee fig_caption, PNG
+  # device, and high-DPI figures even if the YAML header is overridden.
+  ref_docx_path <- file.path(
+    if (file.exists("reports")) "reports" else file.path(dirname(params$csv_path), "reports"),
+    "reference.docx"
+  )
+  docx_fmt <- rmarkdown::word_document(
+    toc = TRUE,
+    fig_caption = TRUE,
+    fig_width = 6,
+    fig_height = 4,
+    reference_docx = if (file.exists(ref_docx_path)) ref_docx_path else NULL
+  )
+  formats_map <- list(html = "html_document", pdf = "pdf_document", docx = docx_fmt)
   is_mw <- isTRUE(params$is_multiwavelength)
 
   # --- Graceful PDF fallback ---
