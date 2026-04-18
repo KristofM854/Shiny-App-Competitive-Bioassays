@@ -76,6 +76,16 @@ server_report <- function(input, output, session, shared, config_reactives) {
     )
   })
 
+  # Phase 1.3: Extraction volume guidance shown below the tissue table
+  output$extraction_volume_help <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$div(
+      style = paste("background-color: #F5F5F5; padding: 8px; margin-top: 8px;",
+                    "border-left: 4px solid #1976D2; font-size: 12px;"),
+      tr("extraction_volume_help", lang)
+    )
+  })
+
   # Non-blocking warning when any well parses to > 1 and was not entered as
   # ratio (i.e., contains no ':'). Nudges users who typed "2" meaning "2-fold".
   output$dilution_gt1_warning <- renderUI({

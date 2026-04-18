@@ -2028,6 +2028,9 @@ if (isTRUE(analysis_config$enable_outlier_detection)) {
   section_start("Click to expand outlier detection results")
   emit_heading(tr("outlier_title", lang), 4)
 
+  # Phase 1.5: clarify that flagged != removed from the raw table
+  cat("> ", tr("outlier_flagged_not_removed_note", lang), "\n\n", sep = "")
+
   if (exists("outlier_flags") && nrow(outlier_flags) > 0) {
     cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
 
@@ -2608,6 +2611,8 @@ tryCatch({
   # M6: Quantification status counts
   if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0 &&
       "quantification_status" %in% names(sample_results)) {
+    # Phase 1.4: explain why two apparently overlapping range indicators exist
+    cat(tr("range_indicators_explanation", lang), "\n\n", sep = "")
     status_counts <- table(sample_results$quantification_status)
     cat("**Quantification status breakdown (per well):**\n\n")
     for (s in names(status_counts)) {
@@ -2639,13 +2644,21 @@ tryCatch({
     section_start("Click to expand tissue normalization traceability")
     emit_heading("Tissue Normalization Method", 4)
 
-    cat("Tissue-based concentrations are calculated using the following formula:\n\n")
-    cat("$$C_{tissue} = \\frac{C_{extract} \\times V_{extraction}}{m_{tissue}}$$\n\n")
+    cat("Tissue-based concentrations are calculated using the following formula ",
+        "with explicit unit conversions:\n\n", sep = "")
+    cat("$$C_{tissue}\\ (\\mathrm{pg/g}) = \\frac{C_{extract}\\ (\\mathrm{pg/mL}) \\times \\left[V_{extraction}\\ (\\mathrm{\\mu L}) \\,/\\, 1000\\right]}{m_{tissue}\\ (\\mathrm{mg}) \\,/\\, 1000}$$\n\n")
     cat("Where:\n\n")
-    cat("- $C_{extract}$ = concentration in extract (pg/mL from curve)\n")
-    cat("- $V_{extraction}$ = extraction volume (mL)\n")
-    cat("- $m_{tissue}$ = tissue mass (g)\n")
+    cat("- $C_{extract}$ = concentration in the original (undiluted) extract, from the curve (pg/mL)\n")
+    cat("- $V_{extraction}$ = total volume the tissue was extracted into (\u00b5L, converted to mL by /1000)\n")
+    cat("- $m_{tissue}$ = mass of tissue extracted (mg, converted to g by /1000)\n")
     cat("- $C_{tissue}$ = final concentration (pg/g tissue)\n\n")
+
+    cat("> **Note on extraction volume:** $V_{extraction}$ is the *total* volume ",
+        "the tissue was extracted into, before any plate-loading dilutions. ",
+        "For example, 50 mg of tissue homogenized in 500 \u00b5L of buffer, ",
+        "then diluted 1:10 before plate loading, is recorded as ",
+        "$V_{extraction}$ = 500 \u00b5L here and the 1:10 dilution is ",
+        "recorded in the DilutionFactor matrix (as 0.1 or `1:10`).\n\n", sep = "")
 
     # Build per-sample conversion table
     tw_trace <- data.frame(
@@ -2672,6 +2685,52 @@ tryCatch({
       render_table(display_tw, caption = "Tissue Normalization Parameters")
 
       cat(sprintf("\n**Units:** Final tissue concentrations are reported as pg/g tissue (= pg analyte per gram of tissue).\n\n"))
+
+      # Worked example using the first sample that has a tissue mass and
+      # a successfully quantified extract concentration. Lets a reviewer
+      # reproduce the reported pg/g number from the printed inputs.
+      if (exists("replicate_stats") && !is.null(replicate_stats) &&
+          nrow(replicate_stats) > 0 &&
+          all(c("Replicate", "mean_conc") %in% names(replicate_stats)) &&
+          "concentration_pg_per_g" %in% names(replicate_stats)) {
+        tw_example <- replicate_stats[
+          replicate_stats$Replicate %in% tw_trace$Replicate &
+            !is.na(replicate_stats$mean_conc) &
+            !is.na(replicate_stats$concentration_pg_per_g), , drop = FALSE]
+        if (nrow(tw_example) > 0) {
+          ex <- tw_example[1, , drop = FALSE]
+          ex_trace <- tw_trace[tw_trace$Replicate == ex$Replicate, , drop = FALSE][1, , drop = FALSE]
+          c_extract <- as.numeric(ex$mean_conc)
+          v_ul <- as.numeric(ex_trace$Extraction_uL)
+          m_mg <- as.numeric(ex_trace$TissueMass_mg)
+          v_ml <- v_ul / 1000
+          m_g <- m_mg / 1000
+          amount_pg <- c_extract * v_ml
+          c_tissue <- amount_pg / m_g
+          cat("**Worked example (replicate group `",
+              as.character(ex$Replicate), "`):**\n\n", sep = "")
+          cat(sprintf(
+            "1. $C_{extract}$ = %s pg/mL (from the fitted curve)\n", format(c_extract, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "2. $V_{extraction}$ = %s \u00b5L = %s mL (divide by 1000)\n",
+            format(v_ul, big.mark = ",", scientific = FALSE),
+            format(v_ml, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "3. $m_{tissue}$ = %s mg = %s g (divide by 1000)\n",
+            format(m_mg, big.mark = ",", scientific = FALSE),
+            format(m_g, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "4. Amount in extract = %s pg/mL \u00d7 %s mL = %s pg\n",
+            format(c_extract, big.mark = ",", scientific = FALSE),
+            format(v_ml, big.mark = ",", scientific = FALSE),
+            format(amount_pg, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "5. $C_{tissue}$ = %s pg / %s g = **%s pg/g tissue**\n\n",
+            format(amount_pg, big.mark = ",", scientific = FALSE),
+            format(m_g, big.mark = ",", scientific = FALSE),
+            format(c_tissue, big.mark = ",", scientific = FALSE)))
+        }
+      }
     }
     section_end()
   }
