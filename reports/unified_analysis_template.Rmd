@@ -29,6 +29,57 @@ params:
   lang: "en"
 ---
 
+<!--
+================================================================================
+Chunk pipeline (in execution order):
+
+  setup                           - libraries, output_dir, i18n, source helpers
+  load-data                       - read CSV, validate, compute %B/B0 for ELISA
+  executive-summary               - top-of-report status box
+  standards-table                 - display standard concentrations
+  methods-section                 - methods paragraph with citations
+  model-fitting                   - fit all selected weightings (LL.4 -> LL.3 ->
+                                    interpolation fallback); defines:
+                                    all_models, model_fit, R2, RMSE,
+                                    conc_range, model_fits, ec20, ec80,
+                                    classify_range(), flag_range()
+  exec-summary-box                - rendered exec summary (needs model_fit)
+  weight-comparison               - overlay plot of weightings (HTML)
+  weighting-suitability           - Brown-Forsythe / variance ratio
+  model-stability-assessment      - convergence / boundary diagnostics
+  lloq-uloq                       - back-calculation accuracy -> formal LLOQ/ULOQ
+  dose-response-plots             - main DRC plot
+  model-stats                     - 4PL coefficient table
+  save-model-stats                - write model_stats.json (partial)
+  standard-backcalculation        - per-standard recovery table
+  data-quality-overview           - quick data quality panel
+  sample-analysis                 - MAIN SAMPLE QUANTIFICATION (defines:
+                                    sample_results, replicate_stats,
+                                    outlier_flags, replicate_summary,
+                                    tissue-normalized columns if ELISA)
+  sample-results-table            - rendered sample table + CSV writes
+  outlier-results                 - outlier detection report block
+  ci-method-note                  - CI method footnote
+  save-sample-stats               - updates model_stats.json with mean_sample_cv
+  summary-results-table           - detailed replicate summary
+  sample-boxplot                  - variability visualization
+  plate-heatmap                   - plate heatmap
+  plate-positional-qc             - row/column bias check
+  drc-with-samples                - DRC plot with sample points overlaid
+  parallelism-assessment          - optional multi-curve comparison
+  report-summary                  - high-level summary bullets
+  report-interpretation           - QC-profile-based interpretation
+  tissue-normalization-traceability - ELISA + tissue only
+  exclusion-audit                 - formal exclusion audit table
+
+Key cross-chunk dependencies:
+  - model-fitting defines variables used by almost all later chunks
+  - sample-analysis must run before sample-results-table, outlier-results,
+    save-sample-stats, summary-results-table, sample-boxplot
+  - tissue_weights (ELISA) is loaded inside sample-analysis
+================================================================================
+-->
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
@@ -637,9 +688,20 @@ if (isTRUE(is_elisa)) {
   }
 }
 
-# Helper function: classify a sample as within range or out of range
-# For ELISA: based on %B/B0 response value
-# For RBA: based on estimated concentration vs EC20/EC80
+# classify_range(): uses different reference axes depending on assay type.
+#
+# ELISA: classifies by %B/B0 response value. The kit manufacturer
+#   (e.g., Cayman) defines the reliable quantification range in terms of
+#   %B/B0 bounds (default 20-80%). The response axis is bounded [0, 100],
+#   so %B/B0 is the natural reference.
+#
+# RBA: classifies by estimated concentration vs EC20/EC80 concentrations,
+#   following the AOAC SMPR recommendation for radioligand binding assays.
+#   The response axis (CPM) is unbounded, so concentration is the natural
+#   reference.
+#
+# Both approaches identify samples falling outside the linear portion of the
+# dose-response curve; they just use different axes to do so.
 classify_range <- function(response_val, conc_val, is_elisa_assay) {
   if (isTRUE(is_elisa_assay)) {
     if (is.na(response_val)) return("Unknown")

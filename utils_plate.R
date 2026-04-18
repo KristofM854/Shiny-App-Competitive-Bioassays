@@ -386,8 +386,19 @@ matrix_to_long <- function(type_mat, id_mat, dilution_mat,
   cols <- rep(COL_NAMES, each = PLATE_NROW)
   wells <- paste0(rows, cols)
 
-  # Flatten all matrices to vectors in the same order (column-major is default
-  # for as.matrix, which matches rep(ROW_NAMES, times=NCOL) / rep(COL_NAMES, each=NROW))
+  # Column-major unrolling of the plate matrix. R's as.matrix() flattens
+  # columns first, so the vector order is:
+  #
+  #   Well A1 = row 1, col 1  -> vector index 1
+  #   Well B1 = row 2, col 1  -> vector index 2
+  #   ...
+  #   Well H1 = row 8, col 1  -> vector index 8
+  #   Well A2 = row 1, col 2  -> vector index 9
+  #   ...
+  #
+  # This matches rep(ROW_NAMES, times=PLATE_NCOL) for rows and
+  # rep(COL_NAMES, each=PLATE_NROW) for columns, so the Row/Column/Well
+  # vectors align element-for-element with the flattened matrix data.
   df_long <- data.frame(
     Well           = wells,
     Row            = rows,
@@ -432,6 +443,16 @@ matrix_to_long <- function(type_mat, id_mat, dilution_mat,
 #' @param std_conc Vector of standard concentrations
 #' @return A function(measurement_mat) that returns a long-format data frame
 #'   with the cached layout columns plus MeasurementValue from the supplied matrix
+#'
+#' @examples
+#' # Build the converter once using shared layout matrices
+#' converter <- matrix_to_long_with_cached_layout(
+#'   type_mat, id_mat, dil_mat, rep_mat, std_conc
+#' )
+#'
+#' # Convert each wavelength's plate individually
+#' df_450 <- converter(plate_at_450nm)
+#' df_630 <- converter(plate_at_630nm)
 matrix_to_long_with_cached_layout <- function(type_mat, id_mat, dilution_mat,
                                                replicate_mat, std_conc = NULL) {
 
