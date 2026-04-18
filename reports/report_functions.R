@@ -354,12 +354,12 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
     result$test_name <- "Variance-ratio heuristic"
     if (!is.na(result$variance_ratio)) {
       result$statistic <- result$variance_ratio
-      if (result$variance_ratio > 10) {
+      if (result$variance_ratio > STATS_CONFIG$heteroscedasticity_variance_ratio_strong) {
         result$interpretation <- sprintf(
           "Large variance ratio (%.1f) across concentration levels suggests strong heteroscedasticity.",
           result$variance_ratio)
         result$recommendation <- "Weighted regression (1/Y or 1/Y^2) is strongly recommended."
-      } else if (result$variance_ratio > 3) {
+      } else if (result$variance_ratio > STATS_CONFIG$heteroscedasticity_variance_ratio_moderate) {
         result$interpretation <- sprintf(
           "Moderate variance ratio (%.1f) across concentration levels suggests possible heteroscedasticity.",
           result$variance_ratio)
@@ -581,7 +581,8 @@ compute_layered_uncertainty <- function(well_predictions, replicate_group,
 
       if (ci_method == "bootstrap" && n >= 3) {
         set.seed(42)
-        boot_vals <- replicate(1000, mean(sample(concs, replace = TRUE)))
+        boot_vals <- replicate(STATS_CONFIG$bootstrap_iterations,
+                               mean(sample(concs, replace = TRUE)))
         set.seed(NULL)
         result$ci_lower_replicate <- as.numeric(quantile(boot_vals, 0.025))
         result$ci_upper_replicate <- as.numeric(quantile(boot_vals, 0.975))
