@@ -2,6 +2,10 @@
 # ============================================================================
 # Report generation and pre-flight validation logic extracted from app.R
 # ============================================================================
+# Pipeline stage helpers (flush_latest_layout_state, build_long_data,
+# normalize_assay_data, save_analysis_artifacts, render_reports) are
+# defined in report_pipeline.R.
+#
 # This module provides:
 #   - Hill slope warning UI
 #   - Dilution error feedback UI
