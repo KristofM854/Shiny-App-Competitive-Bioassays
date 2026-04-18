@@ -31,6 +31,34 @@ if (!exists("QC_THRESHOLDS") || is.null(QC_THRESHOLDS$cv_limit)) {
   )
 }
 
+# Statistical thresholds used across the report template.
+# Values chosen based on common immunoassay-analysis conventions; change
+# in one place to propagate everywhere.
+STATS_CONFIG <- list(
+  # Bootstrap resampling
+  bootstrap_iterations = 1000,     # per-replicate-group percentile bootstrap
+
+  # Outlier detection
+  mad_outlier_threshold = 3,       # MAD z-score cutoff for non-normal data
+                                   # (Leys et al. 2013, "very conservative" = 3)
+  dixon_alpha = 0.05,              # Dixon's Q-test significance level
+  shapiro_alpha = 0.05,            # Shapiro-Wilk normality pre-test level
+
+  # ED() calls: drc::ED measures response *reduction* from the top asymptote,
+  # so respLev = 80 returns the concentration where response has dropped to
+  # 20% (EC20), and respLev = 20 returns EC80.
+  ec20_resp_level = 80,
+  ec80_resp_level = 20,
+
+  # Heteroscedasticity variance-ratio heuristic (fallback when formal
+  # Brown-Forsythe is not feasible)
+  heteroscedasticity_variance_ratio_strong = 10,
+  heteroscedasticity_variance_ratio_moderate = 3,
+
+  # Display conventions
+  ci_truncation_floor = 0          # negative lower bounds displayed as 0
+)
+
 # Plot configuration - colors and axis settings for report figures
 PLOT_CONFIG <- list(
   width = 10,
