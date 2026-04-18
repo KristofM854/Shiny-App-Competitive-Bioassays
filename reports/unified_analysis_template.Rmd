@@ -663,11 +663,11 @@ if (isTRUE(is_elisa)) {
   bb0_upper <- analysis_config$quant_range_max %||% 80  # Upper bound of reliable %B/B0 range
   # Still compute EC20/EC80 concentrations for reference/reporting
   ec20 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec20_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   ec80 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 20, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec80_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   if (!is.na(ec20) && !is.na(ec80) && ec20 > ec80) {
@@ -676,11 +676,11 @@ if (isTRUE(is_elisa)) {
 } else {
   # RBA: use concentration-based EC20/EC80
   ec20 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec20_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   ec80 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 20, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec80_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   if (!is.na(ec20) && !is.na(ec80) && ec20 > ec80) {
@@ -1640,7 +1640,7 @@ if (nrow(samples_to_analyze) > 0) {
         if (use_shapiro && n_grp >= 3) {
           shap_test <- tryCatch(shapiro.test(vals), error = function(e) list(p.value = 1))
           shapiro_p <- shap_test$p.value
-          if (shapiro_p < 0.05) {
+          if (shapiro_p < STATS_CONFIG$shapiro_alpha) {
             use_mad <- TRUE
           }
         }
@@ -1651,7 +1651,7 @@ if (nrow(samples_to_analyze) > 0) {
           mad_val <- mad(vals, constant = 1.4826)
           if (mad_val > 0) {
             mad_scores <- abs(vals - med_val) / mad_val
-            outlier_idx <- which(mad_scores > 3)
+            outlier_idx <- which(mad_scores > STATS_CONFIG$mad_outlier_threshold)
             if (length(outlier_idx) > 0) {
               for (oi in outlier_idx) {
                 outlier_flags <- rbind(outlier_flags, data.frame(
@@ -1786,10 +1786,10 @@ if (nrow(samples_to_analyze) > 0) {
       ci_lower_raw = ci_lower_combined,
       ci_upper_raw = ci_upper_combined,
       # Apply truncation for display
-      ci_lower = pmax(ci_lower_combined, 0),
+      ci_lower = pmax(ci_lower_combined, STATS_CONFIG$ci_truncation_floor),
       ci_upper = ci_upper_combined,
       # Track whether truncation occurred
-      ci_truncated = !is.na(ci_lower_raw) & ci_lower_raw < 0,
+      ci_truncated = !is.na(ci_lower_raw) & ci_lower_raw < STATS_CONFIG$ci_truncation_floor,
       mean_conc_formatted = if (isTRUE(is_elisa)) {
         format(mean_conc, digits = 4, nsmall = 1, big.mark = ",")
       } else {
@@ -2126,7 +2126,8 @@ if (isTRUE(analysis_config$enable_outlier_detection)) {
 ```{r ci-method-note, results='asis'}
 if (isTRUE(analysis_config$ci_method == "bootstrap")) {
   cat(sprintf("\n*%s*\n\n", tr("ci_bootstrap_note", lang)))
-  cat("*Replicate-level CIs computed via percentile bootstrap (1000 resamples).*\n\n")
+  cat(sprintf("*Replicate-level CIs computed via percentile bootstrap (%d resamples).*\n\n",
+              STATS_CONFIG$bootstrap_iterations))
 } else {
   cat(sprintf("\n*%s*\n\n", tr("ci_tdist_note", lang)))
   cat("*Replicate-level CIs reflect measurement variability using Student's t-distribution (df = n-1).*\n\n")
