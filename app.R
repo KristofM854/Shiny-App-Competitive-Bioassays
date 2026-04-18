@@ -419,15 +419,14 @@ ui <- fluidPage(
 
             # Right: Sample ID
             div(
-              id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution factor matrix: 8 rows by 12 columns",
+              id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
-              h5("3. Dilution Factors"),
+              uiOutput("dilution_matrix_header"),
               div(
                 style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
                 div(
                   style = "display: flex; align-items: center; gap: 6px;",
-                  tags$label("Set all to:", `for` = "uniform_dilution",
-                             style = "margin: 0; white-space: nowrap;"),
+                  uiOutput("dilution_set_all_label", inline = TRUE),
                   tags$input(type = "number", id = "uniform_dilution", value = "1",
                              min = "0", step = "0.1", class = "form-control",
                              style = "width: 70px; height: 30px; padding: 2px 6px;")
@@ -440,9 +439,11 @@ ui <- fluidPage(
               conditionalPanel(
                 condition = "input.advanced_dilution == true",
                 div(`aria-live` = "polite", uiOutput("dilution_error_feedback")),
+                div(`aria-live` = "polite", uiOutput("dilution_gt1_warning")),
                 actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
                 div(class = "matrix-table-anchor",
-                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"), type = 6, color = "#1976D2"))
+                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"), type = 6, color = "#1976D2")),
+                uiOutput("dilution_matrix_help")
               )
             )
           ),

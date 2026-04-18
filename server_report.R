@@ -53,6 +53,48 @@ server_report <- function(input, output, session, shared, config_reactives) {
   })
 
   # --------------------------------------------------------------------------
+  # Dilution Fraction Label & Help (Phase 1.1: semantic relabeling)
+  # --------------------------------------------------------------------------
+
+  output$dilution_matrix_header <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("dilution_matrix_label", lang))
+  })
+
+  output$dilution_set_all_label <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$label(tr("dilution_set_all_label", lang), `for` = "uniform_dilution",
+               style = "margin: 0; white-space: nowrap;")
+  })
+
+  output$dilution_matrix_help <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$div(
+      style = paste("background-color: #F5F5F5; padding: 8px; margin-top: 8px;",
+                    "border-left: 4px solid #1976D2; font-size: 12px;"),
+      tr("dilution_matrix_help", lang)
+    )
+  })
+
+  # Non-blocking warning when any well parses to > 1 and was not entered as
+  # ratio (i.e., contains no ':'). Nudges users who typed "2" meaning "2-fold".
+  output$dilution_gt1_warning <- renderUI({
+    raw <- shared$raw_matrix_dilution()
+    if (is.null(raw)) return(NULL)
+    cells <- as.character(unlist(raw))
+    numeric_cells <- suppressWarnings(as.numeric(cells))
+    has_gt1 <- !is.na(numeric_cells) & numeric_cells > 1 & !grepl(":", cells)
+    if (!any(has_gt1)) return(NULL)
+    lang <- input$app_language %||% "en"
+    tags$div(
+      style = paste("background-color: #FFF4E5; padding: 8px; margin: 8px 0;",
+                    "border-left: 4px solid #FF9800; font-size: 12px;",
+                    "color: #663C00;"),
+      tr("dilution_gt1_warning", lang)
+    )
+  })
+
+  # --------------------------------------------------------------------------
   # Pre-Flight Check Panel
   # --------------------------------------------------------------------------
 
