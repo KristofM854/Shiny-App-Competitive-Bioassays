@@ -518,7 +518,8 @@ ui <- fluidPage(
                            style = "height: 30px; padding: 2px 12px;")
             ),
             rHandsontableOutput("tissue_weight_table"),
-            tags$small(style = "color: #888;", "Scroll right if more groups are present.")
+            tags$small(style = "color: #888;", "Scroll right if more groups are present."),
+            uiOutput("extraction_volume_help")
           )
         )
       ),
