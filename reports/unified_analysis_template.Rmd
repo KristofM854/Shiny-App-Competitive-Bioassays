@@ -29,6 +29,57 @@ params:
   lang: "en"
 ---
 
+<!--
+================================================================================
+Chunk pipeline (in execution order):
+
+  setup                           - libraries, output_dir, i18n, source helpers
+  load-data                       - read CSV, validate, compute %B/B0 for ELISA
+  executive-summary               - top-of-report status box
+  standards-table                 - display standard concentrations
+  methods-section                 - methods paragraph with citations
+  model-fitting                   - fit all selected weightings (LL.4 -> LL.3 ->
+                                    interpolation fallback); defines:
+                                    all_models, model_fit, R2, RMSE,
+                                    conc_range, model_fits, ec20, ec80,
+                                    classify_range(), flag_range()
+  exec-summary-box                - rendered exec summary (needs model_fit)
+  weight-comparison               - overlay plot of weightings (HTML)
+  weighting-suitability           - Brown-Forsythe / variance ratio
+  model-stability-assessment      - convergence / boundary diagnostics
+  lloq-uloq                       - back-calculation accuracy -> formal LLOQ/ULOQ
+  dose-response-plots             - main DRC plot
+  model-stats                     - 4PL coefficient table
+  save-model-stats                - write model_stats.json (partial)
+  standard-backcalculation        - per-standard recovery table
+  data-quality-overview           - quick data quality panel
+  sample-analysis                 - MAIN SAMPLE QUANTIFICATION (defines:
+                                    sample_results, replicate_stats,
+                                    outlier_flags, replicate_summary,
+                                    tissue-normalized columns if ELISA)
+  sample-results-table            - rendered sample table + CSV writes
+  outlier-results                 - outlier detection report block
+  ci-method-note                  - CI method footnote
+  save-sample-stats               - updates model_stats.json with mean_sample_cv
+  summary-results-table           - detailed replicate summary
+  sample-boxplot                  - variability visualization
+  plate-heatmap                   - plate heatmap
+  plate-positional-qc             - row/column bias check
+  drc-with-samples                - DRC plot with sample points overlaid
+  parallelism-assessment          - optional multi-curve comparison
+  report-summary                  - high-level summary bullets
+  report-interpretation           - QC-profile-based interpretation
+  tissue-normalization-traceability - ELISA + tissue only
+  exclusion-audit                 - formal exclusion audit table
+
+Key cross-chunk dependencies:
+  - model-fitting defines variables used by almost all later chunks
+  - sample-analysis must run before sample-results-table, outlier-results,
+    save-sample-stats, summary-results-table, sample-boxplot
+  - tissue_weights (ELISA) is loaded inside sample-analysis
+================================================================================
+-->
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
@@ -612,11 +663,11 @@ if (isTRUE(is_elisa)) {
   bb0_upper <- analysis_config$quant_range_max %||% 80  # Upper bound of reliable %B/B0 range
   # Still compute EC20/EC80 concentrations for reference/reporting
   ec20 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec20_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   ec80 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 20, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec80_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   if (!is.na(ec20) && !is.na(ec80) && ec20 > ec80) {
@@ -625,11 +676,11 @@ if (isTRUE(is_elisa)) {
 } else {
   # RBA: use concentration-based EC20/EC80
   ec20 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 80, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec20_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   ec80 <- tryCatch({
-    ed_result <- ED(model_fit, respLev = 20, type = "absolute", display = FALSE)
+    ed_result <- ED(model_fit, respLev = STATS_CONFIG$ec80_resp_level, type = "absolute", display = FALSE)
     as.numeric(ed_result[1, 1])
   }, error = function(e) NA_real_)
   if (!is.na(ec20) && !is.na(ec80) && ec20 > ec80) {
@@ -637,9 +688,20 @@ if (isTRUE(is_elisa)) {
   }
 }
 
-# Helper function: classify a sample as within range or out of range
-# For ELISA: based on %B/B0 response value
-# For RBA: based on estimated concentration vs EC20/EC80
+# classify_range(): uses different reference axes depending on assay type.
+#
+# ELISA: classifies by %B/B0 response value. The kit manufacturer
+#   (e.g., Cayman) defines the reliable quantification range in terms of
+#   %B/B0 bounds (default 20-80%). The response axis is bounded [0, 100],
+#   so %B/B0 is the natural reference.
+#
+# RBA: classifies by estimated concentration vs EC20/EC80 concentrations,
+#   following the AOAC SMPR recommendation for radioligand binding assays.
+#   The response axis (CPM) is unbounded, so concentration is the natural
+#   reference.
+#
+# Both approaches identify samples falling outside the linear portion of the
+# dose-response curve; they just use different axes to do so.
 classify_range <- function(response_val, conc_val, is_elisa_assay) {
   if (isTRUE(is_elisa_assay)) {
     if (is.na(response_val)) return("Unknown")
@@ -1578,7 +1640,7 @@ if (nrow(samples_to_analyze) > 0) {
         if (use_shapiro && n_grp >= 3) {
           shap_test <- tryCatch(shapiro.test(vals), error = function(e) list(p.value = 1))
           shapiro_p <- shap_test$p.value
-          if (shapiro_p < 0.05) {
+          if (shapiro_p < STATS_CONFIG$shapiro_alpha) {
             use_mad <- TRUE
           }
         }
@@ -1589,7 +1651,7 @@ if (nrow(samples_to_analyze) > 0) {
           mad_val <- mad(vals, constant = 1.4826)
           if (mad_val > 0) {
             mad_scores <- abs(vals - med_val) / mad_val
-            outlier_idx <- which(mad_scores > 3)
+            outlier_idx <- which(mad_scores > STATS_CONFIG$mad_outlier_threshold)
             if (length(outlier_idx) > 0) {
               for (oi in outlier_idx) {
                 outlier_flags <- rbind(outlier_flags, data.frame(
@@ -1724,10 +1786,10 @@ if (nrow(samples_to_analyze) > 0) {
       ci_lower_raw = ci_lower_combined,
       ci_upper_raw = ci_upper_combined,
       # Apply truncation for display
-      ci_lower = pmax(ci_lower_combined, 0),
+      ci_lower = pmax(ci_lower_combined, STATS_CONFIG$ci_truncation_floor),
       ci_upper = ci_upper_combined,
       # Track whether truncation occurred
-      ci_truncated = !is.na(ci_lower_raw) & ci_lower_raw < 0,
+      ci_truncated = !is.na(ci_lower_raw) & ci_lower_raw < STATS_CONFIG$ci_truncation_floor,
       mean_conc_formatted = if (isTRUE(is_elisa)) {
         format(mean_conc, digits = 4, nsmall = 1, big.mark = ",")
       } else {
@@ -2028,6 +2090,9 @@ if (isTRUE(analysis_config$enable_outlier_detection)) {
   section_start("Click to expand outlier detection results")
   emit_heading(tr("outlier_title", lang), 4)
 
+  # Phase 1.5: clarify that flagged != removed from the raw table
+  cat("> ", tr("outlier_flagged_not_removed_note", lang), "\n\n", sep = "")
+
   if (exists("outlier_flags") && nrow(outlier_flags) > 0) {
     cat(tr("outlier_desc", lang, analysis_config$outlier_min_n %||% 3), "\n\n")
 
@@ -2061,7 +2126,8 @@ if (isTRUE(analysis_config$enable_outlier_detection)) {
 ```{r ci-method-note, results='asis'}
 if (isTRUE(analysis_config$ci_method == "bootstrap")) {
   cat(sprintf("\n*%s*\n\n", tr("ci_bootstrap_note", lang)))
-  cat("*Replicate-level CIs computed via percentile bootstrap (1000 resamples).*\n\n")
+  cat(sprintf("*Replicate-level CIs computed via percentile bootstrap (%d resamples).*\n\n",
+              STATS_CONFIG$bootstrap_iterations))
 } else {
   cat(sprintf("\n*%s*\n\n", tr("ci_tdist_note", lang)))
   cat("*Replicate-level CIs reflect measurement variability using Student's t-distribution (df = n-1).*\n\n")
@@ -2608,6 +2674,8 @@ tryCatch({
   # M6: Quantification status counts
   if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0 &&
       "quantification_status" %in% names(sample_results)) {
+    # Phase 1.4: explain why two apparently overlapping range indicators exist
+    cat(tr("range_indicators_explanation", lang), "\n\n", sep = "")
     status_counts <- table(sample_results$quantification_status)
     cat("**Quantification status breakdown (per well):**\n\n")
     for (s in names(status_counts)) {
@@ -2639,13 +2707,21 @@ tryCatch({
     section_start("Click to expand tissue normalization traceability")
     emit_heading("Tissue Normalization Method", 4)
 
-    cat("Tissue-based concentrations are calculated using the following formula:\n\n")
-    cat("$$C_{tissue} = \\frac{C_{extract} \\times V_{extraction}}{m_{tissue}}$$\n\n")
+    cat("Tissue-based concentrations are calculated using the following formula ",
+        "with explicit unit conversions:\n\n", sep = "")
+    cat("$$C_{tissue}\\ (\\mathrm{pg/g}) = \\frac{C_{extract}\\ (\\mathrm{pg/mL}) \\times \\left[V_{extraction}\\ (\\mathrm{\\mu L}) \\,/\\, 1000\\right]}{m_{tissue}\\ (\\mathrm{mg}) \\,/\\, 1000}$$\n\n")
     cat("Where:\n\n")
-    cat("- $C_{extract}$ = concentration in extract (pg/mL from curve)\n")
-    cat("- $V_{extraction}$ = extraction volume (mL)\n")
-    cat("- $m_{tissue}$ = tissue mass (g)\n")
+    cat("- $C_{extract}$ = concentration in the original (undiluted) extract, from the curve (pg/mL)\n")
+    cat("- $V_{extraction}$ = total volume the tissue was extracted into (\u00b5L, converted to mL by /1000)\n")
+    cat("- $m_{tissue}$ = mass of tissue extracted (mg, converted to g by /1000)\n")
     cat("- $C_{tissue}$ = final concentration (pg/g tissue)\n\n")
+
+    cat("> **Note on extraction volume:** $V_{extraction}$ is the *total* volume ",
+        "the tissue was extracted into, before any plate-loading dilutions. ",
+        "For example, 50 mg of tissue homogenized in 500 \u00b5L of buffer, ",
+        "then diluted 1:10 before plate loading, is recorded as ",
+        "$V_{extraction}$ = 500 \u00b5L here and the 1:10 dilution is ",
+        "recorded in the DilutionFactor matrix (as 0.1 or `1:10`).\n\n", sep = "")
 
     # Build per-sample conversion table
     tw_trace <- data.frame(
@@ -2672,6 +2748,52 @@ tryCatch({
       render_table(display_tw, caption = "Tissue Normalization Parameters")
 
       cat(sprintf("\n**Units:** Final tissue concentrations are reported as pg/g tissue (= pg analyte per gram of tissue).\n\n"))
+
+      # Worked example using the first sample that has a tissue mass and
+      # a successfully quantified extract concentration. Lets a reviewer
+      # reproduce the reported pg/g number from the printed inputs.
+      if (exists("replicate_stats") && !is.null(replicate_stats) &&
+          nrow(replicate_stats) > 0 &&
+          all(c("Replicate", "mean_conc") %in% names(replicate_stats)) &&
+          "concentration_pg_per_g" %in% names(replicate_stats)) {
+        tw_example <- replicate_stats[
+          replicate_stats$Replicate %in% tw_trace$Replicate &
+            !is.na(replicate_stats$mean_conc) &
+            !is.na(replicate_stats$concentration_pg_per_g), , drop = FALSE]
+        if (nrow(tw_example) > 0) {
+          ex <- tw_example[1, , drop = FALSE]
+          ex_trace <- tw_trace[tw_trace$Replicate == ex$Replicate, , drop = FALSE][1, , drop = FALSE]
+          c_extract <- as.numeric(ex$mean_conc)
+          v_ul <- as.numeric(ex_trace$Extraction_uL)
+          m_mg <- as.numeric(ex_trace$TissueMass_mg)
+          v_ml <- v_ul / 1000
+          m_g <- m_mg / 1000
+          amount_pg <- c_extract * v_ml
+          c_tissue <- amount_pg / m_g
+          cat("**Worked example (replicate group `",
+              as.character(ex$Replicate), "`):**\n\n", sep = "")
+          cat(sprintf(
+            "1. $C_{extract}$ = %s pg/mL (from the fitted curve)\n", format(c_extract, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "2. $V_{extraction}$ = %s \u00b5L = %s mL (divide by 1000)\n",
+            format(v_ul, big.mark = ",", scientific = FALSE),
+            format(v_ml, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "3. $m_{tissue}$ = %s mg = %s g (divide by 1000)\n",
+            format(m_mg, big.mark = ",", scientific = FALSE),
+            format(m_g, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "4. Amount in extract = %s pg/mL \u00d7 %s mL = %s pg\n",
+            format(c_extract, big.mark = ",", scientific = FALSE),
+            format(v_ml, big.mark = ",", scientific = FALSE),
+            format(amount_pg, big.mark = ",", scientific = FALSE)))
+          cat(sprintf(
+            "5. $C_{tissue}$ = %s pg / %s g = **%s pg/g tissue**\n\n",
+            format(amount_pg, big.mark = ",", scientific = FALSE),
+            format(m_g, big.mark = ",", scientific = FALSE),
+            format(c_tissue, big.mark = ",", scientific = FALSE)))
+        }
+      }
     }
     section_end()
   }
