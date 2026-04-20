@@ -268,58 +268,138 @@ server_common <- function(input, output, session, shared) {
   })
 
   # --------------------------------------------------------------------------
-  # Guided Tour (language-reactive)
+  # Guided Tour (language-reactive, spans the 5 wizard tabs)
   # --------------------------------------------------------------------------
+  # The tour walks through every wizard tab and highlights the relevant UI
+  # section on each tab. Because non-active tabs are display:none in
+  # tabsetPanel, the onbeforechange JS callback asks R to activate the
+  # matching tab before each highlight. R updates the tab reactively, then
+  # intro.js resumes.
 
   observeEvent(input$start_tour, {
     lang <- input$app_language %||% "en"
     assay <- input$assay_type %||% "rba"
 
-    # Base tour steps (always shown)
+    # --- Tab 1: Configuration --------------------------------------------
     tour_steps <- data.frame(
-      element = c("#step0_section", "#matrix_type_section", "#matrix_id_section",
-                  "#matrix_dilution_section", "#matrix_replicate_section"),
+      element = c("#language_toggle_section",
+                  "#quickstart_section",
+                  "#step0_section"),
       intro = c(
-        tr("tour_step0", lang),
-        tr("tour_step1_type", lang),
-        tr("tour_step1_id", lang),
-        tr("tour_step1_dilution", lang),
-        tr("tour_step1_replicate", lang)
+        tr("tour_language_toggle", lang),
+        tr("tour_quickstart", lang),
+        tr("tour_config", lang)
       ),
+      tab = c("tab_config", "tab_config", "tab_config"),
       stringsAsFactors = FALSE
     )
 
-    # ELISA-only: tissue weight section
-    if (assay == "elisa") {
-      tour_steps <- rbind(tour_steps, data.frame(
+    # --- Tab 2: Plate Layout ---------------------------------------------
+    layout_steps <- data.frame(
+      element = c("#preset_layout_section",
+                  "#matrix_type_section",
+                  "#matrix_id_section",
+                  "#matrix_dilution_section",
+                  "#matrix_replicate_section"),
+      intro = c(
+        tr("tour_preset_layout", lang),
+        tr("tour_matrix_type", lang),
+        tr("tour_matrix_id", lang),
+        tr("tour_matrix_dilution", lang),
+        tr("tour_matrix_replicate", lang)
+      ),
+      tab = "tab_layout",
+      stringsAsFactors = FALSE
+    )
+    # Assay-specific layout extras
+    if (assay == "rba") {
+      layout_steps <- rbind(layout_steps, data.frame(
+        element = "#qc_section",
+        intro = tr("tour_qc_rba", lang),
+        tab = "tab_layout",
+        stringsAsFactors = FALSE
+      ))
+    } else if (assay == "elisa") {
+      layout_steps <- rbind(layout_steps, data.frame(
         element = "#tissue_weight_section",
-        intro = tr("tour_step1_tissue", lang),
+        intro = tr("tour_tissue_weights", lang),
+        tab = "tab_layout",
         stringsAsFactors = FALSE
       ))
     }
+    tour_steps <- rbind(tour_steps, layout_steps)
 
-    # Remaining common steps
+    # --- Tab 3: Upload & Preview -----------------------------------------
     tour_steps <- rbind(tour_steps, data.frame(
-      element = c("#upload_section", "#notes_feedback_section",
-                  "#analysis_settings_section",
-                  "#language_toggle_section", "#convert_section"),
+      element = c("#upload_section", "#heatmap_preview_section"),
       intro = c(
-        tr("tour_step2_upload", lang),
-        tr("tour_step2_notes", lang),
-        tr("tour_step2_analysis", lang),
-        tr("tour_language", lang),
-        tr("tour_step3", lang)
+        tr("tour_upload", lang),
+        tr("tour_heatmap_preview", lang)
       ),
+      tab = "tab_upload",
       stringsAsFactors = FALSE
     ))
 
-    introjs(session, options = list(
-      steps = tour_steps,
-      nextLabel = tr("tour_next", lang),
-      prevLabel = tr("tour_prev", lang),
-      skipLabel = tr("tour_skip", lang),
-      doneLabel = tr("tour_done", lang),
-      showProgress = TRUE
+    # --- Tab 4: Analysis Settings ----------------------------------------
+    tour_steps <- rbind(tour_steps, data.frame(
+      element = "#analysis_settings_section",
+      intro = tr("tour_analysis", lang),
+      tab = "tab_analysis",
+      stringsAsFactors = FALSE
     ))
+
+    # --- Tab 5: Generate Report ------------------------------------------
+    tour_steps <- rbind(tour_steps, data.frame(
+      element = c("#preflight_section", "#convert_section", "#notes_feedback_section"),
+      intro = c(
+        tr("tour_preflight", lang),
+        tr("tour_convert", lang),
+        tr("tour_notes", lang)
+      ),
+      tab = "tab_report",
+      stringsAsFactors = FALSE
+    ))
+
+    # Start from the Configuration tab so the first element is visible.
+    updateTabsetPanel(session, "wizard_tabs", selected = "tab_config")
+
+    # intro.js cannot highlight elements inside an inactive .tab-pane
+    # (display:none) so onbeforechange asks the server to activate the
+    # pane that contains the next target element. The pane's data-value
+    # matches the wizard tab id (tab_config / tab_layout / ...).
+    introjs(session,
+            options = list(
+              steps = tour_steps[, c("element", "intro")],
+              nextLabel = tr("tour_next", lang),
+              prevLabel = tr("tour_prev", lang),
+              skipLabel = tr("tour_skip", lang),
+              doneLabel = tr("tour_done", lang),
+              showProgress = TRUE,
+              scrollToElement = TRUE
+            ),
+            events = list(
+              onbeforechange =
+                "function(targetElement) {
+                   var $pane = $(targetElement).closest('.tab-pane');
+                   if ($pane.length && !$pane.hasClass('active')) {
+                     var targetTab = $pane.data('value');
+                     if (targetTab) {
+                       Shiny.setInputValue('tour_set_tab', targetTab,
+                                           {priority: 'event'});
+                     }
+                   }
+                 }"
+            ))
   })
+
+  # Observe the tab requests from the tour and activate the matching wizard
+  # tab. Runs at event priority, so Shiny schedules it immediately.
+  observeEvent(input$tour_set_tab, {
+    target <- input$tour_set_tab
+    if (!is.null(target) && target %in% c("tab_config", "tab_layout",
+                                          "tab_upload", "tab_analysis",
+                                          "tab_report")) {
+      updateTabsetPanel(session, "wizard_tabs", selected = target)
+    }
+  }, ignoreInit = TRUE)
 }
