@@ -2216,7 +2216,8 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
                             "ci_lower_raw", "ci_upper_raw", "ci_truncated"))) %>%
     dplyr::relocate(ci_95, .before = cv_percent) %>%
     dplyr::relocate(range_flag_display, .after = cv_percent) %>%
-    { if ("mean_bb0" %in% names(.)) dplyr::relocate(., mean_bb0, .before = range_flag_display) else . }
+    { if ("mean_bb0" %in% names(.)) dplyr::relocate(., mean_bb0, .before = range_flag_display) else . } %>%
+    { if ("quant_status" %in% names(.)) dplyr::relocate(., quant_status, .after = range_flag_display) else . }
 
   # Set column names
   conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
@@ -2227,13 +2228,19 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
                   paste0("SD (", conc_unit, ")"),
                   paste0("SE (", conc_unit, ")"),
                   "Conservative Combined 95% CI", "CV [%]")
-  
+
   # Add %B/B0 and range flag columns
   if ("mean_bb0" %in% names(summary_display)) {
     base_names <- c(base_names, "%B/B0")
   }
   base_names <- c(base_names, "Range")
-  
+
+  # Status column (Interpolated / Extrapolated) if present. Explicitly named so
+  # it does not appear as an unnamed orphan column beside Range.
+  if ("quant_status" %in% names(summary_display)) {
+    base_names <- c(base_names, "Status")
+  }
+
   # Add tissue concentration columns if present
   if ("TissueWeight_mg" %in% names(summary_display)) {
     summary_display <- summary_display %>%
@@ -2245,11 +2252,11 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       )
     base_names <- c(base_names, "Tissue Mass [mg]", "Conc. (pg/g)")
   }
-  
+
   # Remove extra columns that aren't in our name mapping
   summary_display <- summary_display %>%
     dplyr::select(-any_of(c("total_amount_pg")))
-  
+
   names(summary_display) <- base_names[1:ncol(summary_display)]
   
   render_table(summary_display,
