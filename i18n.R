@@ -54,10 +54,16 @@ get_translations <- function() {
       id_matrix = "2. Sample ID",
       qc_params = "3. Quality Control Parameters",
       dilution_matrix = "4. Dilution Factors (numeric or ratio like 1:2)",
+      dilution_matrix_label = "3. Dilution Fraction (sample strength remaining: 1 = undiluted, 0.5 = diluted 1:2)",
+      dilution_set_all_label = "Set all wells to fraction:",
+      dilution_matrix_help = "Enter the fraction of original sample strength remaining after dilution. Examples: undiluted \u2192 1; diluted 1:2 \u2192 0.5 (or type \"1:2\" directly); diluted 1:10 \u2192 0.1. Values greater than 1 are interpreted as pre-concentration (e.g., a sample concentrated 2\u00d7 from its original form \u2192 2). When unsure, use ratio notation \"1:N\" \u2014 the app converts automatically.",
+      dilution_gt1_warning = "\u26a0\ufe0f One or more wells have dilution fraction > 1. This indicates pre-concentration and will reduce reported concentrations. If you meant a 2-fold dilution, enter \"1:2\" instead of \"2\".",
       replicate_matrix = "5. Replicate Groups",
       tissue_weight_title = "6. Tissue Weights (ELISA only)",
       tissue_weight_desc = "Enter tissue weight (mg) per replicate group for pg/g tissue calculation.",
       extraction_vol_label = "Extraction volume (\u00B5L):",
+      extraction_volume_help = "Extraction volume = total volume the tissue was extracted into, before any plate-loading dilutions. Example: 50 mg tissue homogenized in 500 \u00B5L buffer, then diluted 1:10 before plate loading \u2192 enter 500 here, and record the 1:10 in the DilutionFactor matrix.",
+      extraction_volume_report_note = "Note on extraction volume: V_extraction is the total volume the tissue was extracted into, before any plate-loading dilutions. Example: 50 mg tissue homogenized in 500 \u00B5L buffer, then diluted 1:10 before plate loading \u2192 record V_extraction = 500 \u00B5L here and the 1:10 dilution in the DilutionFactor matrix.",
       reset_default = "Reset to Default",
       
       # Step 2: Upload
@@ -318,6 +324,24 @@ get_translations <- function() {
       outlier_method_dixon = "Dixon's Q-test (n=3-5)",
       outlier_method_grubbs = "Grubbs' test (n>=6)",
       outlier_flagged = "Flagged",
+      outlier_flagged_not_removed_note = "Flagged outliers remain visible in the per-well detailed results table and in CSV exports, but are excluded from the calculation of replicate-group mean, SD, CV, and confidence intervals. This preserves full raw-data visibility while preventing outlier contamination of summary statistics.",
+
+      # Range indicator explanation (Phase 1.4)
+      range_indicators_explanation = paste0(
+        "> **Two independent range indicators appear in this report:**\n>\n",
+        "> - **Interpolated / Extrapolated** refers to whether the estimated ",
+        "concentration falls within the range of fitted standard concentrations ",
+        "on this plate. This is a statement about curve coverage.\n>\n",
+        "> - **Within range / <LLOQ / >ULOQ** refers to whether the estimate ",
+        "falls within the validated linear (quantifiable) range of the ",
+        "dose-response curve, defined by EC20/EC80 for RBA or %B/B0 bounds ",
+        "(default 20\u201380%) for ELISA. This is a statement about reporting ",
+        "quality.\n>\n",
+        "> A sample can be interpolated but outside the quantifiable range ",
+        "(e.g., the response falls on the flat portion of the curve near the ",
+        "top or bottom asymptote), or within the quantifiable range but ",
+        "technically extrapolated (if the user provided few standards). Both ",
+        "flags should be considered when interpreting results."),
 
       # Bootstrap CI (report)
       ci_bootstrap_note = "95%% confidence intervals calculated using bootstrap resampling (1000 iterations).",
@@ -410,10 +434,16 @@ get_translations <- function() {
       id_matrix = "2. ID de Muestra",
       qc_params = "3. Par\u00E1metros de Control de Calidad",
       dilution_matrix = "4. Factores de Diluci\u00F3n (num\u00E9rico o raz\u00F3n como 1:2)",
+      dilution_matrix_label = "3. Fracci\u00F3n de Diluci\u00F3n (concentraci\u00F3n de muestra remanente: 1 = sin diluir, 0.5 = diluido 1:2)",
+      dilution_set_all_label = "Aplicar fracci\u00F3n a todos los pozos:",
+      dilution_matrix_help = "Ingrese la fracci\u00F3n de concentraci\u00F3n original de muestra remanente despu\u00E9s de la diluci\u00F3n. Ejemplos: sin diluir \u2192 1; diluido 1:2 \u2192 0.5 (o escriba \"1:2\" directamente); diluido 1:10 \u2192 0.1. Valores mayores a 1 se interpretan como pre-concentraci\u00F3n (p. ej., una muestra concentrada 2\u00d7 respecto a su forma original \u2192 2). En caso de duda, use la notaci\u00F3n de raz\u00F3n \"1:N\" \u2014 la aplicaci\u00F3n convierte autom\u00E1ticamente.",
+      dilution_gt1_warning = "\u26a0\ufe0f Uno o m\u00E1s pozos tienen una fracci\u00F3n de diluci\u00F3n > 1. Esto indica pre-concentraci\u00F3n y reducir\u00E1 las concentraciones reportadas. Si quiso indicar una diluci\u00F3n 1:2, ingrese \"1:2\" en lugar de \"2\".",
       replicate_matrix = "5. Grupos de R\u00E9plicas",
       tissue_weight_title = "6. Pesos de Tejido (solo ELISA)",
       tissue_weight_desc = "Ingrese el peso del tejido (mg) por grupo de r\u00E9plica para el c\u00E1lculo de pg/g de tejido.",
       extraction_vol_label = "Volumen de extracci\u00F3n (\u00B5L):",
+      extraction_volume_help = "Volumen de extracci\u00F3n = volumen total en el que se extrajo el tejido, antes de cualquier diluci\u00F3n en la placa. Ejemplo: 50 mg de tejido homogeneizado en 500 \u00B5L de buffer, luego diluido 1:10 antes de cargar la placa \u2192 ingrese 500 aqu\u00ED y registre la diluci\u00F3n 1:10 en la matriz DilutionFactor.",
+      extraction_volume_report_note = "Nota sobre el volumen de extracci\u00F3n: V_extraction es el volumen total en el que se extrajo el tejido, antes de cualquier diluci\u00F3n en la placa. Ejemplo: 50 mg de tejido homogeneizado en 500 \u00B5L de buffer, luego diluido 1:10 antes de cargar la placa \u2192 registre V_extraction = 500 \u00B5L aqu\u00ED y la diluci\u00F3n 1:10 en la matriz DilutionFactor.",
       reset_default = "Restablecer Valores",
       
       # Step 2: Upload
@@ -674,6 +704,25 @@ get_translations <- function() {
       outlier_method_dixon = "Prueba Q de Dixon (n=3-5)",
       outlier_method_grubbs = "Prueba de Grubbs (n>=6)",
       outlier_flagged = "Marcado",
+      outlier_flagged_not_removed_note = "Los valores at\u00EDpicos marcados permanecen visibles en la tabla de resultados detallados por pozo y en las exportaciones a CSV, pero se excluyen del c\u00E1lculo de la media, DE, CV e intervalos de confianza del grupo de r\u00E9plicas. Esto preserva la visibilidad completa de los datos crudos y evita la contaminaci\u00F3n de los estad\u00EDsticos resumen por valores at\u00EDpicos.",
+
+      # Range indicator explanation (Phase 1.4)
+      range_indicators_explanation = paste0(
+        "> **Dos indicadores de rango independientes aparecen en este reporte:**\n>\n",
+        "> - **Interpolado / Extrapolado** se refiere a si la concentraci\u00F3n ",
+        "estimada cae dentro del rango de concentraciones est\u00E1ndar ajustadas en ",
+        "esta placa. Este es un enunciado sobre la cobertura de la curva.\n>\n",
+        "> - **Dentro del rango / <LLOQ / >ULOQ** se refiere a si la estimaci\u00F3n ",
+        "cae dentro del rango lineal validado (cuantificable) de la curva ",
+        "dosis-respuesta, definido por EC20/EC80 para RBA o los l\u00EDmites ",
+        "%B/B0 (por defecto 20\u201380%) para ELISA. Este es un enunciado sobre la ",
+        "calidad del reporte.\n>\n",
+        "> Una muestra puede estar interpolada pero fuera del rango cuantificable ",
+        "(p. ej., la respuesta cae en la porci\u00F3n plana de la curva cerca del ",
+        "asintota superior o inferior), o dentro del rango cuantificable pero ",
+        "t\u00E9cnicamente extrapolada (si el usuario proporcion\u00F3 pocos ",
+        "est\u00E1ndares). Ambos indicadores deben considerarse al interpretar los ",
+        "resultados."),
 
       # Bootstrap CI (report)
       ci_bootstrap_note = "Intervalos de confianza del 95%% calculados mediante remuestreo bootstrap (1000 iteraciones).",

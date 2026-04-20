@@ -3,6 +3,9 @@
 # Staged pipeline helpers for report generation.
 # Each function accepts only what it needs and returns its result for the
 # next stage, keeping the orchestrator in server_report.R slim.
+#
+# Called from server_report.R via observeEvent(input$convert). Each stage
+# is a pure function that can be tested in isolation.
 # ============================================================================
 
 # --------------------------------------------------------------------------
