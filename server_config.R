@@ -95,6 +95,7 @@ server_config <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   output$qc_concentration_input <- renderUI({
+    lang <- input$app_language %||% "en"
     assay <- input$assay_type %||% "rba"
 
     if (assay == "elisa") {
@@ -102,14 +103,14 @@ server_config <- function(input, output, session, shared) {
       default_val <- if (input$elisa_analyte == "cortisol") "100" else "50"
       textInput(
         "qc_conc",
-        paste0("QC concentration (", units, "):"),
+        tr("qc_conc_label", lang, units),
         value = default_val,
         placeholder = default_val
       )
     } else {
       textInput(
         "qc_conc",
-        "QC concentration (mol/L):",
+        tr("qc_conc_label", lang, "mol/L"),
         value = "3e-9",
         placeholder = "3e-9"
       )
@@ -121,35 +122,36 @@ server_config <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   output$qc_warnings <- renderUI({
+    lang <- input$app_language %||% "en"
     qc_val <- input$qc_conc
     assay <- input$assay_type %||% "rba"
 
     if (is.null(qc_val) || qc_val == "") {
       return(tags$div(style = "color: red; font-weight: bold;",
-                     "\u26a0\ufe0f QC concentration required"))
+                     tr("qc_required", lang)))
     }
 
     if (assay == "rba") {
       # RBA: Expect scientific notation
       if (!grepl("^[0-9.]+[eE][-+]?[0-9]+$", trimws(qc_val))) {
         return(tags$div(style = "color: red; font-weight: bold;",
-                       "\u26a0\ufe0f Use scientific notation (e.g., 3e-9)"))
+                       tr("sci_notation", lang)))
       }
       num <- as.numeric(qc_val)
       if (num < 1e-12 || num > 1e-6) {
         return(tags$div(style = "color: orange; font-weight: bold;",
-                       "\u26a0\ufe0f Outside typical RBA range (1e-12 to 1e-6 mol/L)"))
+                       tr("outside_rba_range", lang)))
       }
     } else {
       # ELISA: Expect regular number
       num <- suppressWarnings(as.numeric(qc_val))
       if (is.na(num)) {
         return(tags$div(style = "color: red; font-weight: bold;",
-                       "\u26a0\ufe0f Must be a numeric value"))
+                       tr("must_be_numeric", lang)))
       }
       if (num < 0.1 || num > 10000) {
         return(tags$div(style = "color: orange; font-weight: bold;",
-                       "\u26a0\ufe0f Outside typical ELISA range (0.1-10000)"))
+                       tr("outside_elisa_range", lang)))
       }
     }
 
@@ -161,10 +163,11 @@ server_config <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   output$toxin_variant_ui <- renderUI({
+    lang <- input$app_language %||% "en"
     if (input$toxin_class == "Ciguatoxin") {
-      selectInput("toxin_variant", "Variant:", choices = CTX_VARIANTS)
+      selectInput("toxin_variant", tr("toxin_variant_label", lang), choices = CTX_VARIANTS)
     } else if (input$toxin_class == "Brevetoxin") {
-      selectInput("toxin_variant", "Variant:", choices = BTX_VARIANTS)
+      selectInput("toxin_variant", tr("toxin_variant_label", lang), choices = BTX_VARIANTS)
     } else {
       NULL
     }
@@ -189,15 +192,16 @@ server_config <- function(input, output, session, shared) {
   })
 
   output$mw_box_ui <- renderUI({
+    lang <- input$app_language %||% "en"
     lab <- chosen_standard_label()
 
     if (needs_manual_mw()) {
-      numericInput("mw_manual", paste0("Molecular weight [g/mol] for ", lab, ":"),
+      numericInput("mw_manual", tr("molecular_weight_label", lang, lab),
                   value = if (!is.na(shared$mw_g_mol())) shared$mw_g_mol() else NULL,
                   min = 0, step = 0.01)
     } else {
       div(class = "well", style = "padding: 10px;",
-          tags$b("Molecular weight [g/mol]: "),
+          tags$b(tr("molecular_weight_readonly", lang), " "),
           sprintf("%.2f", MW_LOOKUP[[lab]]))
     }
   })
@@ -219,6 +223,7 @@ server_config <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   output$concentration_unit_guidance <- renderUI({
+    lang <- input$app_language %||% "en"
     assay <- input$assay_type %||% "rba"
 
     if (assay == "elisa") {
@@ -226,16 +231,14 @@ server_config <- function(input, output, session, shared) {
       div(
         style = "background-color: #E3F2FD; padding: 8px; margin: 8px 0; border-left: 3px solid #2196F3;",
         tags$small(
-          tags$b("ELISA Standards: "),
-          sprintf("Enter concentrations in %s (e.g., 4000, 1600, 640...)", units)
+          tr("elisa_std_guidance", lang, units)
         )
       )
     } else {
       div(
         style = "background-color: #E8F5E9; padding: 8px; margin: 8px 0; border-left: 3px solid #4CAF50;",
         tags$small(
-          tags$b("RBA Standards: "),
-          "Enter concentrations in mol/L using scientific notation (e.g., 1e-6, 3e-8...)"
+          tr("rba_std_guidance", lang)
         )
       )
     }
