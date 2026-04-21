@@ -78,9 +78,9 @@ Copyright (c) 2026 Kristof Moeller and Arnold Molina Porras.
 
 ### B3. Add screenshot placeholders to README **[MANUAL screenshots, code for placeholders]**
 
-- [ ] Create directory `docs/screenshots/`
-- [ ] Add a placeholder `.gitkeep` file so the empty directory is tracked
-- [ ] Update `README.md` to include image references at the appropriate points. Insert a `## Screenshots` section immediately after the `## The 5-step workflow` section. The section should include six images, each with a caption:
+- [x] Create directory `docs/screenshots/`
+- [x] Add a placeholder `.gitkeep` file so the empty directory is tracked
+- [x] Update `README.md` to include image references at the appropriate points. Insert a `## Screenshots` section immediately after the `## The 5-step workflow` section. The section should include six images, each with a caption:
 
 ```markdown
 ## Screenshots
