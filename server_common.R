@@ -534,6 +534,7 @@ server_common <- function(input, output, session, shared) {
     updateActionButton(session, "reset_dilution", label = tr("reset_btn", lang))
     updateActionButton(session, "reset_replicate", label = tr("reset_btn", lang))
     updateCheckboxInput(session, "advanced_dilution", label = tr("per_well_label", lang))
+    updateTextInput(session, "expected_hill", label = tr("expected_hill", lang))
 
     updateRadioButtons(session, "import_method", label = tr("upload_or_visual", lang),
                       choices = setNames(c("classic", "visual"),
