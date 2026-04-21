@@ -622,7 +622,7 @@ ui <- fluidPage(
       div(
         id = "analysis_settings_section",
         style = "max-width: 700px;",
-        h4(id = "analysis_settings_title", "Analysis Settings"),
+        uiOutput("analysis_settings_heading_ui"),
 
         # Primary setting (always visible)
         checkboxGroupInput("regression_weight", "DRC regression weighting:",
@@ -630,7 +630,7 @@ ui <- fluidPage(
                                "1/Y (moderate)" = "inv_y",
                                "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
                    selected = "none"),
-        helpText("Select multiple weightings to compare results side by side."),
+        uiOutput("regression_weight_help_ui"),
 
         # Advanced analysis options — open by default for visibility
         div(
@@ -639,11 +639,8 @@ ui <- fluidPage(
             "border-radius: 6px; border-left: 4px solid #FFA000; ",
             "box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
           ),
-          h4(style = "margin: 0 0 4px 0; color: #E65100;",
-             icon("sliders-h"), " Advanced Options \u2014 weighting, CI, outliers, and QC thresholds"),
-          tags$p(style = "margin: 0 0 12px 0; color: #555; font-size: 13px;",
-            "These settings control confidence interval method, outlier detection, quantification range, and quality thresholds."
-          ),
+          uiOutput("advanced_options_heading_ui"),
+          uiOutput("advanced_options_intro_ui"),
 
           fluidRow(
             column(6,
@@ -655,7 +652,7 @@ ui <- fluidPage(
                           value = 80, min = 50, max = 95, step = 5)
             )
           ),
-          helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
+          uiOutput("quant_range_help_ui"),
 
           hr(),
 
@@ -669,7 +666,7 @@ ui <- fluidPage(
             condition = "input.enable_outlier_detection == true",
             numericInput("outlier_min_n", "Minimum replicates for outlier test:",
                         value = 3, min = 3, max = 10, step = 1),
-            helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed."),
+            uiOutput("outlier_help_ui"),
             hr(),
             radioButtons("normality_assumption", "Normality assumption for outlier detection:",
                         choices = c("Assume normality (default)" = "assume",
@@ -677,13 +674,13 @@ ui <- fluidPage(
                         selected = "assume"),
             conditionalPanel(
               condition = "input.normality_assumption == 'test_shapiro'",
-              helpText("Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.")
+              uiOutput("normality_shapiro_help_ui")
             )
           ),
           hr(),
           numericInput("cv_limit", "Maximum CV for standards (%):",
                       value = 30, min = 5, max = 50, step = 5),
-          helpText("Standards exceeding this CV% threshold are flagged as high-variability.")
+          uiOutput("cv_limit_help_ui")
         )
       ),
       br(),

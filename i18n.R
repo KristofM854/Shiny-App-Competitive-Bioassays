@@ -358,6 +358,14 @@ get_translations <- function() {
       outlier_method_mad = "MAD-based (non-normal distribution detected)",
       cv_limit_label = "Maximum CV for standards (%):",
       cv_limit_help = "Standards exceeding this CV% threshold are flagged as high-variability.",
+      advanced_options_heading = "Advanced Options \u2014 weighting, CI, outliers, and QC thresholds",
+      advanced_options_intro = "These settings control confidence interval method, outlier detection, quantification range, and quality thresholds.",
+      regression_weight_help = "Select multiple weightings to compare results side by side.",
+      weight_unweighted = "Unweighted",
+      weight_inv_y = "1/Y (moderate)",
+      weight_inv_y2 = "1/Y\u00B2 (recommended for immunoassays)",
+      ci_t_dist = "t-distribution (default)",
+      ci_bootstrap_choice = "Bootstrap (1000 resamples)",
 
       # Tab titles
       tab_analysis_title = "4. Analysis Settings",
@@ -820,6 +828,14 @@ get_translations <- function() {
       outlier_method_mad = "Basado en MAD (distribuci\u00F3n no normal detectada)",
       cv_limit_label = "CV m\u00E1ximo para est\u00E1ndares (%):",
       cv_limit_help = "Los est\u00E1ndares que excedan este umbral de CV% se marcan como alta variabilidad.",
+      advanced_options_heading = "Opciones Avanzadas \u2014 ponderaci\u00F3n, IC, at\u00EDpicos y umbrales de QC",
+      advanced_options_intro = "Estos ajustes controlan el m\u00E9todo de intervalo de confianza, la detecci\u00F3n de at\u00EDpicos, el rango de cuantificaci\u00F3n y los umbrales de calidad.",
+      regression_weight_help = "Seleccione m\u00FAltiples ponderaciones para comparar resultados lado a lado.",
+      weight_unweighted = "Sin ponderar",
+      weight_inv_y = "1/Y (moderada)",
+      weight_inv_y2 = "1/Y\u00B2 (recomendada para inmunoensayos)",
+      ci_t_dist = "distribuci\u00F3n t (predeterminada)",
+      ci_bootstrap_choice = "Bootstrap (1000 remuestreos)",
 
       # Tab titles
       tab_analysis_title = "4. Configuraci\u00F3n de An\u00E1lisis",

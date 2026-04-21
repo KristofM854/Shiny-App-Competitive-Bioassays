@@ -373,6 +373,50 @@ server_common <- function(input, output, session, shared) {
               width = "100%")
   })
 
+  # ---- Tab 4: Analysis Settings static headings & helpText ----
+
+  output$analysis_settings_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(id = "analysis_settings_title", tr("analysis_settings_title", lang))
+  })
+
+  output$regression_weight_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("regression_weight_help", lang))
+  })
+
+  output$advanced_options_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(style = "margin: 0 0 4px 0; color: #E65100;",
+       icon("sliders-h"), " ", tr("advanced_options_heading", lang))
+  })
+
+  output$advanced_options_intro_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$p(style = "margin: 0 0 12px 0; color: #555; font-size: 13px;",
+           tr("advanced_options_intro", lang))
+  })
+
+  output$quant_range_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("quant_range_help", lang))
+  })
+
+  output$outlier_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("outlier_help", lang))
+  })
+
+  output$normality_shapiro_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("normality_shapiro_help", lang))
+  })
+
+  output$cv_limit_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("cv_limit_help", lang))
+  })
+
   # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
@@ -466,12 +510,24 @@ server_common <- function(input, output, session, shared) {
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
     updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
                        placeholder = tr("notes_report_placeholder", lang))
-    updateCheckboxGroupInput(session, "regression_weight", label = tr("regression_weight_label", lang))
+    updateCheckboxGroupInput(session, "regression_weight",
+                             label = tr("regression_weight_label", lang),
+                             choices = tr_choices(
+                               c("none", "inv_y", "inv_y2"),
+                               c("weight_unweighted", "weight_inv_y", "weight_inv_y2"),
+                               lang),
+                             selected = input$regression_weight %||% "none")
     updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
     updateNumericInput(session, "quant_range_max", label = tr("quant_range_max_label", lang))
-    updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang))
+    updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang),
+                       choices = tr_choices(
+                         c("t_dist", "bootstrap"),
+                         c("ci_t_dist", "ci_bootstrap_choice"), lang),
+                       selected = input$ci_method %||% "t_dist",
+                       inline = TRUE)
     updateCheckboxInput(session, "enable_outlier_detection", label = tr("outlier_detection_label", lang))
     updateNumericInput(session, "outlier_min_n", label = tr("outlier_min_n_label", lang))
+    updateNumericInput(session, "cv_limit", label = tr("cv_limit_label", lang))
     updateRadioButtons(session, "normality_assumption", label = tr("normality_assumption_label", lang),
                        choices = c(setNames("assume", tr("normality_assume", lang)),
                                    setNames("test_shapiro", tr("normality_test_shapiro", lang))),
