@@ -808,3 +808,24 @@ tr <- function(key, lang = "en", ...) {
   }
   return(text)
 }
+
+#' Build a translated choice vector for selectInput / radioButtons / checkboxGroupInput.
+#' @param ids Character vector of choice values (stored in input$...).
+#' @param label_keys Character vector of translation keys, same length as ids.
+#' @param lang Language code.
+#' @return A named character vector suitable for `choices = ...`.
+tr_choices <- function(ids, label_keys, lang = "en") {
+  stopifnot(length(ids) == length(label_keys))
+  setNames(ids, vapply(label_keys, tr, character(1), lang = lang))
+}
+
+#' Build a coloured pre-flight check line with an icon and translated message.
+#' @param icon_name Font Awesome icon name passed to shiny::icon().
+#' @param color CSS colour string.
+#' @param key Translation key for the message.
+#' @param lang Language code.
+#' @param ... Arguments forwarded to sprintf inside tr().
+pf_line <- function(icon_name, color, key, lang, ...) {
+  shiny::tags$div(style = paste0("color: ", color, ";"),
+                  shiny::icon(icon_name), " ", tr(key, lang, ...))
+}
