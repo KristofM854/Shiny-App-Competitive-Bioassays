@@ -63,7 +63,7 @@ get_translations <- function() {
       tissue_weight_desc = "Enter tissue weight (mg) per replicate group for pg/g tissue calculation.",
       extraction_vol_label = "Extraction volume (\u00B5L):",
       extraction_volume_help = "Extraction volume = total volume the tissue was extracted into, before any plate-loading dilutions. Example: 50 mg tissue homogenized in 500 \u00B5L buffer, then diluted 1:10 before plate loading \u2192 enter 500 here, and record the 1:10 in the DilutionFactor matrix.",
-      extraction_volume_report_note = "Note on extraction volume: V_extraction is the total volume the tissue was extracted into, before any plate-loading dilutions. Example: 50 mg tissue homogenized in 500 \u00B5L buffer, then diluted 1:10 before plate loading \u2192 record V_extraction = 500 \u00B5L here and the 1:10 dilution in the DilutionFactor matrix.",
+      extraction_volume_report_note = "**Note on extraction volume:** $V_{extraction}$ is the *total* volume the tissue was extracted into, before any plate-loading dilutions. For example, 50 mg of tissue homogenized in 500 \u00B5L of buffer, then diluted 1:10 before plate loading, is recorded as $V_{extraction}$ = 500 \u00B5L here and the 1:10 dilution is recorded in the DilutionFactor matrix (as 0.1 or `1:10`).",
       reset_default = "Reset to Default",
       
       # Step 2: Upload
@@ -448,7 +448,7 @@ get_translations <- function() {
       tissue_weight_desc = "Ingrese el peso del tejido (mg) por grupo de r\u00E9plica para el c\u00E1lculo de pg/g de tejido.",
       extraction_vol_label = "Volumen de extracci\u00F3n (\u00B5L):",
       extraction_volume_help = "Volumen de extracci\u00F3n = volumen total en el que se extrajo el tejido, antes de cualquier diluci\u00F3n en la placa. Ejemplo: 50 mg de tejido homogeneizado en 500 \u00B5L de buffer, luego diluido 1:10 antes de cargar la placa \u2192 ingrese 500 aqu\u00ED y registre la diluci\u00F3n 1:10 en la matriz DilutionFactor.",
-      extraction_volume_report_note = "Nota sobre el volumen de extracci\u00F3n: V_extraction es el volumen total en el que se extrajo el tejido, antes de cualquier diluci\u00F3n en la placa. Ejemplo: 50 mg de tejido homogeneizado en 500 \u00B5L de buffer, luego diluido 1:10 antes de cargar la placa \u2192 registre V_extraction = 500 \u00B5L aqu\u00ED y la diluci\u00F3n 1:10 en la matriz DilutionFactor.",
+      extraction_volume_report_note = "**Nota sobre el volumen de extracci\u00F3n:** $V_{extraction}$ es el volumen *total* en el que se extrajo el tejido, antes de cualquier diluci\u00F3n previa a la carga en la placa. Por ejemplo, 50 mg de tejido homogeneizado en 500 \u00B5L de buffer y luego diluido 1:10 antes de cargar la placa se registra como $V_{extraction}$ = 500 \u00B5L aqu\u00ED, y la diluci\u00F3n 1:10 se registra en la matriz DilutionFactor (como 0.1 o `1:10`).",
       reset_default = "Restablecer Valores",
       
       # Step 2: Upload
