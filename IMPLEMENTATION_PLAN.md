@@ -14,11 +14,11 @@ Each task has a status checkbox, a scope description, and acceptance criteria. T
 
 ### B1. Delete `run_analysis_modular.R`
 
-- [ ] Remove the file `run_analysis_modular.R` from the repo root
-- [ ] Update the README `Quick Start` section so it shows only two entry points:
+- [x] Remove the file `run_analysis_modular.R` from the repo root
+- [x] Update the README `Quick Start` section so it shows only two entry points:
   - `shiny::runGitHub("Shiny-App-Competitive-Bioassays", "KristofM854")` for remote use
   - `shiny::runApp("app.R")` for local use after cloning
-- [ ] Remove any references to `run_analysis_modular.R` in other documentation
+- [x] Remove any references to `run_analysis_modular.R` in other documentation
 
 **Rationale:** The file is obsolete. `app.R` handles standalone mode (output directory creation, environment variables, folder picker) since the modular refactor. The rstudioapi-based path-discovery mechanism is fragile outside RStudio and produces a misleading "please run the script again" error. No downstream tooling depends on it.
 

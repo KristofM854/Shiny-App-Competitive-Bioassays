@@ -61,7 +61,7 @@ if (!file.exists("presets/rba_stx_triplicate.rds")) {
   })
 }
 
-# Get output directory from environment (set by run_analysis_modular.R)
+# Get output directory from environment (set by an external wrapper, if any).
 # If not set OR if set by a previous standalone run, create a fresh dated folder
 standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
                     Sys.getenv("RBA_STANDALONE") == "1")
