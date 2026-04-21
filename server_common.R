@@ -268,6 +268,46 @@ server_common <- function(input, output, session, shared) {
     )
   })
 
+  # ---- Tab 5: Generate Report static headings & helpers ----
+
+  output$report_output_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("report_output_heading", lang))
+  })
+
+  output$report_formats_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(class = "text-muted",
+               style = "display: block; margin-top: 4px; line-height: 1.5;",
+               tr("report_formats_help", lang),
+               tags$br(),
+               tr("report_formats_pdf_note", lang))
+  })
+
+  output$notes_feedback_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("notes_feedback_heading", lang))
+  })
+
+  output$preflight_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(style = "margin-top: 0;", tr("preflight_heading", lang))
+  })
+
+  output$download_report_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    downloadButton("download_report", tr("download_last_report", lang),
+                   class = "btn btn-success btn-lg",
+                   style = "width: 100%;")
+  })
+
+  output$give_feedback_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
+           target = "_blank", class = "btn btn-info btn-block",
+           icon("comment"), " ", tr("give_feedback", lang))
+  })
+
   # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
@@ -276,7 +316,9 @@ server_common <- function(input, output, session, shared) {
     lang <- input$app_language
     updateSelectInput(session, "report_language", selected = lang)
     updateActionButton(session, "start_tour", label = tr("start_tour", lang))
-    updateActionButton(session, "convert", label = tr("generate_report", lang))
+    updateActionButton(session, "convert",
+                       label = tagList(icon("file-arrow-down"), " ",
+                                       tr("generate_report", lang)))
 
     # Tab 1: Quick Start buttons (icon + translated label)
     updateActionButton(session, "qs_rba_stx",
@@ -326,10 +368,15 @@ server_common <- function(input, output, session, shared) {
                                         c(tr("import_classic", lang), tr("import_visual", lang))),
                       selected = input$import_method %||% "classic",
                       inline = TRUE)
-    updateCheckboxGroupInput(session, "export_formats", label = tr("report_formats", lang))
+    updateCheckboxGroupInput(session, "export_formats",
+                             label = tr("report_formats", lang),
+                             choices = tr_choices(
+                               c("html", "docx", "pdf"),
+                               c("format_html", "format_docx", "format_pdf"), lang),
+                             selected = input$export_formats %||% "html")
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
-    updateTextAreaInput(session, "notes", label = tr("notes_label", lang),
-                       placeholder = tr("notes_placeholder", lang))
+    updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
+                       placeholder = tr("notes_report_placeholder", lang))
     updateCheckboxGroupInput(session, "regression_weight", label = tr("regression_weight_label", lang))
     updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
     updateNumericInput(session, "quant_range_max", label = tr("quant_range_max_label", lang))

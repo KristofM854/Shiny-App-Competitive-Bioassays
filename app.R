@@ -726,14 +726,11 @@ ui <- fluidPage(
           # Report generation
           div(
             id = "convert_section",
-            h4("Report Output"),
+            uiOutput("report_output_heading_ui"),
             checkboxGroupInput("export_formats", "Report formats:",
                               choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
                               selected = "html"),
-            tags$small(class = "text-muted", style = "display: block; margin-top: 4px; line-height: 1.5;",
-              "HTML reports have interactive plots. Word and PDF use static figures.",
-              tags$br(),
-              "PDF requires a LaTeX engine (e.g. TinyTeX). If unavailable, the app will fall back to HTML."),
+            uiOutput("report_formats_help_ui"),
             selectInput("report_language", "Report language:",
                        choices = c("English" = "en", "Espa\u00f1ol" = "es"),
                        selected = "en",
@@ -746,23 +743,19 @@ ui <- fluidPage(
                         style = "width: 100%; font-size: 20px; font-weight: 700;
                                 padding: 14px; border-radius: 12px;"),
             br(), br(),
-            downloadButton("download_report", "Download Last Report",
-                          class = "btn btn-success btn-lg",
-                          style = "width: 100%;")
+            uiOutput("download_report_ui")
           )
         ),
         column(4,
           # Notes & Feedback
           div(
             id = "notes_feedback_section",
-            h4("Notes & Feedback"),
+            uiOutput("notes_feedback_heading_ui"),
             textAreaInput("notes", "Notes (optional) - will appear in the report:",
                          value = "", placeholder = "Observations, sample info, run notes...",
                          rows = 8),
             br(),
-            tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
-                  target = "_blank", class = "btn btn-info btn-block",
-                  icon("comment"), " Give Feedback")
+            uiOutput("give_feedback_ui")
           )
         )
       ),
@@ -772,7 +765,7 @@ ui <- fluidPage(
       div(
         id = "preflight_section",
         style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
-        h5(style = "margin-top: 0;", "Pre-Flight Check"),
+        uiOutput("preflight_heading_ui"),
         div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
       br(),
