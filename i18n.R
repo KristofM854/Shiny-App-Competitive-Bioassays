@@ -107,7 +107,30 @@ get_translations <- function() {
       cancel_selection = "Cancel",
       excluded_wells_label = "Click individual cells to exclude them (they will be marked as NA).",
       wells_excluded = "%d well(s) excluded",
-      
+
+      # Tab 2: Plate Layout static text, preset dropdown, matrix headings
+      preset_layout_label = "Load Preset Layout:",
+      preset_select_placeholder = "-- Select Preset --",
+      preset_rba_stx_tri = "RBA: STX 8 standards (triplicate)",
+      preset_elisa_cortisol_cayman = "ELISA: Cortisol (Cayman kit, 8-point, duplicate)",
+      preset_elisa_custom_blank = "ELISA: Custom (blank template)",
+      layout_import_label = "Import Layout (CSV/Excel):",
+      save_layout_short = "Save Layout",
+      undo_btn = "Undo",
+      redo_btn = "Redo",
+      apply_btn = "Apply",
+      reset_btn = "Reset",
+      per_well_label = "Per-well",
+      sample_type_label = "1. Sample Type",
+      replicate_label = "4. Replicate Groups",
+      qc_params_label = "5. Quality Control Parameters",
+      tissue_weight_label = "6. Tissue Weights & Extraction Volume (optional)",
+      elisa_controls_banner_body = "Blank | NSB | B0 | TotalActivity (col 1)",
+      tissue_banner_prefix = "Tissue-based calculation: ",
+      tissue_banner_body = "Enter tissue weight (mg) and extraction volume (\u00b5L) per replicate group. Leave blank if not applicable. Default extraction volume: 500 \u00b5L.",
+      set_all_extraction_label = "Set all extraction vol to:",
+      scroll_right_hint = "Scroll right if more groups are present.",
+
       # Notes and feedback
       notes_label = "Notes (optional):",
       notes_placeholder = "Observations...",
@@ -546,7 +569,30 @@ get_translations <- function() {
       cancel_selection = "Cancelar",
       excluded_wells_label = "Haga clic en celdas individuales para excluirlas (se marcar\u00E1n como NA).",
       wells_excluded = "%d pozo(s) excluido(s)",
-      
+
+      # Pesta\u00F1a 2: Dise\u00F1o de placa, preajustes, encabezados de matriz
+      preset_layout_label = "Cargar Dise\u00F1o Predefinido:",
+      preset_select_placeholder = "-- Seleccione Preajuste --",
+      preset_rba_stx_tri = "RBA: STX 8 est\u00E1ndares (triplicado)",
+      preset_elisa_cortisol_cayman = "ELISA: Cortisol (kit Cayman, 8 puntos, duplicado)",
+      preset_elisa_custom_blank = "ELISA: Personalizado (plantilla en blanco)",
+      layout_import_label = "Importar Dise\u00F1o (CSV/Excel):",
+      save_layout_short = "Guardar Dise\u00F1o",
+      undo_btn = "Deshacer",
+      redo_btn = "Rehacer",
+      apply_btn = "Aplicar",
+      reset_btn = "Reiniciar",
+      per_well_label = "Por pozo",
+      sample_type_label = "1. Tipo de Muestra",
+      replicate_label = "4. Grupos de R\u00E9plicas",
+      qc_params_label = "5. Par\u00E1metros de Control de Calidad",
+      tissue_weight_label = "6. Pesos de Tejido y Volumen de Extracci\u00F3n (opcional)",
+      elisa_controls_banner_body = "Blanco | NSB | B0 | TotalActivity (col 1)",
+      tissue_banner_prefix = "C\u00E1lculo basado en tejido: ",
+      tissue_banner_body = "Ingrese el peso del tejido (mg) y el volumen de extracci\u00F3n (\u00b5L) por grupo de r\u00E9plica. Deje en blanco si no aplica. Volumen de extracci\u00F3n por defecto: 500 \u00b5L.",
+      set_all_extraction_label = "Aplicar volumen de extracci\u00F3n a todos:",
+      scroll_right_hint = "Desplace a la derecha si hay m\u00E1s grupos.",
+
       # Notes and feedback
       notes_label = "Notas (opcional):",
       notes_placeholder = "Observaciones...",
