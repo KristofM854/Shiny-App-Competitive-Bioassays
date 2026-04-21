@@ -319,17 +319,21 @@ server_common <- function(input, output, session, shared) {
     )
 
     # --- Tab 2: Plate Layout ---------------------------------------------
+    # Reading order matches the 2x2 grid layout in app.R:
+    #   row 1: [Sample Type]     [Dilution Fraction]
+    #   row 2: [Sample ID]       [Replicate Groups]
+    # so the tour visits Type -> Dilution -> ID -> Replicate.
     layout_steps <- data.frame(
       element = c("#preset_layout_section",
                   "#matrix_type_section",
-                  "#matrix_id_section",
                   "#matrix_dilution_section",
+                  "#matrix_id_section",
                   "#matrix_replicate_section"),
       intro = c(
         tr("tour_preset_layout", lang),
         tr("tour_matrix_type", lang),
-        tr("tour_matrix_id", lang),
         tr("tour_matrix_dilution", lang),
+        tr("tour_matrix_id", lang),
         tr("tour_matrix_replicate", lang)
       ),
       tab = "tab_layout",
@@ -384,6 +388,18 @@ server_common <- function(input, output, session, shared) {
       stringsAsFactors = FALSE
     ))
 
+    # Defensive selector filter (plan v4 §4, B.5): drop any step whose
+    # element id is NA/empty or not a valid '#name' selector, with a
+    # warning on the R console so regressions are visible.
+    valid_mask <- !is.na(tour_steps$element) & nzchar(tour_steps$element) &
+                  grepl("^#[A-Za-z][-_A-Za-z0-9]*$", tour_steps$element)
+    if (!all(valid_mask)) {
+      dropped <- tour_steps$element[!valid_mask]
+      warning("Dropping invalid tour selectors: ",
+              paste(dropped, collapse = ", "))
+      tour_steps <- tour_steps[valid_mask, , drop = FALSE]
+    }
+
     # Start from the Configuration tab so the first element is visible.
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_config")
 
@@ -426,10 +442,13 @@ server_common <- function(input, output, session, shared) {
     ))
     # ------------------------------------------------------------------
 
-    # intro.js cannot highlight elements inside an inactive .tab-pane
-    # (display:none) so onbeforechange asks the server to activate the
-    # pane that contains the next target element. The pane's data-value
-    # matches the wizard tab id (tab_config / tab_layout / ...).
+    # intro.js cannot highlight elements inside an inactive .tab-pane.
+    # rintrojs::readCallback("switchTabs") returns the body of a callback
+    # that calls jQuery.fn.tab('show') synchronously on the nav link
+    # matching the target's [data-value] pane, so the correct pane is
+    # .active before intro.js reads geometry. Replaces the earlier
+    # inline onbeforechange string which triggered a ReferenceError
+    # inside intro.js's eval path.
     introjs(session,
             options = list(
               steps = tour_steps[, c("element", "intro")],
@@ -441,28 +460,7 @@ server_common <- function(input, output, session, shared) {
               scrollToElement = TRUE
             ),
             events = list(
-              onbeforechange =
-                "function(targetElement) {
-                   var $pane = $(targetElement).closest('.tab-pane');
-                   if ($pane.length && !$pane.hasClass('active')) {
-                     var targetTab = $pane.data('value');
-                     if (targetTab) {
-                       Shiny.setInputValue('tour_set_tab', targetTab,
-                                           {priority: 'event'});
-                     }
-                   }
-                 }"
+              onbeforechange = readCallback("switchTabs")
             ))
   })
-
-  # Observe the tab requests from the tour and activate the matching wizard
-  # tab. Runs at event priority, so Shiny schedules it immediately.
-  observeEvent(input$tour_set_tab, {
-    target <- input$tour_set_tab
-    if (!is.null(target) && target %in% c("tab_config", "tab_layout",
-                                          "tab_upload", "tab_analysis",
-                                          "tab_report")) {
-      updateTabsetPanel(session, "wizard_tabs", selected = target)
-    }
-  }, ignoreInit = TRUE)
 }
