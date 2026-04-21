@@ -304,6 +304,10 @@ server_common <- function(input, output, session, shared) {
     ))
     # ------------------------------------------------------------------
 
+    # Each step carries an optional `position` hint for intro.js. "auto"
+    # is the default (let intro.js decide); override for wide / edge-case
+    # targets where the auto pick lands in an awkward spot.
+
     # --- Tab 1: Configuration --------------------------------------------
     tour_steps <- data.frame(
       element = c("#language_toggle_section",
@@ -315,28 +319,32 @@ server_common <- function(input, output, session, shared) {
         tr("tour_config", lang)
       ),
       tab = c("tab_config", "tab_config", "tab_config"),
+      position = c("auto", "auto", "auto"),
       stringsAsFactors = FALSE
     )
 
     # --- Tab 2: Plate Layout ---------------------------------------------
-    # Reading order matches the 2x2 grid layout in app.R:
-    #   row 1: [Sample Type]     [Dilution Fraction]
-    #   row 2: [Sample ID]       [Replicate Groups]
-    # so the tour visits Type -> Dilution -> ID -> Replicate.
+    # Follow the numeric labels shown on the matrix headers in app.R:
+    #   1. Sample Type -> 2. Sample ID -> 3. Dilution Fraction -> 4. Replicate
+    # (matches the numbering a user reads on the UI rather than the 2x2
+    # visual grid order).
     layout_steps <- data.frame(
       element = c("#preset_layout_section",
                   "#matrix_type_section",
-                  "#matrix_dilution_section",
                   "#matrix_id_section",
+                  "#matrix_dilution_section",
                   "#matrix_replicate_section"),
       intro = c(
         tr("tour_preset_layout", lang),
         tr("tour_matrix_type", lang),
-        tr("tour_matrix_dilution", lang),
         tr("tour_matrix_id", lang),
+        tr("tour_matrix_dilution", lang),
         tr("tour_matrix_replicate", lang)
       ),
       tab = "tab_layout",
+      # preset_layout_section spans the full page width; center the tooltip
+      # below the bar so it points cleanly at the preset controls.
+      position = c("bottom-middle-aligned", "auto", "auto", "auto", "auto"),
       stringsAsFactors = FALSE
     )
     # Assay-specific layout extras
@@ -345,6 +353,7 @@ server_common <- function(input, output, session, shared) {
         element = "#qc_section",
         intro = tr("tour_qc_rba", lang),
         tab = "tab_layout",
+        position = "auto",
         stringsAsFactors = FALSE
       ))
     } else if (assay == "elisa") {
@@ -352,6 +361,7 @@ server_common <- function(input, output, session, shared) {
         element = "#tissue_weight_section",
         intro = tr("tour_tissue_weights", lang),
         tab = "tab_layout",
+        position = "auto",
         stringsAsFactors = FALSE
       ))
     }
@@ -365,6 +375,7 @@ server_common <- function(input, output, session, shared) {
         tr("tour_heatmap_preview", lang)
       ),
       tab = "tab_upload",
+      position = c("auto", "auto"),
       stringsAsFactors = FALSE
     ))
 
@@ -373,6 +384,7 @@ server_common <- function(input, output, session, shared) {
       element = "#analysis_settings_section",
       intro = tr("tour_analysis", lang),
       tab = "tab_analysis",
+      position = "auto",
       stringsAsFactors = FALSE
     ))
 
@@ -385,6 +397,7 @@ server_common <- function(input, output, session, shared) {
         tr("tour_notes", lang)
       ),
       tab = "tab_report",
+      position = c("auto", "auto", "auto"),
       stringsAsFactors = FALSE
     ))
 
@@ -451,7 +464,7 @@ server_common <- function(input, output, session, shared) {
     # inside intro.js's eval path.
     introjs(session,
             options = list(
-              steps = tour_steps[, c("element", "intro")],
+              steps = tour_steps[, c("element", "intro", "position")],
               nextLabel = tr("tour_next", lang),
               prevLabel = tr("tour_prev", lang),
               skipLabel = tr("tour_skip", lang),
