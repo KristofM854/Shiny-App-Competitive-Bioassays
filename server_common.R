@@ -308,6 +308,71 @@ server_common <- function(input, output, session, shared) {
            icon("comment"), " ", tr("give_feedback", lang))
   })
 
+  # ---- Tab 2: Plate Layout static headings & banners ----
+
+  output$sample_type_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("sample_type_label", lang))
+  })
+
+  output$sample_id_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("id_matrix", lang))
+  })
+
+  output$replicate_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("replicate_label", lang))
+  })
+
+  output$qc_params_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("qc_params_label", lang))
+  })
+
+  output$tissue_weight_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("tissue_weight_label", lang))
+  })
+
+  output$elisa_controls_banner_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste("background-color: #FFF9E6; padding: 8px; margin: 8px 0;",
+                    "border-left: 4px solid #FFC107; font-size: 12px;"),
+      tags$b(tr("elisa_controls_title", lang), " "),
+      tr("elisa_controls_banner_body", lang)
+    )
+  })
+
+  output$tissue_weight_banner_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste("background-color: #FFF3E0; padding: 8px; margin: 8px 0;",
+                    "border-left: 4px solid #FF9800; font-size: 12px;"),
+      tags$b(tr("tissue_banner_prefix", lang)),
+      tr("tissue_banner_body", lang)
+    )
+  })
+
+  output$set_all_extraction_label_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$label(tr("set_all_extraction_label", lang), `for` = "uniform_extraction",
+               style = "margin: 0; white-space: nowrap; font-size: 12px;")
+  })
+
+  output$scroll_right_hint_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(style = "color: #888;", tr("scroll_right_hint", lang))
+  })
+
+  output$layout_import_file_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    fileInput("layout_import_file", tr("layout_import_label", lang),
+              accept = c(".csv", ".xlsx", ".xls"),
+              width = "100%")
+  })
+
   # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
@@ -362,6 +427,30 @@ server_common <- function(input, output, session, shared) {
     updateSelectInput(session, "num_standards",
                       label = tr("num_standards", lang),
                       selected = input$num_standards %||% 8)
+
+    # Tab 2: Plate Layout widgets
+    updateSelectInput(session, "preset_layout",
+                      label = tr("preset_layout_label", lang),
+                      choices = tr_choices(
+                        c("", "rba_stx_triplicate", "elisa_cortisol_cayman", "elisa_custom_blank"),
+                        c("preset_select_placeholder",
+                          "preset_rba_stx_tri",
+                          "preset_elisa_cortisol_cayman",
+                          "preset_elisa_custom_blank"), lang),
+                      selected = input$preset_layout %||% "")
+    updateActionButton(session, "layout_save",
+                       label = tagList(icon("save"), " ", tr("save_layout_short", lang)))
+    updateActionButton(session, "undo_layout",
+                       label = tagList(icon("undo"), " ", tr("undo_btn", lang)))
+    updateActionButton(session, "redo_layout",
+                       label = tagList(icon("redo"), " ", tr("redo_btn", lang)))
+    updateActionButton(session, "apply_uniform_dilution", label = tr("apply_btn", lang))
+    updateActionButton(session, "apply_uniform_extraction", label = tr("apply_btn", lang))
+    updateActionButton(session, "reset_type", label = tr("reset_btn", lang))
+    updateActionButton(session, "reset_id", label = tr("reset_btn", lang))
+    updateActionButton(session, "reset_dilution", label = tr("reset_btn", lang))
+    updateActionButton(session, "reset_replicate", label = tr("reset_btn", lang))
+    updateCheckboxInput(session, "advanced_dilution", label = tr("per_well_label", lang))
 
     updateRadioButtons(session, "import_method", label = tr("upload_or_visual", lang),
                       choices = setNames(c("classic", "visual"),

@@ -362,9 +362,7 @@ ui <- fluidPage(
                          selected = "")
             ),
             column(3,
-              fileInput("layout_import_file", "Import Layout (CSV/Excel):",
-                        accept = c(".csv", ".xlsx", ".xls"),
-                        width = "100%")
+              uiOutput("layout_import_file_ui")
             ),
             column(2,
               div(style = "margin-top: 25px;",
@@ -400,16 +398,12 @@ ui <- fluidPage(
             # Left: Sample Type
             div(
               id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
-              h5("1. Sample Type"),
+              uiOutput("sample_type_heading_ui"),
               actionButton("reset_type", "Reset", class = "btn btn-xs"),
 
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
-                div(
-                  style = "background-color: #FFF9E6; padding: 8px; margin: 8px 0; border-left: 4px solid #FFC107; font-size: 12px;",
-                  tags$b("ELISA Controls: "),
-                  "Blank | NSB | B0 | TotalActivity (col 1)"
-                )
+                uiOutput("elisa_controls_banner_ui")
               ),
 
               shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
@@ -453,7 +447,7 @@ ui <- fluidPage(
             # Left: Dilution Factors
             div(
               id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
-              h5("2. Sample ID"),
+              uiOutput("sample_id_heading_ui"),
               actionButton("reset_id", "Reset", class = "btn btn-xs"),
               shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
             ),
@@ -462,7 +456,7 @@ ui <- fluidPage(
             div(
               id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
-              h5("4. Replicate Groups"),
+              uiOutput("replicate_heading_ui"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               div(class = "matrix-table-anchor",
                 shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"), type = 6, color = "#1976D2"))
@@ -479,7 +473,7 @@ ui <- fluidPage(
             # Narrow the section so the guided-tour highlight wraps tightly
             # around the two input fields rather than the full page width.
             style = "max-width: 520px;",
-            h5("5. Quality Control Parameters"),
+            uiOutput("qc_params_heading_ui"),
             div(
               style = "display: flex; gap: 20px; align-items: flex-start;",
               div(style = "flex: 0 0 220px;", uiOutput("qc_concentration_input")),
@@ -497,19 +491,13 @@ ui <- fluidPage(
           condition = "input.assay_type == 'elisa'",
           div(
             id = "tissue_weight_section",
-            h5("6. Tissue Weights & Extraction Volume (optional)"),
-            div(
-              style = "background-color: #FFF3E0; padding: 8px; margin: 8px 0; border-left: 4px solid #FF9800; font-size: 12px;",
-              tags$b("Tissue-based calculation: "),
-              "Enter tissue weight (mg) and extraction volume (\u00b5L) per replicate group. ",
-              "Leave blank if not applicable. Default extraction volume: 500 \u00b5L."
-            ),
+            uiOutput("tissue_weight_heading_ui"),
+            uiOutput("tissue_weight_banner_ui"),
             div(
               style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
               div(
                 style = "display: flex; align-items: center; gap: 6px;",
-                tags$label("Set all extraction vol to:", `for` = "uniform_extraction",
-                           style = "margin: 0; white-space: nowrap; font-size: 12px;"),
+                uiOutput("set_all_extraction_label_ui", inline = TRUE),
                 tags$input(type = "number", id = "uniform_extraction", value = "500",
                            min = "0", step = "10", class = "form-control",
                            style = "width: 80px; height: 30px; padding: 2px 6px;")
@@ -519,7 +507,7 @@ ui <- fluidPage(
                            style = "height: 30px; padding: 2px 12px;")
             ),
             rHandsontableOutput("tissue_weight_table"),
-            tags$small(style = "color: #888;", "Scroll right if more groups are present."),
+            uiOutput("scroll_right_hint_ui"),
             uiOutput("extraction_volume_help")
           )
         )
