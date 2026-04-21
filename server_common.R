@@ -240,6 +240,34 @@ server_common <- function(input, output, session, shared) {
     h4(tr("step2_title", lang))
   })
 
+  # ---- Tab 1: Configuration static headings ----
+
+  output$quickstart_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tagList(
+      h4(style = "margin-top: 0;", tr("quickstart_title", lang)),
+      p(tr("quickstart_desc", lang))
+    )
+  })
+
+  output$quickstart_manual_note_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(style = "color: #666;", tr("quickstart_or_manual", lang))
+  })
+
+  output$select_assay_type_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tags$b(tr("select_assay_type", lang)))
+  })
+
+  output$std_concentrations_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tagList(
+      p(tags$b(tr("std_concentrations", lang))),
+      p(tr("std_concentrations_desc", lang))
+    )
+  })
+
   # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
@@ -249,9 +277,55 @@ server_common <- function(input, output, session, shared) {
     updateSelectInput(session, "report_language", selected = lang)
     updateActionButton(session, "start_tour", label = tr("start_tour", lang))
     updateActionButton(session, "convert", label = tr("generate_report", lang))
+
+    # Tab 1: Quick Start buttons (icon + translated label)
+    updateActionButton(session, "qs_rba_stx",
+                       label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
+    updateActionButton(session, "qs_elisa_cortisol",
+                       label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
+    updateActionButton(session, "qs_elisa_custom",
+                       label = tagList(icon("cog"), " ", tr("preset_elisa_custom_btn", lang)))
+
+    # Tab 1: Assay type / toxin / analyte / units / num_standards
+    updateSelectInput(session, "assay_type",
+                      label = tr("assay_type_label", lang),
+                      choices = tr_choices(c("rba", "elisa"),
+                                           c("assay_rba", "assay_elisa"), lang),
+                      selected = input$assay_type %||% "rba")
+    updateSelectInput(session, "toxin_class",
+                      label = tr("toxin_standard", lang),
+                      choices = setNames(
+                        c("Saxitoxin", "Brevetoxin", "Ciguatoxin", "Custom"),
+                        c("Saxitoxin", "Brevetoxin", "Ciguatoxin",
+                          tr("custom_choice_label", lang))
+                      ),
+                      selected = input$toxin_class %||% "Saxitoxin")
+    updateTextInput(session, "toxin_custom_name",
+                    label = tr("custom_standard_name_label", lang),
+                    placeholder = tr("custom_standard_name_placeholder", lang))
+    updateSelectInput(session, "elisa_analyte",
+                      label = tr("analyte_label", lang),
+                      choices = setNames(
+                        c("cortisol", "testosterone", "estradiol", "custom"),
+                        c("Cortisol", "Testosterone", "Estradiol",
+                          tr("custom_choice_label", lang))
+                      ),
+                      selected = input$elisa_analyte %||% "cortisol")
+    updateTextInput(session, "elisa_custom_name",
+                    label = tr("custom_name", lang),
+                    placeholder = tr("custom_analyte_placeholder", lang))
+    updateSelectInput(session, "elisa_units",
+                      label = tr("units_label", lang),
+                      selected = input$elisa_units %||% "pg/mL")
+    updateSelectInput(session, "num_standards",
+                      label = tr("num_standards", lang),
+                      selected = input$num_standards %||% 8)
+
     updateRadioButtons(session, "import_method", label = tr("upload_or_visual", lang),
                       choices = setNames(c("classic", "visual"),
-                                        c(tr("import_classic", lang), tr("import_visual", lang))))
+                                        c(tr("import_classic", lang), tr("import_visual", lang))),
+                      selected = input$import_method %||% "classic",
+                      inline = TRUE)
     updateCheckboxGroupInput(session, "export_formats", label = tr("report_formats", lang))
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
     updateTextAreaInput(session, "notes", label = tr("notes_label", lang),
@@ -264,7 +338,8 @@ server_common <- function(input, output, session, shared) {
     updateNumericInput(session, "outlier_min_n", label = tr("outlier_min_n_label", lang))
     updateRadioButtons(session, "normality_assumption", label = tr("normality_assumption_label", lang),
                        choices = c(setNames("assume", tr("normality_assume", lang)),
-                                   setNames("test_shapiro", tr("normality_test_shapiro", lang))))
+                                   setNames("test_shapiro", tr("normality_test_shapiro", lang))),
+                       selected = input$normality_assumption %||% "assume")
   })
 
   # --------------------------------------------------------------------------

@@ -47,7 +47,26 @@ get_translations <- function() {
       b0_desc = "Maximum binding (no competing analyte)",
       ta_desc = "Total enzyme activity (optional)",
       elisa_tip = "\U0001F4A1 Tip: Typically assign Blank/NSB/B0 in Column 1, rows A-G. Standards go in columns 2-3.",
-      
+
+      # Quick Start panel (Tab 1)
+      quickstart_title = "Quick Start",
+      quickstart_desc = "Choose a preset to auto-configure the assay type, plate layout, and standard concentrations:",
+      quickstart_or_manual = "Or configure manually below.",
+      preset_rba_stx_btn = "RBA Saxitoxin",
+      preset_elisa_cortisol_btn = "ELISA Cortisol",
+      preset_elisa_custom_btn = "ELISA Custom",
+
+      # Custom standard/analyte names (Tab 1)
+      custom_standard_name_label = "Custom standard name:",
+      custom_standard_name_placeholder = "e.g., GTX2/3 mix",
+      custom_analyte_placeholder = "e.g., Estradiol",
+      custom_choice_label = "Custom",
+
+      # Toxin variant and molecular weight (Tab 1)
+      toxin_variant_label = "Variant:",
+      molecular_weight_label = "Molecular weight [g/mol] for %s:",
+      molecular_weight_readonly = "Molecular weight [g/mol]:",
+
       # Step 1: Matrices
       step1_title = "Step 2: Plate Layout & QC Parameters",
       type_matrix = "1. Sample Type (Standard, Sample, QC, Blank, Other)",
@@ -432,6 +451,25 @@ get_translations <- function() {
       b0_desc = "Uni\u00F3n m\u00E1xima (sin analito competidor)",
       ta_desc = "Actividad enzim\u00E1tica total (opcional)",
       elisa_tip = "\U0001F4A1 Consejo: Normalmente asigne Blanco/NSB/B0 en la Columna 1, filas A-G. Est\u00E1ndares en columnas 2-3.",
+
+      # Panel de Inicio R\u00E1pido (Pesta\u00F1a 1)
+      quickstart_title = "Inicio R\u00E1pido",
+      quickstart_desc = "Elija un preajuste para configurar autom\u00E1ticamente el tipo de ensayo, el dise\u00F1o de placa y las concentraciones est\u00E1ndar:",
+      quickstart_or_manual = "O configure manualmente abajo.",
+      preset_rba_stx_btn = "RBA Saxitoxina",
+      preset_elisa_cortisol_btn = "ELISA Cortisol",
+      preset_elisa_custom_btn = "ELISA Personalizado",
+
+      # Nombres personalizados de est\u00E1ndar/analito (Pesta\u00F1a 1)
+      custom_standard_name_label = "Nombre personalizado del est\u00E1ndar:",
+      custom_standard_name_placeholder = "ej., mezcla GTX2/3",
+      custom_analyte_placeholder = "ej., Estradiol",
+      custom_choice_label = "Personalizado",
+
+      # Variante de toxina y peso molecular (Pesta\u00F1a 1)
+      toxin_variant_label = "Variante:",
+      molecular_weight_label = "Peso molecular [g/mol] para %s:",
+      molecular_weight_readonly = "Peso molecular [g/mol]:",
       
       # Step 1: Matrices
       step1_title = "Paso 2: Dise\u00F1o de Placa y Par\u00E1metros QC",
