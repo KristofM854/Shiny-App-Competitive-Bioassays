@@ -548,14 +548,10 @@ ui <- fluidPage(
 
         div(
           style = "display:flex; gap:10px;",
-          fileInput("upload_counts", "Upload Bioassay Results",
-                   accept = c(".txt", ".csv", ".xlsx")),
-          actionButton("clear_upload", "", icon = icon("trash"),
-                      title = "Remove file",
-                      style = "margin-top: 30px; background-color:#f8d7da; border:none;")
+          uiOutput("upload_counts_ui"),
+          uiOutput("clear_upload_ui")
         ),
-        downloadButton("download_plate_template", "Download Example File",
-                       class = "btn btn-default btn-sm", style = "margin-top: 5px;"),
+        uiOutput("download_plate_template_ui"),
 
         # Visual plate selector panel
         conditionalPanel(
@@ -563,8 +559,8 @@ ui <- fluidPage(
           div(
             id = "visual_selector_section",
             style = "border: 2px dashed #2196F3; padding: 15px; margin: 10px 0; border-radius: 8px;",
-            h5(tags$b("Visual Plate Selector")),
-            p("After uploading a file, a preview will appear below. Click and drag to select 8\u00D712 plate regions."),
+            uiOutput("visual_selector_heading_ui"),
+            uiOutput("visual_selector_intro_ui"),
             uiOutput("visual_file_preview"),
             uiOutput("visual_plate_selections"),
             uiOutput("visual_well_exclusion")
@@ -587,9 +583,9 @@ ui <- fluidPage(
         style = "max-width: 700px;",
         `aria-describedby` = "plate_heatmap_desc_text",
         role = "figure",
-        h5("Plate Data Heatmap"),
+        uiOutput("heatmap_title_ui"),
         tags$figcaption(id = "plate_heatmap_desc_text",
-          "Visual verification of uploaded plate data. Wells are colored by measurement value."
+          uiOutput("heatmap_caption_ui", inline = TRUE)
         ),
         plotly::plotlyOutput("plate_heatmap", height = "300px"),
         div(class = "sr-only", `aria-live` = "polite", textOutput("plate_heatmap_description"))
