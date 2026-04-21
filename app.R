@@ -193,8 +193,7 @@ ui <- fluidPage(
       div(
         id = "quickstart_section",
         style = "background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px;",
-        h4(style = "margin-top: 0;", "Quick Start"),
-        p("Choose a preset to auto-configure the assay type, plate layout, and standard concentrations:"),
+        uiOutput("quickstart_heading_ui"),
         fluidRow(
           column(4,
             actionButton("qs_rba_stx", label = tagList(icon("flask"), " RBA Saxitoxin"),
@@ -210,7 +209,7 @@ ui <- fluidPage(
                         style = "width: 100%; margin-bottom: 8px; border: 2px solid #9C27B0; color: #9C27B0;")
           )
         ),
-        tags$small(style = "color: #666;", "Or configure manually below.")
+        uiOutput("quickstart_manual_note_ui")
       ),
 
       introBox(
@@ -224,7 +223,7 @@ ui <- fluidPage(
 
               wellPanel(
                 style = "background-color: #E3F2FD; border-left: 4px solid #2196F3;",
-                h5(tags$b("Select Assay Type")),
+                uiOutput("select_assay_type_heading_ui"),
                 selectInput(
                   "assay_type",
                   "Type of assay:",
@@ -298,8 +297,7 @@ ui <- fluidPage(
 
               # Standard concentrations (shown for both assay types)
               hr(),
-              p(tags$b("Standard Concentrations")),
-              p("Specify the number of standards, then enter each concentration."),
+              uiOutput("std_concentrations_heading_ui"),
 
               uiOutput("concentration_unit_guidance"),
 
@@ -364,9 +362,7 @@ ui <- fluidPage(
                          selected = "")
             ),
             column(3,
-              fileInput("layout_import_file", "Import Layout (CSV/Excel):",
-                        accept = c(".csv", ".xlsx", ".xls"),
-                        width = "100%")
+              uiOutput("layout_import_file_ui")
             ),
             column(2,
               div(style = "margin-top: 25px;",
@@ -402,16 +398,12 @@ ui <- fluidPage(
             # Left: Sample Type
             div(
               id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
-              h5("1. Sample Type"),
+              uiOutput("sample_type_heading_ui"),
               actionButton("reset_type", "Reset", class = "btn btn-xs"),
 
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
-                div(
-                  style = "background-color: #FFF9E6; padding: 8px; margin: 8px 0; border-left: 4px solid #FFC107; font-size: 12px;",
-                  tags$b("ELISA Controls: "),
-                  "Blank | NSB | B0 | TotalActivity (col 1)"
-                )
+                uiOutput("elisa_controls_banner_ui")
               ),
 
               shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
@@ -455,7 +447,7 @@ ui <- fluidPage(
             # Left: Dilution Factors
             div(
               id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
-              h5("2. Sample ID"),
+              uiOutput("sample_id_heading_ui"),
               actionButton("reset_id", "Reset", class = "btn btn-xs"),
               shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
             ),
@@ -464,7 +456,7 @@ ui <- fluidPage(
             div(
               id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
-              h5("4. Replicate Groups"),
+              uiOutput("replicate_heading_ui"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               div(class = "matrix-table-anchor",
                 shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"), type = 6, color = "#1976D2"))
@@ -478,7 +470,10 @@ ui <- fluidPage(
           condition = "input.assay_type == 'rba'",
           div(
             id = "qc_section",
-            h5("5. Quality Control Parameters"),
+            # Narrow the section so the guided-tour highlight wraps tightly
+            # around the two input fields rather than the full page width.
+            style = "max-width: 520px;",
+            uiOutput("qc_params_heading_ui"),
             div(
               style = "display: flex; gap: 20px; align-items: flex-start;",
               div(style = "flex: 0 0 220px;", uiOutput("qc_concentration_input")),
@@ -496,19 +491,13 @@ ui <- fluidPage(
           condition = "input.assay_type == 'elisa'",
           div(
             id = "tissue_weight_section",
-            h5("6. Tissue Weights & Extraction Volume (optional)"),
-            div(
-              style = "background-color: #FFF3E0; padding: 8px; margin: 8px 0; border-left: 4px solid #FF9800; font-size: 12px;",
-              tags$b("Tissue-based calculation: "),
-              "Enter tissue weight (mg) and extraction volume (\u00b5L) per replicate group. ",
-              "Leave blank if not applicable. Default extraction volume: 500 \u00b5L."
-            ),
+            uiOutput("tissue_weight_heading_ui"),
+            uiOutput("tissue_weight_banner_ui"),
             div(
               style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
               div(
                 style = "display: flex; align-items: center; gap: 6px;",
-                tags$label("Set all extraction vol to:", `for` = "uniform_extraction",
-                           style = "margin: 0; white-space: nowrap; font-size: 12px;"),
+                uiOutput("set_all_extraction_label_ui", inline = TRUE),
                 tags$input(type = "number", id = "uniform_extraction", value = "500",
                            min = "0", step = "10", class = "form-control",
                            style = "width: 80px; height: 30px; padding: 2px 6px;")
@@ -518,7 +507,7 @@ ui <- fluidPage(
                            style = "height: 30px; padding: 2px 12px;")
             ),
             rHandsontableOutput("tissue_weight_table"),
-            tags$small(style = "color: #888;", "Scroll right if more groups are present."),
+            uiOutput("scroll_right_hint_ui"),
             uiOutput("extraction_volume_help")
           )
         )
@@ -559,14 +548,10 @@ ui <- fluidPage(
 
         div(
           style = "display:flex; gap:10px;",
-          fileInput("upload_counts", "Upload Bioassay Results",
-                   accept = c(".txt", ".csv", ".xlsx")),
-          actionButton("clear_upload", "", icon = icon("trash"),
-                      title = "Remove file",
-                      style = "margin-top: 30px; background-color:#f8d7da; border:none;")
+          uiOutput("upload_counts_ui"),
+          uiOutput("clear_upload_ui")
         ),
-        downloadButton("download_plate_template", "Download Example File",
-                       class = "btn btn-default btn-sm", style = "margin-top: 5px;"),
+        uiOutput("download_plate_template_ui"),
 
         # Visual plate selector panel
         conditionalPanel(
@@ -574,8 +559,8 @@ ui <- fluidPage(
           div(
             id = "visual_selector_section",
             style = "border: 2px dashed #2196F3; padding: 15px; margin: 10px 0; border-radius: 8px;",
-            h5(tags$b("Visual Plate Selector")),
-            p("After uploading a file, a preview will appear below. Click and drag to select 8\u00D712 plate regions."),
+            uiOutput("visual_selector_heading_ui"),
+            uiOutput("visual_selector_intro_ui"),
             uiOutput("visual_file_preview"),
             uiOutput("visual_plate_selections"),
             uiOutput("visual_well_exclusion")
@@ -598,9 +583,9 @@ ui <- fluidPage(
         style = "max-width: 700px;",
         `aria-describedby` = "plate_heatmap_desc_text",
         role = "figure",
-        h5("Plate Data Heatmap"),
+        uiOutput("heatmap_title_ui"),
         tags$figcaption(id = "plate_heatmap_desc_text",
-          "Visual verification of uploaded plate data. Wells are colored by measurement value."
+          uiOutput("heatmap_caption_ui", inline = TRUE)
         ),
         plotly::plotlyOutput("plate_heatmap", height = "300px"),
         div(class = "sr-only", `aria-live` = "polite", textOutput("plate_heatmap_description"))
@@ -633,7 +618,7 @@ ui <- fluidPage(
       div(
         id = "analysis_settings_section",
         style = "max-width: 700px;",
-        h4(id = "analysis_settings_title", "Analysis Settings"),
+        uiOutput("analysis_settings_heading_ui"),
 
         # Primary setting (always visible)
         checkboxGroupInput("regression_weight", "DRC regression weighting:",
@@ -641,7 +626,7 @@ ui <- fluidPage(
                                "1/Y (moderate)" = "inv_y",
                                "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
                    selected = "none"),
-        helpText("Select multiple weightings to compare results side by side."),
+        uiOutput("regression_weight_help_ui"),
 
         # Advanced analysis options — open by default for visibility
         div(
@@ -650,11 +635,8 @@ ui <- fluidPage(
             "border-radius: 6px; border-left: 4px solid #FFA000; ",
             "box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
           ),
-          h4(style = "margin: 0 0 4px 0; color: #E65100;",
-             icon("sliders-h"), " Advanced Options \u2014 weighting, CI, outliers, and QC thresholds"),
-          tags$p(style = "margin: 0 0 12px 0; color: #555; font-size: 13px;",
-            "These settings control confidence interval method, outlier detection, quantification range, and quality thresholds."
-          ),
+          uiOutput("advanced_options_heading_ui"),
+          uiOutput("advanced_options_intro_ui"),
 
           fluidRow(
             column(6,
@@ -666,7 +648,7 @@ ui <- fluidPage(
                           value = 80, min = 50, max = 95, step = 5)
             )
           ),
-          helpText("Samples outside this range are flagged as <LLOQ or >ULOQ."),
+          uiOutput("quant_range_help_ui"),
 
           hr(),
 
@@ -680,7 +662,7 @@ ui <- fluidPage(
             condition = "input.enable_outlier_detection == true",
             numericInput("outlier_min_n", "Minimum replicates for outlier test:",
                         value = 3, min = 3, max = 10, step = 1),
-            helpText("Dixon's Q-test for n=3-5, Grubbs' test for n\u22656. Outliers are flagged, not removed."),
+            uiOutput("outlier_help_ui"),
             hr(),
             radioButtons("normality_assumption", "Normality assumption for outlier detection:",
                         choices = c("Assume normality (default)" = "assume",
@@ -688,13 +670,13 @@ ui <- fluidPage(
                         selected = "assume"),
             conditionalPanel(
               condition = "input.normality_assumption == 'test_shapiro'",
-              helpText("Shapiro-Wilk test is run on each replicate group. If p < 0.05 (non-normal), MAD-based detection replaces Grubbs' test.")
+              uiOutput("normality_shapiro_help_ui")
             )
           ),
           hr(),
           numericInput("cv_limit", "Maximum CV for standards (%):",
                       value = 30, min = 5, max = 50, step = 5),
-          helpText("Standards exceeding this CV% threshold are flagged as high-variability.")
+          uiOutput("cv_limit_help_ui")
         )
       ),
       br(),
@@ -725,14 +707,11 @@ ui <- fluidPage(
           # Report generation
           div(
             id = "convert_section",
-            h4("Report Output"),
+            uiOutput("report_output_heading_ui"),
             checkboxGroupInput("export_formats", "Report formats:",
                               choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
                               selected = "html"),
-            tags$small(class = "text-muted", style = "display: block; margin-top: 4px; line-height: 1.5;",
-              "HTML reports have interactive plots. Word and PDF use static figures.",
-              tags$br(),
-              "PDF requires a LaTeX engine (e.g. TinyTeX). If unavailable, the app will fall back to HTML."),
+            uiOutput("report_formats_help_ui"),
             selectInput("report_language", "Report language:",
                        choices = c("English" = "en", "Espa\u00f1ol" = "es"),
                        selected = "en",
@@ -745,23 +724,19 @@ ui <- fluidPage(
                         style = "width: 100%; font-size: 20px; font-weight: 700;
                                 padding: 14px; border-radius: 12px;"),
             br(), br(),
-            downloadButton("download_report", "Download Last Report",
-                          class = "btn btn-success btn-lg",
-                          style = "width: 100%;")
+            uiOutput("download_report_ui")
           )
         ),
         column(4,
           # Notes & Feedback
           div(
             id = "notes_feedback_section",
-            h4("Notes & Feedback"),
+            uiOutput("notes_feedback_heading_ui"),
             textAreaInput("notes", "Notes (optional) - will appear in the report:",
                          value = "", placeholder = "Observations, sample info, run notes...",
                          rows = 8),
             br(),
-            tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
-                  target = "_blank", class = "btn btn-info btn-block",
-                  icon("comment"), " Give Feedback")
+            uiOutput("give_feedback_ui")
           )
         )
       ),
@@ -771,7 +746,7 @@ ui <- fluidPage(
       div(
         id = "preflight_section",
         style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
-        h5(style = "margin-top: 0;", "Pre-Flight Check"),
+        uiOutput("preflight_heading_ui"),
         div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
       br(),
