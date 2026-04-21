@@ -32,14 +32,13 @@ server_common <- function(input, output, session, shared) {
         newest <- recent[which.max(file.info(recent)$mtime)]
         saved <- tryCatch(readRDS(newest), error = function(e) NULL)
         if (!is.null(saved) && !is.null(saved$timestamp)) {
+          lang <- isolate(input$app_language %||% "en")
           showModal(modalDialog(
-            title = "Restore Previous Session?",
-            paste0("An auto-saved session from ",
-                   format(saved$timestamp, "%Y-%m-%d %H:%M:%S"),
-                   " was found. Would you like to restore the plate layout?"),
+            title = tr("restore_title", lang),
+            tr("restore_body", lang, format(saved$timestamp, "%Y-%m-%d %H:%M:%S")),
             footer = tagList(
-              actionButton("restore_autosave", "Restore", class = "btn-primary"),
-              modalButton("Start Fresh")
+              actionButton("restore_autosave", tr("restore_btn", lang), class = "btn-primary"),
+              modalButton(tr("start_fresh_btn", lang))
             ),
             easyClose = TRUE
           ))
@@ -100,26 +99,26 @@ server_common <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   observe({
+    lang <- isolate(input$app_language %||% "en")
     showModal(modalDialog(
-      title = tagList(icon("flask"), " Competitive Binding Assay Analysis Suite"),
+      title = tagList(icon("flask"), " ", tr("welcome_title", lang)),
       size = "l",
       easyClose = TRUE,
       div(
         style = "font-size: 14px;",
-        p("Analyze RBA and ELISA plate reader data with 4-parameter logistic curve fitting."),
+        p(tr("welcome_intro", lang)),
         hr(),
-        tags$b("Quick Start:"),
+        tags$b(tr("welcome_qs_label", lang)),
         tags$ol(
-          tags$li("Choose an assay type above, or click a Quick Start button"),
-          tags$li("Upload your plate reader file (.xlsx, .csv, .txt)"),
-          tags$li("Click Generate Report")
+          tags$li(tr("welcome_step1", lang)),
+          tags$li(tr("welcome_step2", lang)),
+          tags$li(tr("welcome_step3", lang))
         ),
         hr(),
         p(style = "color: #666; font-size: 12px;",
-          "Example datasets are included in the ", tags$code("examples/"), " folder. ",
-          "For questions: kr.moeller@iaea.org")
+          tr("welcome_examples_note", lang, "examples/"))
       ),
-      footer = modalButton("Get Started")
+      footer = modalButton(tr("get_started_btn", lang))
     ))
   }) |> bindEvent(session$clientData$url_protocol, once = TRUE)
 
@@ -136,13 +135,11 @@ server_common <- function(input, output, session, shared) {
         required_controls <- c("Blank", "NSB", "B0")
         missing_controls <- required_controls[!required_controls %in% well_types]
         if (length(missing_controls) > 0) {
+          lang <- isolate(input$app_language %||% "en")
           showModal(modalDialog(
-            title = "Missing ELISA Control Wells",
-            paste0("Your plate layout is missing required control wells: ",
-                   paste(missing_controls, collapse = ", "), ". ",
-                   "Please go back to Plate Layout and assign these ",
-                   "well types in the Type matrix."),
-            footer = modalButton("OK"), easyClose = TRUE
+            title = tr("missing_elisa_title", lang),
+            tr("missing_elisa_body", lang, paste(missing_controls, collapse = ", ")),
+            footer = modalButton(tr("modal_ok_btn", lang)), easyClose = TRUE
           ))
           return(FALSE)
         }
@@ -150,10 +147,11 @@ server_common <- function(input, output, session, shared) {
     }
     plate <- shared$matrix_measresults()
     if (is.null(plate) || !any(!is.na(as.numeric(unlist(plate))))) {
+      lang <- isolate(input$app_language %||% "en")
       showModal(modalDialog(
-        title = "No Plate Data",
-        "Please upload plate reader data before generating a report.",
-        footer = modalButton("OK"), easyClose = TRUE
+        title = tr("no_plate_title", lang),
+        tr("no_plate_body", lang),
+        footer = modalButton(tr("modal_ok_btn", lang)), easyClose = TRUE
       ))
       return(FALSE)
     }
@@ -240,6 +238,224 @@ server_common <- function(input, output, session, shared) {
     h4(tr("step2_title", lang))
   })
 
+  # ---- Tab 1: Configuration static headings ----
+
+  output$quickstart_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tagList(
+      h4(style = "margin-top: 0;", tr("quickstart_title", lang)),
+      p(tr("quickstart_desc", lang))
+    )
+  })
+
+  output$quickstart_manual_note_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(style = "color: #666;", tr("quickstart_or_manual", lang))
+  })
+
+  output$select_assay_type_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tags$b(tr("select_assay_type", lang)))
+  })
+
+  output$std_concentrations_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tagList(
+      p(tags$b(tr("std_concentrations", lang))),
+      p(tr("std_concentrations_desc", lang))
+    )
+  })
+
+  # ---- Tab 5: Generate Report static headings & helpers ----
+
+  output$report_output_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("report_output_heading", lang))
+  })
+
+  output$report_formats_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(class = "text-muted",
+               style = "display: block; margin-top: 4px; line-height: 1.5;",
+               tr("report_formats_help", lang),
+               tags$br(),
+               tr("report_formats_pdf_note", lang))
+  })
+
+  output$notes_feedback_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(tr("notes_feedback_heading", lang))
+  })
+
+  output$preflight_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(style = "margin-top: 0;", tr("preflight_heading", lang))
+  })
+
+  output$download_report_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    downloadButton("download_report", tr("download_last_report", lang),
+                   class = "btn btn-success btn-lg",
+                   style = "width: 100%;")
+  })
+
+  output$give_feedback_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
+           target = "_blank", class = "btn btn-info btn-block",
+           icon("comment"), " ", tr("give_feedback", lang))
+  })
+
+  # ---- Tab 2: Plate Layout static headings & banners ----
+
+  output$sample_type_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("sample_type_label", lang))
+  })
+
+  output$sample_id_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("id_matrix", lang))
+  })
+
+  output$replicate_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("replicate_label", lang))
+  })
+
+  output$qc_params_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("qc_params_label", lang))
+  })
+
+  output$tissue_weight_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("tissue_weight_label", lang))
+  })
+
+  output$elisa_controls_banner_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste("background-color: #FFF9E6; padding: 8px; margin: 8px 0;",
+                    "border-left: 4px solid #FFC107; font-size: 12px;"),
+      tags$b(tr("elisa_controls_title", lang), " "),
+      tr("elisa_controls_banner_body", lang)
+    )
+  })
+
+  output$tissue_weight_banner_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste("background-color: #FFF3E0; padding: 8px; margin: 8px 0;",
+                    "border-left: 4px solid #FF9800; font-size: 12px;"),
+      tags$b(tr("tissue_banner_prefix", lang)),
+      tr("tissue_banner_body", lang)
+    )
+  })
+
+  output$set_all_extraction_label_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$label(tr("set_all_extraction_label", lang), `for` = "uniform_extraction",
+               style = "margin: 0; white-space: nowrap; font-size: 12px;")
+  })
+
+  output$scroll_right_hint_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(style = "color: #888;", tr("scroll_right_hint", lang))
+  })
+
+  output$layout_import_file_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    fileInput("layout_import_file", tr("layout_import_label", lang),
+              accept = c(".csv", ".xlsx", ".xls"),
+              width = "100%")
+  })
+
+  # ---- Tab 4: Analysis Settings static headings & helpText ----
+
+  output$analysis_settings_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(id = "analysis_settings_title", tr("analysis_settings_title", lang))
+  })
+
+  output$regression_weight_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("regression_weight_help", lang))
+  })
+
+  output$advanced_options_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h4(style = "margin: 0 0 4px 0; color: #E65100;",
+       icon("sliders-h"), " ", tr("advanced_options_heading", lang))
+  })
+
+  output$advanced_options_intro_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$p(style = "margin: 0 0 12px 0; color: #555; font-size: 13px;",
+           tr("advanced_options_intro", lang))
+  })
+
+  output$quant_range_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("quant_range_help", lang))
+  })
+
+  output$outlier_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("outlier_help", lang))
+  })
+
+  output$normality_shapiro_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("normality_shapiro_help", lang))
+  })
+
+  output$cv_limit_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    helpText(tr("cv_limit_help", lang))
+  })
+
+  # ---- Tab 3: Upload tab chrome ----
+
+  output$upload_counts_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    fileInput("upload_counts", tr("upload_label", lang),
+              accept = c(".txt", ".csv", ".xlsx"))
+  })
+
+  output$clear_upload_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    actionButton("clear_upload", "", icon = icon("trash"),
+                 title = tr("clear_file", lang),
+                 style = "margin-top: 30px; background-color:#f8d7da; border:none;")
+  })
+
+  output$download_plate_template_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    downloadButton("download_plate_template", tr("download_example_file", lang),
+                   class = "btn btn-default btn-sm", style = "margin-top: 5px;")
+  })
+
+  output$visual_selector_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tags$b(tr("visual_selector_title", lang)))
+  })
+
+  output$visual_selector_intro_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    p(tr("visual_instructions", lang))
+  })
+
+  output$heatmap_title_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("heatmap_title", lang))
+  })
+
+  output$heatmap_caption_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tr("heatmap_desc", lang)
+  })
+
   # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
@@ -248,23 +464,115 @@ server_common <- function(input, output, session, shared) {
     lang <- input$app_language
     updateSelectInput(session, "report_language", selected = lang)
     updateActionButton(session, "start_tour", label = tr("start_tour", lang))
-    updateActionButton(session, "convert", label = tr("generate_report", lang))
+    updateActionButton(session, "convert",
+                       label = tagList(icon("file-arrow-down"), " ",
+                                       tr("generate_report", lang)))
+
+    # Tab 1: Quick Start buttons (icon + translated label)
+    updateActionButton(session, "qs_rba_stx",
+                       label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
+    updateActionButton(session, "qs_elisa_cortisol",
+                       label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
+    updateActionButton(session, "qs_elisa_custom",
+                       label = tagList(icon("cog"), " ", tr("preset_elisa_custom_btn", lang)))
+
+    # Tab 1: Assay type / toxin / analyte / units / num_standards
+    updateSelectInput(session, "assay_type",
+                      label = tr("assay_type_label", lang),
+                      choices = tr_choices(c("rba", "elisa"),
+                                           c("assay_rba", "assay_elisa"), lang),
+                      selected = input$assay_type %||% "rba")
+    updateSelectInput(session, "toxin_class",
+                      label = tr("toxin_standard", lang),
+                      choices = setNames(
+                        c("Saxitoxin", "Brevetoxin", "Ciguatoxin", "Custom"),
+                        c("Saxitoxin", "Brevetoxin", "Ciguatoxin",
+                          tr("custom_choice_label", lang))
+                      ),
+                      selected = input$toxin_class %||% "Saxitoxin")
+    updateTextInput(session, "toxin_custom_name",
+                    label = tr("custom_standard_name_label", lang),
+                    placeholder = tr("custom_standard_name_placeholder", lang))
+    updateSelectInput(session, "elisa_analyte",
+                      label = tr("analyte_label", lang),
+                      choices = setNames(
+                        c("cortisol", "testosterone", "estradiol", "custom"),
+                        c("Cortisol", "Testosterone", "Estradiol",
+                          tr("custom_choice_label", lang))
+                      ),
+                      selected = input$elisa_analyte %||% "cortisol")
+    updateTextInput(session, "elisa_custom_name",
+                    label = tr("custom_name", lang),
+                    placeholder = tr("custom_analyte_placeholder", lang))
+    updateSelectInput(session, "elisa_units",
+                      label = tr("units_label", lang),
+                      selected = input$elisa_units %||% "pg/mL")
+    updateSelectInput(session, "num_standards",
+                      label = tr("num_standards", lang),
+                      selected = input$num_standards %||% 8)
+
+    # Tab 2: Plate Layout widgets
+    updateSelectInput(session, "preset_layout",
+                      label = tr("preset_layout_label", lang),
+                      choices = tr_choices(
+                        c("", "rba_stx_triplicate", "elisa_cortisol_cayman", "elisa_custom_blank"),
+                        c("preset_select_placeholder",
+                          "preset_rba_stx_tri",
+                          "preset_elisa_cortisol_cayman",
+                          "preset_elisa_custom_blank"), lang),
+                      selected = input$preset_layout %||% "")
+    updateActionButton(session, "layout_save",
+                       label = tagList(icon("save"), " ", tr("save_layout_short", lang)))
+    updateActionButton(session, "undo_layout",
+                       label = tagList(icon("undo"), " ", tr("undo_btn", lang)))
+    updateActionButton(session, "redo_layout",
+                       label = tagList(icon("redo"), " ", tr("redo_btn", lang)))
+    updateActionButton(session, "apply_uniform_dilution", label = tr("apply_btn", lang))
+    updateActionButton(session, "apply_uniform_extraction", label = tr("apply_btn", lang))
+    updateActionButton(session, "reset_type", label = tr("reset_btn", lang))
+    updateActionButton(session, "reset_id", label = tr("reset_btn", lang))
+    updateActionButton(session, "reset_dilution", label = tr("reset_btn", lang))
+    updateActionButton(session, "reset_replicate", label = tr("reset_btn", lang))
+    updateCheckboxInput(session, "advanced_dilution", label = tr("per_well_label", lang))
+    updateTextInput(session, "expected_hill", label = tr("expected_hill", lang))
+
     updateRadioButtons(session, "import_method", label = tr("upload_or_visual", lang),
                       choices = setNames(c("classic", "visual"),
-                                        c(tr("import_classic", lang), tr("import_visual", lang))))
-    updateCheckboxGroupInput(session, "export_formats", label = tr("report_formats", lang))
+                                        c(tr("import_classic", lang), tr("import_visual", lang))),
+                      selected = input$import_method %||% "classic",
+                      inline = TRUE)
+    updateActionButton(session, "show_sample_layout", label = tr("show_layout", lang))
+    updateCheckboxGroupInput(session, "export_formats",
+                             label = tr("report_formats", lang),
+                             choices = tr_choices(
+                               c("html", "docx", "pdf"),
+                               c("format_html", "format_docx", "format_pdf"), lang),
+                             selected = input$export_formats %||% "html")
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
-    updateTextAreaInput(session, "notes", label = tr("notes_label", lang),
-                       placeholder = tr("notes_placeholder", lang))
-    updateCheckboxGroupInput(session, "regression_weight", label = tr("regression_weight_label", lang))
+    updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
+                       placeholder = tr("notes_report_placeholder", lang))
+    updateCheckboxGroupInput(session, "regression_weight",
+                             label = tr("regression_weight_label", lang),
+                             choices = tr_choices(
+                               c("none", "inv_y", "inv_y2"),
+                               c("weight_unweighted", "weight_inv_y", "weight_inv_y2"),
+                               lang),
+                             selected = input$regression_weight %||% "none")
     updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
     updateNumericInput(session, "quant_range_max", label = tr("quant_range_max_label", lang))
-    updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang))
+    updateRadioButtons(session, "ci_method", label = tr("ci_method_label", lang),
+                       choices = tr_choices(
+                         c("t_dist", "bootstrap"),
+                         c("ci_t_dist", "ci_bootstrap_choice"), lang),
+                       selected = input$ci_method %||% "t_dist",
+                       inline = TRUE)
     updateCheckboxInput(session, "enable_outlier_detection", label = tr("outlier_detection_label", lang))
     updateNumericInput(session, "outlier_min_n", label = tr("outlier_min_n_label", lang))
+    updateNumericInput(session, "cv_limit", label = tr("cv_limit_label", lang))
     updateRadioButtons(session, "normality_assumption", label = tr("normality_assumption_label", lang),
                        choices = c(setNames("assume", tr("normality_assume", lang)),
-                                   setNames("test_shapiro", tr("normality_test_shapiro", lang))))
+                                   setNames("test_shapiro", tr("normality_test_shapiro", lang))),
+                       selected = input$normality_assumption %||% "assume")
   })
 
   # --------------------------------------------------------------------------
