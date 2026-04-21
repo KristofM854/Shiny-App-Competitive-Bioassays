@@ -417,6 +417,47 @@ server_common <- function(input, output, session, shared) {
     helpText(tr("cv_limit_help", lang))
   })
 
+  # ---- Tab 3: Upload tab chrome ----
+
+  output$upload_counts_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    fileInput("upload_counts", tr("upload_label", lang),
+              accept = c(".txt", ".csv", ".xlsx"))
+  })
+
+  output$clear_upload_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    actionButton("clear_upload", "", icon = icon("trash"),
+                 title = tr("clear_file", lang),
+                 style = "margin-top: 30px; background-color:#f8d7da; border:none;")
+  })
+
+  output$download_plate_template_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    downloadButton("download_plate_template", tr("download_example_file", lang),
+                   class = "btn btn-default btn-sm", style = "margin-top: 5px;")
+  })
+
+  output$visual_selector_heading_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tags$b(tr("visual_selector_title", lang)))
+  })
+
+  output$visual_selector_intro_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    p(tr("visual_instructions", lang))
+  })
+
+  output$heatmap_title_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    h5(tr("heatmap_title", lang))
+  })
+
+  output$heatmap_caption_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tr("heatmap_desc", lang)
+  })
+
   # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
@@ -501,6 +542,7 @@ server_common <- function(input, output, session, shared) {
                                         c(tr("import_classic", lang), tr("import_visual", lang))),
                       selected = input$import_method %||% "classic",
                       inline = TRUE)
+    updateActionButton(session, "show_sample_layout", label = tr("show_layout", lang))
     updateCheckboxGroupInput(session, "export_formats",
                              label = tr("report_formats", lang),
                              choices = tr_choices(
