@@ -28,19 +28,20 @@ server_report <- function(input, output, session, shared, config_reactives) {
   # --------------------------------------------------------------------------
 
   output$hill_warning <- renderUI({
+    lang <- input$app_language %||% "en"
     raw <- input$expected_hill
     if (is.null(raw) || trimws(raw) == "") {
       return(tags$div(style = "color: red; font-weight: bold;",
-                     "\u26a0\ufe0f Hill slope required"))
+                     tr("hill_required", lang)))
     }
     val <- suppressWarnings(as.numeric(raw))
     if (is.na(val)) {
       return(tags$div(style = "color: red; font-weight: bold;",
-                     "\u26a0\ufe0f Must be numeric"))
+                     tr("must_be_numeric", lang)))
     }
     if (val < 0.5 || val > 1.5) {
       return(tags$div(style = "color: orange; font-weight: bold;",
-                     "\u26a0\ufe0f Outside expected range (0.5\u20131.5)"))
+                     tr("hill_outside_range", lang)))
     }
     NULL
   })
@@ -50,9 +51,10 @@ server_report <- function(input, output, session, shared, config_reactives) {
   # --------------------------------------------------------------------------
 
   output$dilution_error_feedback <- renderUI({
+    lang <- input$app_language %||% "en"
     if (shared$dilution_error()) {
       tags$div(style = "color: red; font-weight: bold;",
-              "\u26a0\ufe0f Invalid dilution entries (red cells)")
+              tr("invalid_dilution", lang))
     }
   })
 
@@ -113,6 +115,7 @@ server_report <- function(input, output, session, shared, config_reactives) {
   # --------------------------------------------------------------------------
 
   output$preflight_checks <- renderUI({
+    lang <- input$app_language %||% "en"
     assay <- input$assay_type %||% "rba"
     checks <- list()
 
@@ -120,18 +123,18 @@ server_report <- function(input, output, session, shared, config_reactives) {
     plate <- shared$matrix_measresults()
     plate_ok <- !is.null(plate) && any(!is.na(as.numeric(unlist(plate))))
     checks[[length(checks) + 1]] <- if (plate_ok) {
-      tags$div(style = "color: #388E3C;", icon("check-circle"), " Plate data uploaded")
+      pf_line("check-circle", "#388E3C", "pf_plate_ok", lang)
     } else {
-      tags$div(style = "color: #D32F2F;", icon("times-circle"), " No plate data - go to Upload tab")
+      pf_line("times-circle", "#D32F2F", "pf_plate_missing", lang)
     }
 
     # Check 2: Standards defined
     type_mat <- shared$matrix_type()
     n_std <- if (!is.null(type_mat)) sum(unlist(type_mat) == "Standard", na.rm = TRUE) else 0
     checks[[length(checks) + 1]] <- if (n_std >= 4) {
-      tags$div(style = "color: #388E3C;", icon("check-circle"), paste(" ", n_std, "standard wells defined"))
+      pf_line("check-circle", "#388E3C", "pf_std_count_ok", lang, n_std)
     } else {
-      tags$div(style = "color: #D32F2F;", icon("times-circle"), paste(" Only", n_std, "standard wells (need >= 4)"))
+      pf_line("times-circle", "#D32F2F", "pf_std_count_low", lang, n_std)
     }
 
     # Check 3: ELISA controls
@@ -141,25 +144,25 @@ server_report <- function(input, output, session, shared, config_reactives) {
       has_nsb <- "NSB" %in% well_types
       has_b0 <- "B0" %in% well_types
       if (has_blank && has_nsb && has_b0) {
-        checks[[length(checks) + 1]] <- tags$div(
-          style = "color: #388E3C;", icon("check-circle"), " ELISA controls present (Blank, NSB, B0)")
+        checks[[length(checks) + 1]] <- pf_line("check-circle", "#388E3C",
+                                                      "pf_elisa_controls_ok", lang)
       } else {
         missing <- c()
         if (!has_blank) missing <- c(missing, "Blank")
         if (!has_nsb) missing <- c(missing, "NSB")
         if (!has_b0) missing <- c(missing, "B0")
-        checks[[length(checks) + 1]] <- tags$div(
-          style = "color: #D32F2F;", icon("times-circle"),
-          paste(" Missing ELISA controls:", paste(missing, collapse = ", ")))
+        checks[[length(checks) + 1]] <- pf_line("times-circle", "#D32F2F",
+                                                      "pf_elisa_controls_missing", lang,
+                                                      paste(missing, collapse = ", "))
       }
     }
 
     # Check 4: Dilution validity
     dil_ok <- !shared$dilution_error()
     checks[[length(checks) + 1]] <- if (dil_ok) {
-      tags$div(style = "color: #388E3C;", icon("check-circle"), " Dilution factors valid")
+      pf_line("check-circle", "#388E3C", "pf_dilution_ok", lang)
     } else {
-      tags$div(style = "color: #FF9800;", icon("exclamation-triangle"), " Some dilution entries are invalid")
+      pf_line("exclamation-triangle", "#FF9800", "pf_dilution_invalid", lang)
     }
 
     # Check 5: Standards count consistency
@@ -171,13 +174,13 @@ server_report <- function(input, output, session, shared, config_reactives) {
       std_mask <- type_vec == "Standard" & !is.na(type_vec)
       unique_std_groups <- length(unique(rep_vec[std_mask]))
       if (unique_std_groups == num_std_input) {
-        checks[[length(checks) + 1]] <- tags$div(
-          style = "color: #388E3C;", icon("check-circle"),
-          paste0(" Standard count matches: ", unique_std_groups, " groups for ", num_std_input, " standards"))
+        checks[[length(checks) + 1]] <- pf_line("check-circle", "#388E3C",
+                                                      "pf_std_count_match", lang,
+                                                      unique_std_groups, num_std_input)
       } else {
-        checks[[length(checks) + 1]] <- tags$div(
-          style = "color: #FF9800;", icon("exclamation-triangle"),
-          paste0(" Standard groups (", unique_std_groups, ") differs from configured standards (", num_std_input, ")"))
+        checks[[length(checks) + 1]] <- pf_line("exclamation-triangle", "#FF9800",
+                                                      "pf_std_count_mismatch", lang,
+                                                      unique_std_groups, num_std_input)
       }
     }
 
@@ -196,12 +199,12 @@ server_report <- function(input, output, session, shared, config_reactives) {
           if (length(types_in_group) > 1) mixed_groups <- c(mixed_groups, g)
         }
         if (length(mixed_groups) == 0) {
-          checks[[length(checks) + 1]] <- tags$div(
-            style = "color: #388E3C;", icon("check-circle"), " Replicate groups are consistent")
+          checks[[length(checks) + 1]] <- pf_line("check-circle", "#388E3C",
+                                                        "pf_rep_groups_ok", lang)
         } else {
-          checks[[length(checks) + 1]] <- tags$div(
-            style = "color: #FF9800;", icon("exclamation-triangle"),
-            paste0(" Mixed well types in replicate group(s): ", paste(mixed_groups, collapse = ", ")))
+          checks[[length(checks) + 1]] <- pf_line("exclamation-triangle", "#FF9800",
+                                                        "pf_rep_groups_mixed", lang,
+                                                        paste(mixed_groups, collapse = ", "))
         }
       }
     }
@@ -215,12 +218,11 @@ server_report <- function(input, output, session, shared, config_reactives) {
       if (any(sample_mask)) {
         empty_ids <- sum(is.na(id_vec[sample_mask]) | trimws(id_vec[sample_mask]) == "")
         if (empty_ids == 0) {
-          checks[[length(checks) + 1]] <- tags$div(
-            style = "color: #388E3C;", icon("check-circle"), " All sample wells have IDs")
+          checks[[length(checks) + 1]] <- pf_line("check-circle", "#388E3C",
+                                                        "pf_ids_ok", lang)
         } else {
-          checks[[length(checks) + 1]] <- tags$div(
-            style = "color: #FF9800;", icon("exclamation-triangle"),
-            paste0(" ", empty_ids, " sample well(s) have empty IDs"))
+          checks[[length(checks) + 1]] <- pf_line("exclamation-triangle", "#FF9800",
+                                                        "pf_ids_empty", lang, empty_ids)
         }
       }
     }
@@ -239,13 +241,13 @@ server_report <- function(input, output, session, shared, config_reactives) {
       if (length(low_rep_controls) == 0) {
         has_any_control <- any(well_types %in% control_types, na.rm = TRUE)
         if (has_any_control) {
-          checks[[length(checks) + 1]] <- tags$div(
-            style = "color: #388E3C;", icon("check-circle"), " ELISA controls have adequate replicates")
+          checks[[length(checks) + 1]] <- pf_line("check-circle", "#388E3C",
+                                                        "pf_elisa_reps_ok", lang)
         }
       } else {
-        checks[[length(checks) + 1]] <- tags$div(
-          style = "color: #FF9800;", icon("exclamation-triangle"),
-          paste0(" Low replicates for ELISA control(s): ", paste(low_rep_controls, collapse = ", "), " (recommend >= 2)"))
+        checks[[length(checks) + 1]] <- pf_line("exclamation-triangle", "#FF9800",
+                                                      "pf_elisa_reps_low", lang,
+                                                      paste(low_rep_controls, collapse = ", "))
       }
     }
 
@@ -259,9 +261,8 @@ server_report <- function(input, output, session, shared, config_reactives) {
         else !is.null(x) && !is.na(x) && x > 0
       }))
       if (has_samples && !has_weights) {
-        checks[[length(checks) + 1]] <- tags$div(
-          style = "color: #FF9800;", icon("exclamation-triangle"),
-          " No tissue weights entered (needed for tissue-normalized ELISA results)")
+        checks[[length(checks) + 1]] <- pf_line("exclamation-triangle", "#FF9800",
+                                                      "pf_tissue_missing", lang)
       }
     }
 
@@ -272,17 +273,17 @@ server_report <- function(input, output, session, shared, config_reactives) {
     if (has_errors) {
       badge <- tags$div(
         style = "padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; background: #FFEBEE; border-left: 4px solid #D32F2F; font-weight: bold; color: #C62828;",
-        icon("exclamation-circle"), " Blocking issues found \u2014 resolve before generating report"
+        icon("exclamation-circle"), " ", tr("pf_badge_errors", lang)
       )
     } else if (has_warnings) {
       badge <- tags$div(
         style = "padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; background: #FFF3E0; border-left: 4px solid #FF9800; font-weight: bold; color: #E65100;",
-        icon("exclamation-triangle"), " Warnings found \u2014 report can be generated but review recommended"
+        icon("exclamation-triangle"), " ", tr("pf_badge_warnings", lang)
       )
     } else {
       badge <- tags$div(
         style = "padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; background: #E8F5E9; border-left: 4px solid #388E3C; font-weight: bold; color: #2E7D32;",
-        icon("check-circle"), " All checks passed \u2014 ready to generate report"
+        icon("check-circle"), " ", tr("pf_badge_ok", lang)
       )
     }
 
@@ -330,7 +331,7 @@ server_report <- function(input, output, session, shared, config_reactives) {
 
   observeEvent(input$convert, {
 
-    withProgress(message = "Generating report...", value = 0, {
+    withProgress(message = tr("generating_report", input$app_language %||% "en"), value = 0, {
 
       # Stage 1: Flush pending layout state
       flush_latest_layout_state(input, shared)

@@ -47,7 +47,26 @@ get_translations <- function() {
       b0_desc = "Maximum binding (no competing analyte)",
       ta_desc = "Total enzyme activity (optional)",
       elisa_tip = "\U0001F4A1 Tip: Typically assign Blank/NSB/B0 in Column 1, rows A-G. Standards go in columns 2-3.",
-      
+
+      # Quick Start panel (Tab 1)
+      quickstart_title = "Quick Start",
+      quickstart_desc = "Choose a preset to auto-configure the assay type, plate layout, and standard concentrations:",
+      quickstart_or_manual = "Or configure manually below.",
+      preset_rba_stx_btn = "RBA Saxitoxin",
+      preset_elisa_cortisol_btn = "ELISA Cortisol",
+      preset_elisa_custom_btn = "ELISA Custom",
+
+      # Custom standard/analyte names (Tab 1)
+      custom_standard_name_label = "Custom standard name:",
+      custom_standard_name_placeholder = "e.g., GTX2/3 mix",
+      custom_analyte_placeholder = "e.g., Estradiol",
+      custom_choice_label = "Custom",
+
+      # Toxin variant and molecular weight (Tab 1)
+      toxin_variant_label = "Variant:",
+      molecular_weight_label = "Molecular weight [g/mol] for %s:",
+      molecular_weight_readonly = "Molecular weight [g/mol]:",
+
       # Step 1: Matrices
       step1_title = "Step 2: Plate Layout & QC Parameters",
       type_matrix = "1. Sample Type (Standard, Sample, QC, Blank, Other)",
@@ -88,7 +107,43 @@ get_translations <- function() {
       cancel_selection = "Cancel",
       excluded_wells_label = "Click individual cells to exclude them (they will be marked as NA).",
       wells_excluded = "%d well(s) excluded",
-      
+      wells_excluded_one = "%d well excluded",
+      wells_excluded_many = "%d wells excluded",
+      upload_preview_unreadable = "Could not read file for preview.",
+      upload_preview_no_plates = "No 8\u00D712 plate regions auto-detected. Use Classic Import, or check file format.",
+      upload_preview_detected_n = "\u2705 %d plate region(s) detected.",
+      upload_preview_single_hint = "Uncheck this plate if the detection is incorrect.",
+      upload_preview_multi_hint = "Uncheck plates you do not want to analyze. Selecting multiple plates enables multi-wavelength comparison. The first selected plate is used as the primary measurement.",
+      primary_plate_badge = "Primary plate",
+      click_exclude_hint = "Click wells to exclude/include",
+      yes_label = "Yes",
+      no_label = "No",
+      download_example_file = "Download Example File",
+      step2_prefix = "Step 2:",
+
+      # Tab 2: Plate Layout static text, preset dropdown, matrix headings
+      preset_layout_label = "Load Preset Layout:",
+      preset_select_placeholder = "-- Select Preset --",
+      preset_rba_stx_tri = "RBA: STX 8 standards (triplicate)",
+      preset_elisa_cortisol_cayman = "ELISA: Cortisol (Cayman kit, 8-point, duplicate)",
+      preset_elisa_custom_blank = "ELISA: Custom (blank template)",
+      layout_import_label = "Import Layout (CSV/Excel):",
+      save_layout_short = "Save Layout",
+      undo_btn = "Undo",
+      redo_btn = "Redo",
+      apply_btn = "Apply",
+      reset_btn = "Reset",
+      per_well_label = "Per-well",
+      sample_type_label = "1. Sample Type",
+      replicate_label = "4. Replicate Groups",
+      qc_params_label = "5. Quality Control Parameters",
+      tissue_weight_label = "6. Tissue Weights & Extraction Volume (optional)",
+      elisa_controls_banner_body = "Blank | NSB | B0 | TotalActivity (col 1)",
+      tissue_banner_prefix = "Tissue-based calculation: ",
+      tissue_banner_body = "Enter tissue weight (mg) and extraction volume (\u00b5L) per replicate group. Leave blank if not applicable. Default extraction volume: 500 \u00b5L.",
+      set_all_extraction_label = "Set all extraction vol to:",
+      scroll_right_hint = "Scroll right if more groups are present.",
+
       # Notes and feedback
       notes_label = "Notes (optional):",
       notes_placeholder = "Observations...",
@@ -99,7 +154,42 @@ get_translations <- function() {
       report_language = "Report language:",
       generate_report = "Step 3: Generate Report",
       generating_report = "Generating report...",
-      
+
+      # Tab 5: Report Output & Notes panels
+      report_output_heading = "Report Output",
+      notes_feedback_heading = "Notes & Feedback",
+      preflight_heading = "Pre-Flight Check",
+      format_html = "HTML",
+      format_docx = "Word (DOCX)",
+      format_pdf = "PDF",
+      report_formats_help = "HTML reports have interactive plots. Word and PDF use static figures.",
+      report_formats_pdf_note = "PDF requires a LaTeX engine (e.g. TinyTeX). If unavailable, the app will fall back to HTML.",
+      notes_full_label = "Notes (optional) - will appear in the report:",
+      notes_report_placeholder = "Observations, sample info, run notes...",
+      download_last_report = "Download Last Report",
+
+      # Pre-flight check panel (Tab 5 preflight_checks renderUI)
+      pf_plate_ok = "Plate data uploaded",
+      pf_plate_missing = "No plate data - go to Upload tab",
+      pf_std_count_ok = "%d standard wells defined",
+      pf_std_count_low = "Only %d standard wells (need >= 4)",
+      pf_elisa_controls_ok = "ELISA controls present (Blank, NSB, B0)",
+      pf_elisa_controls_missing = "Missing ELISA controls: %s",
+      pf_dilution_ok = "Dilution factors valid",
+      pf_dilution_invalid = "Some dilution entries are invalid",
+      pf_std_count_match = "Standard count matches: %d groups for %d standards",
+      pf_std_count_mismatch = "Standard groups (%d) differs from configured standards (%d)",
+      pf_rep_groups_ok = "Replicate groups are consistent",
+      pf_rep_groups_mixed = "Mixed well types in replicate group(s): %s",
+      pf_ids_ok = "All sample wells have IDs",
+      pf_ids_empty = "%d sample well(s) have empty IDs",
+      pf_elisa_reps_ok = "ELISA controls have adequate replicates",
+      pf_elisa_reps_low = "Low replicates for ELISA control(s): %s (recommend >= 2)",
+      pf_tissue_missing = "No tissue weights entered (needed for tissue-normalized ELISA results)",
+      pf_badge_errors = "Blocking issues found — resolve before generating report",
+      pf_badge_warnings = "Warnings found — report can be generated but review recommended",
+      pf_badge_ok = "All checks passed — ready to generate report",
+
       # QC
       qc_conc_label = "QC concentration (%s):",
       expected_hill = "Expected Hill slope:",
@@ -281,6 +371,14 @@ get_translations <- function() {
       outlier_method_mad = "MAD-based (non-normal distribution detected)",
       cv_limit_label = "Maximum CV for standards (%):",
       cv_limit_help = "Standards exceeding this CV% threshold are flagged as high-variability.",
+      advanced_options_heading = "Advanced Options \u2014 weighting, CI, outliers, and QC thresholds",
+      advanced_options_intro = "These settings control confidence interval method, outlier detection, quantification range, and quality thresholds.",
+      regression_weight_help = "Select multiple weightings to compare results side by side.",
+      weight_unweighted = "Unweighted",
+      weight_inv_y = "1/Y (moderate)",
+      weight_inv_y2 = "1/Y\u00B2 (recommended for immunoassays)",
+      ci_t_dist = "t-distribution (default)",
+      ci_bootstrap_choice = "Bootstrap (1000 resamples)",
 
       # Tab titles
       tab_analysis_title = "4. Analysis Settings",
@@ -398,6 +496,25 @@ get_translations <- function() {
       layout_import_success = "Plate layout imported from file.",
       layout_no_saved = "No saved layouts found.",
 
+      # Modal dialogs (welcome, restore session, missing ELISA controls, no plate)
+      welcome_title = "Competitive Binding Assay Analysis Suite",
+      welcome_intro = "Analyze RBA and ELISA plate reader data with 4-parameter logistic curve fitting.",
+      welcome_qs_label = "Quick Start:",
+      welcome_step1 = "Choose an assay type above, or click a Quick Start button",
+      welcome_step2 = "Upload your plate reader file (.xlsx, .csv, .txt)",
+      welcome_step3 = "Click Generate Report",
+      welcome_examples_note = "Example datasets are included in the %s folder. For questions: kr.moeller@iaea.org",
+      get_started_btn = "Get Started",
+      restore_title = "Restore Previous Session?",
+      restore_body = "An auto-saved session from %s was found. Would you like to restore the plate layout?",
+      restore_btn = "Restore",
+      start_fresh_btn = "Start Fresh",
+      missing_elisa_title = "Missing ELISA Control Wells",
+      missing_elisa_body = "Your plate layout is missing required control wells: %s. Please go back to Plate Layout and assign these well types in the Type matrix.",
+      modal_ok_btn = "OK",
+      no_plate_title = "No Plate Data",
+      no_plate_body = "Please upload plate reader data before generating a report.",
+
       # Omitted wells
       omitted_by_user = "Omitted from analysis by user"
     ),
@@ -432,6 +549,25 @@ get_translations <- function() {
       b0_desc = "Uni\u00F3n m\u00E1xima (sin analito competidor)",
       ta_desc = "Actividad enzim\u00E1tica total (opcional)",
       elisa_tip = "\U0001F4A1 Consejo: Normalmente asigne Blanco/NSB/B0 en la Columna 1, filas A-G. Est\u00E1ndares en columnas 2-3.",
+
+      # Panel de Inicio R\u00E1pido (Pesta\u00F1a 1)
+      quickstart_title = "Inicio R\u00E1pido",
+      quickstart_desc = "Elija un preajuste para configurar autom\u00E1ticamente el tipo de ensayo, el dise\u00F1o de placa y las concentraciones est\u00E1ndar:",
+      quickstart_or_manual = "O configure manualmente abajo.",
+      preset_rba_stx_btn = "RBA Saxitoxina",
+      preset_elisa_cortisol_btn = "ELISA Cortisol",
+      preset_elisa_custom_btn = "ELISA Personalizado",
+
+      # Nombres personalizados de est\u00E1ndar/analito (Pesta\u00F1a 1)
+      custom_standard_name_label = "Nombre personalizado del est\u00E1ndar:",
+      custom_standard_name_placeholder = "ej., mezcla GTX2/3",
+      custom_analyte_placeholder = "ej., Estradiol",
+      custom_choice_label = "Personalizado",
+
+      # Variante de toxina y peso molecular (Pesta\u00F1a 1)
+      toxin_variant_label = "Variante:",
+      molecular_weight_label = "Peso molecular [g/mol] para %s:",
+      molecular_weight_readonly = "Peso molecular [g/mol]:",
       
       # Step 1: Matrices
       step1_title = "Paso 2: Dise\u00F1o de Placa y Par\u00E1metros QC",
@@ -473,7 +609,43 @@ get_translations <- function() {
       cancel_selection = "Cancelar",
       excluded_wells_label = "Haga clic en celdas individuales para excluirlas (se marcar\u00E1n como NA).",
       wells_excluded = "%d pozo(s) excluido(s)",
-      
+      wells_excluded_one = "%d pozo excluido",
+      wells_excluded_many = "%d pozos excluidos",
+      upload_preview_unreadable = "No se pudo leer el archivo para vista previa.",
+      upload_preview_no_plates = "No se detectaron regiones de placa 8\u00D712 autom\u00E1ticamente. Use Importaci\u00F3n Cl\u00E1sica o verifique el formato del archivo.",
+      upload_preview_detected_n = "\u2705 %d regi\u00F3n(es) de placa detectada(s).",
+      upload_preview_single_hint = "Desmarque esta placa si la detecci\u00F3n es incorrecta.",
+      upload_preview_multi_hint = "Desmarque las placas que no desea analizar. Seleccionar m\u00FAltiples placas habilita la comparaci\u00F3n multi-longitud de onda. La primera placa seleccionada se usa como medici\u00F3n principal.",
+      primary_plate_badge = "Placa principal",
+      click_exclude_hint = "Haga clic en los pozos para excluir/incluir",
+      yes_label = "S\u00ED",
+      no_label = "No",
+      download_example_file = "Descargar Archivo de Ejemplo",
+      step2_prefix = "Paso 2:",
+
+      # Pesta\u00F1a 2: Dise\u00F1o de placa, preajustes, encabezados de matriz
+      preset_layout_label = "Cargar Dise\u00F1o Predefinido:",
+      preset_select_placeholder = "-- Seleccione Preajuste --",
+      preset_rba_stx_tri = "RBA: STX 8 est\u00E1ndares (triplicado)",
+      preset_elisa_cortisol_cayman = "ELISA: Cortisol (kit Cayman, 8 puntos, duplicado)",
+      preset_elisa_custom_blank = "ELISA: Personalizado (plantilla en blanco)",
+      layout_import_label = "Importar Dise\u00F1o (CSV/Excel):",
+      save_layout_short = "Guardar Dise\u00F1o",
+      undo_btn = "Deshacer",
+      redo_btn = "Rehacer",
+      apply_btn = "Aplicar",
+      reset_btn = "Reiniciar",
+      per_well_label = "Por pozo",
+      sample_type_label = "1. Tipo de Muestra",
+      replicate_label = "4. Grupos de R\u00E9plicas",
+      qc_params_label = "5. Par\u00E1metros de Control de Calidad",
+      tissue_weight_label = "6. Pesos de Tejido y Volumen de Extracci\u00F3n (opcional)",
+      elisa_controls_banner_body = "Blanco | NSB | B0 | TotalActivity (col 1)",
+      tissue_banner_prefix = "C\u00E1lculo basado en tejido: ",
+      tissue_banner_body = "Ingrese el peso del tejido (mg) y el volumen de extracci\u00F3n (\u00b5L) por grupo de r\u00E9plica. Deje en blanco si no aplica. Volumen de extracci\u00F3n por defecto: 500 \u00b5L.",
+      set_all_extraction_label = "Aplicar volumen de extracci\u00F3n a todos:",
+      scroll_right_hint = "Desplace a la derecha si hay m\u00E1s grupos.",
+
       # Notes and feedback
       notes_label = "Notas (opcional):",
       notes_placeholder = "Observaciones...",
@@ -484,7 +656,42 @@ get_translations <- function() {
       report_language = "Idioma del reporte:",
       generate_report = "Paso 3: Generar Reporte",
       generating_report = "Generando reporte...",
-      
+
+      # Pestaña 5: Panel de Salida de Reporte y Notas
+      report_output_heading = "Salida del Reporte",
+      notes_feedback_heading = "Notas y Retroalimentaci\u00F3n",
+      preflight_heading = "Verificaci\u00F3n Previa",
+      format_html = "HTML",
+      format_docx = "Word (DOCX)",
+      format_pdf = "PDF",
+      report_formats_help = "Los reportes HTML tienen gr\u00E1ficos interactivos. Word y PDF usan figuras est\u00E1ticas.",
+      report_formats_pdf_note = "PDF requiere un motor LaTeX (ej., TinyTeX). Si no est\u00E1 disponible, la aplicaci\u00F3n cambiar\u00E1 a HTML.",
+      notes_full_label = "Notas (opcional) - aparecer\u00E1n en el reporte:",
+      notes_report_placeholder = "Observaciones, informaci\u00F3n de muestras, notas de corrida...",
+      download_last_report = "Descargar \u00DAltimo Reporte",
+
+      # Panel de verificación previa (Tab 5)
+      pf_plate_ok = "Datos de placa cargados",
+      pf_plate_missing = "Sin datos de placa - vaya a la pesta\u00F1a Cargar",
+      pf_std_count_ok = "%d pozos est\u00E1ndar definidos",
+      pf_std_count_low = "Solo %d pozos est\u00E1ndar (se necesitan >= 4)",
+      pf_elisa_controls_ok = "Controles ELISA presentes (Blanco, NSB, B0)",
+      pf_elisa_controls_missing = "Faltan controles ELISA: %s",
+      pf_dilution_ok = "Factores de diluci\u00F3n v\u00E1lidos",
+      pf_dilution_invalid = "Algunas entradas de diluci\u00F3n son inv\u00E1lidas",
+      pf_std_count_match = "Cantidad de est\u00E1ndares coincide: %d grupos para %d est\u00E1ndares",
+      pf_std_count_mismatch = "Grupos de est\u00E1ndar (%d) difieren de los est\u00E1ndares configurados (%d)",
+      pf_rep_groups_ok = "Los grupos de r\u00E9plicas son consistentes",
+      pf_rep_groups_mixed = "Tipos de pozos mezclados en grupo(s) de r\u00E9plicas: %s",
+      pf_ids_ok = "Todos los pozos de muestra tienen ID",
+      pf_ids_empty = "%d pozo(s) de muestra sin ID",
+      pf_elisa_reps_ok = "Los controles ELISA tienen r\u00E9plicas adecuadas",
+      pf_elisa_reps_low = "Pocas r\u00E9plicas para control(es) ELISA: %s (se recomienda >= 2)",
+      pf_tissue_missing = "No se ingresaron pesos de tejido (necesarios para resultados ELISA normalizados por tejido)",
+      pf_badge_errors = "Problemas bloqueantes detectados \u2014 res\u00FAelvalos antes de generar el reporte",
+      pf_badge_warnings = "Advertencias detectadas \u2014 se puede generar el reporte pero se recomienda revisar",
+      pf_badge_ok = "Todas las verificaciones pasaron \u2014 listo para generar el reporte",
+
       # QC
       qc_conc_label = "Concentraci\u00F3n QC (%s):",
       expected_hill = "Pendiente de Hill esperada:",
@@ -666,6 +873,14 @@ get_translations <- function() {
       outlier_method_mad = "Basado en MAD (distribuci\u00F3n no normal detectada)",
       cv_limit_label = "CV m\u00E1ximo para est\u00E1ndares (%):",
       cv_limit_help = "Los est\u00E1ndares que excedan este umbral de CV% se marcan como alta variabilidad.",
+      advanced_options_heading = "Opciones Avanzadas \u2014 ponderaci\u00F3n, IC, at\u00EDpicos y umbrales de QC",
+      advanced_options_intro = "Estos ajustes controlan el m\u00E9todo de intervalo de confianza, la detecci\u00F3n de at\u00EDpicos, el rango de cuantificaci\u00F3n y los umbrales de calidad.",
+      regression_weight_help = "Seleccione m\u00FAltiples ponderaciones para comparar resultados lado a lado.",
+      weight_unweighted = "Sin ponderar",
+      weight_inv_y = "1/Y (moderada)",
+      weight_inv_y2 = "1/Y\u00B2 (recomendada para inmunoensayos)",
+      ci_t_dist = "distribuci\u00F3n t (predeterminada)",
+      ci_bootstrap_choice = "Bootstrap (1000 remuestreos)",
 
       # Tab titles
       tab_analysis_title = "4. Configuraci\u00F3n de An\u00E1lisis",
@@ -784,6 +999,25 @@ get_translations <- function() {
       layout_import_success = "Dise\u00F1o de placa importado del archivo.",
       layout_no_saved = "No se encontraron dise\u00F1os guardados.",
 
+      # Di\u00E1logos modales (bienvenida, restaurar sesi\u00F3n, controles ELISA faltantes, sin datos de placa)
+      welcome_title = "Suite de An\u00E1lisis de Ensayos de Uni\u00F3n Competitiva",
+      welcome_intro = "Analice datos de lector de placas RBA y ELISA con ajuste de curva log\u00EDstica de 4 par\u00E1metros.",
+      welcome_qs_label = "Inicio R\u00E1pido:",
+      welcome_step1 = "Elija un tipo de ensayo arriba o haga clic en un bot\u00F3n de Inicio R\u00E1pido",
+      welcome_step2 = "Cargue su archivo del lector de placas (.xlsx, .csv, .txt)",
+      welcome_step3 = "Haga clic en Generar Reporte",
+      welcome_examples_note = "Los conjuntos de datos de ejemplo est\u00E1n en la carpeta %s. Para consultas: kr.moeller@iaea.org",
+      get_started_btn = "Comenzar",
+      restore_title = "\u00BFRestaurar Sesi\u00F3n Anterior?",
+      restore_body = "Se encontr\u00F3 una sesi\u00F3n autoguardada del %s. \u00BFDesea restaurar el dise\u00F1o de placa?",
+      restore_btn = "Restaurar",
+      start_fresh_btn = "Empezar de Nuevo",
+      missing_elisa_title = "Pozos de Control ELISA Faltantes",
+      missing_elisa_body = "Su dise\u00F1o de placa no tiene los pozos de control requeridos: %s. Vuelva a Dise\u00F1o de Placa y asigne estos tipos de pozo en la matriz de Tipo.",
+      modal_ok_btn = "Aceptar",
+      no_plate_title = "Sin Datos de Placa",
+      no_plate_body = "Cargue datos del lector de placas antes de generar un reporte.",
+
       # Omitted wells
       omitted_by_user = "Omitido del an\u00E1lisis por el usuario"
     )
@@ -807,4 +1041,25 @@ tr <- function(key, lang = "en", ...) {
     return(sprintf(text, ...))
   }
   return(text)
+}
+
+#' Build a translated choice vector for selectInput / radioButtons / checkboxGroupInput.
+#' @param ids Character vector of choice values (stored in input$...).
+#' @param label_keys Character vector of translation keys, same length as ids.
+#' @param lang Language code.
+#' @return A named character vector suitable for `choices = ...`.
+tr_choices <- function(ids, label_keys, lang = "en") {
+  stopifnot(length(ids) == length(label_keys))
+  setNames(ids, vapply(label_keys, tr, character(1), lang = lang))
+}
+
+#' Build a coloured pre-flight check line with an icon and translated message.
+#' @param icon_name Font Awesome icon name passed to shiny::icon().
+#' @param color CSS colour string.
+#' @param key Translation key for the message.
+#' @param lang Language code.
+#' @param ... Arguments forwarded to sprintf inside tr().
+pf_line <- function(icon_name, color, key, lang, ...) {
+  shiny::tags$div(style = paste0("color: ", color, ";"),
+                  shiny::icon(icon_name), " ", tr(key, lang, ...))
 }

@@ -271,19 +271,19 @@ server_upload <- function(input, output, session, shared) {
     registry <- rv_file_preview$plate_registry
 
     if (is.null(rv_file_preview$raw_data)) {
-      return(tags$p(style = "color: red;", "Could not read file for preview."))
+      return(tags$p(style = "color: red;", tr("upload_preview_unreadable", lang)))
     }
 
     if (is.null(registry) || nrow(registry) == 0) {
       return(tags$p(style = "color: orange;",
-                    "No 8\u00D712 plate regions auto-detected. Use Classic Import, or check file format."))
+                    tr("upload_preview_no_plates", lang)))
     }
 
     plate_colors <- c("#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5", "#E0F7FA")
 
     tagList(
       tags$p(style = "color: green; font-weight: bold;",
-             sprintf("\u2705 %d plate region(s) detected.", nrow(registry))),
+             tr("upload_preview_detected_n", lang, nrow(registry))),
 
       # Cached file preview table
       rv_file_preview$preview_cache,
@@ -305,9 +305,9 @@ server_upload <- function(input, output, session, shared) {
       ),
       tags$p(tags$small(style = "color: #666;",
         if (nrow(registry) > 1) {
-          "Uncheck plates you do not want to analyze. Selecting multiple plates enables multi-wavelength comparison. The first selected plate is used as the primary measurement."
+          tr("upload_preview_multi_hint", lang)
         } else {
-          "Uncheck this plate if the detection is incorrect."
+          tr("upload_preview_single_hint", lang)
         }
       )),
 
@@ -396,18 +396,18 @@ server_upload <- function(input, output, session, shared) {
       n_excl <- length(plate_excl)
       excl_badge <- if (n_excl > 0) {
         tags$span(style = "background: #FFCDD2; color: #C62828; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px;",
-                  sprintf("%d well%s excluded", n_excl, if (n_excl == 1) "" else "s"))
+                  if (n_excl == 1) tr("wells_excluded_one", lang, n_excl) else tr("wells_excluded_many", lang, n_excl))
       } else NULL
       primary_badge <- if (idx == 1) {
         tags$span(style = "background: #C8E6C9; color: #2E7D32; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px;",
-                  "Primary plate")
+                  tr("primary_plate_badge", lang))
       } else NULL
 
       div(
         style = "margin: 10px 0;",
         tags$b(pl$label), excl_badge, primary_badge,
         tags$small(style = "color: #666; margin-left: 10px;",
-                   "Click wells to exclude/include"),
+                   tr("click_exclude_hint", lang)),
         tags$div(
           style = "overflow-x: auto; margin-top: 5px;",
           tags$table(
@@ -421,7 +421,7 @@ server_upload <- function(input, output, session, shared) {
 
     tagList(
       hr(),
-      tags$b(style = "font-size: 14px;", "Step 2: ", tr("excluded_wells_label", lang)),
+      tags$b(style = "font-size: 14px;", tr("step2_prefix", lang), " ", tr("excluded_wells_label", lang)),
       plate_grids
     )
   })
@@ -616,13 +616,15 @@ server_upload <- function(input, output, session, shared) {
       actual_wells <- sum(!is.na(plate))
       is_partial <- actual_wells < 96  # True partial plate check
 
+      lang <- input$app_language %||% "en"
       div(
         style = "background-color: #E8F5E9; padding: 10px; margin: 10px 0; border-left: 4px solid #4CAF50;",
-        tags$b("Import Summary:"),
+        tags$b(tr("import_summary", lang)),
         tags$ul(
-          tags$li(sprintf("Format: %s", info$format)),
-          tags$li(sprintf("Wells: %d / 96", actual_wells)),
-          tags$li(sprintf("Partial: %s", if (is_partial) "Yes" else "No"))
+          tags$li(paste(tr("format_label", lang), info$format)),
+          tags$li(paste(tr("wells_label", lang), actual_wells, "/ 96")),
+          tags$li(paste(tr("partial_label", lang),
+                        if (is_partial) tr("yes_label", lang) else tr("no_label", lang)))
         )
       )
     }
@@ -645,12 +647,12 @@ server_upload <- function(input, output, session, shared) {
       stringsAsFactors = FALSE
     )
 
+    lang <- input$app_language %||% "en"
     showModal(modalDialog(
-      title = "Sample Plate Layout",
+      title = tr("layout_title", lang),
       size = "l",
       easyClose = TRUE,
-      HTML("<p>Expected: Row labels (A\u2013H) + 12 numeric columns.<br>
-            Do not include column names.</p>"),
+      HTML(paste0("<p>", tr("layout_desc", lang), "</p>")),
       HTML("<style>.sample_table thead { display: none; }</style>"),
       HTML(knitr::kable(sample_df, format = "html",
                        table.attr = "class='table table-bordered'",
