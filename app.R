@@ -193,8 +193,7 @@ ui <- fluidPage(
       div(
         id = "quickstart_section",
         style = "background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px;",
-        h4(style = "margin-top: 0;", "Quick Start"),
-        p("Choose a preset to auto-configure the assay type, plate layout, and standard concentrations:"),
+        uiOutput("quickstart_heading_ui"),
         fluidRow(
           column(4,
             actionButton("qs_rba_stx", label = tagList(icon("flask"), " RBA Saxitoxin"),
@@ -210,7 +209,7 @@ ui <- fluidPage(
                         style = "width: 100%; margin-bottom: 8px; border: 2px solid #9C27B0; color: #9C27B0;")
           )
         ),
-        tags$small(style = "color: #666;", "Or configure manually below.")
+        uiOutput("quickstart_manual_note_ui")
       ),
 
       introBox(
@@ -224,7 +223,7 @@ ui <- fluidPage(
 
               wellPanel(
                 style = "background-color: #E3F2FD; border-left: 4px solid #2196F3;",
-                h5(tags$b("Select Assay Type")),
+                uiOutput("select_assay_type_heading_ui"),
                 selectInput(
                   "assay_type",
                   "Type of assay:",
@@ -298,8 +297,7 @@ ui <- fluidPage(
 
               # Standard concentrations (shown for both assay types)
               hr(),
-              p(tags$b("Standard Concentrations")),
-              p("Specify the number of standards, then enter each concentration."),
+              uiOutput("std_concentrations_heading_ui"),
 
               uiOutput("concentration_unit_guidance"),
 
