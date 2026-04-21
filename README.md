@@ -1,5 +1,7 @@
 # Competitive Binding Assay Analysis Suite
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 If you run receptor binding assays or ELISAs and want reproducible 4-parameter
 logistic curve fitting, quantified samples with proper confidence intervals,
 and a formatted HTML/Word/PDF report — this app does that in a guided 5-step
@@ -241,3 +243,9 @@ this citation once the DOI is available.
 For questions or bug reports: kr.moeller@iaea.org
 
 [Give Feedback](https://forms.office.com/e/q8eqJfp4QM)
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 Kristof Moeller and Arnold Molina Porras.
