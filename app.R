@@ -541,17 +541,20 @@ ui <- fluidPage(
                       class = "btn btn-primary btn-lg")
         ),
 
-        radioButtons("import_method", "Import method:",
-                    choices = c("Classic Import" = "classic",
-                                "Visual Plate Selector" = "visual"),
-                    selected = "classic", inline = TRUE),
-
         div(
-          style = "display:flex; gap:10px;",
-          uiOutput("upload_counts_ui"),
-          uiOutput("clear_upload_ui")
+          id = "upload_controls",
+          radioButtons("import_method", "Import method:",
+                      choices = c("Classic Import" = "classic",
+                                  "Visual Plate Selector" = "visual"),
+                      selected = "classic", inline = TRUE),
+
+          div(
+            style = "display:flex; gap:10px;",
+            uiOutput("upload_counts_ui"),
+            uiOutput("clear_upload_ui")
+          ),
+          uiOutput("download_plate_template_ui")
         ),
-        uiOutput("download_plate_template_ui"),
 
         # Visual plate selector panel
         conditionalPanel(
