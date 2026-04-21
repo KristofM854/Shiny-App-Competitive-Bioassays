@@ -478,6 +478,9 @@ ui <- fluidPage(
           condition = "input.assay_type == 'rba'",
           div(
             id = "qc_section",
+            # Narrow the section so the guided-tour highlight wraps tightly
+            # around the two input fields rather than the full page width.
+            style = "max-width: 520px;",
             h5("5. Quality Control Parameters"),
             div(
               style = "display: flex; gap: 20px; align-items: flex-start;",
