@@ -496,6 +496,25 @@ get_translations <- function() {
       layout_import_success = "Plate layout imported from file.",
       layout_no_saved = "No saved layouts found.",
 
+      # Modal dialogs (welcome, restore session, missing ELISA controls, no plate)
+      welcome_title = "Competitive Binding Assay Analysis Suite",
+      welcome_intro = "Analyze RBA and ELISA plate reader data with 4-parameter logistic curve fitting.",
+      welcome_qs_label = "Quick Start:",
+      welcome_step1 = "Choose an assay type above, or click a Quick Start button",
+      welcome_step2 = "Upload your plate reader file (.xlsx, .csv, .txt)",
+      welcome_step3 = "Click Generate Report",
+      welcome_examples_note = "Example datasets are included in the %s folder. For questions: kr.moeller@iaea.org",
+      get_started_btn = "Get Started",
+      restore_title = "Restore Previous Session?",
+      restore_body = "An auto-saved session from %s was found. Would you like to restore the plate layout?",
+      restore_btn = "Restore",
+      start_fresh_btn = "Start Fresh",
+      missing_elisa_title = "Missing ELISA Control Wells",
+      missing_elisa_body = "Your plate layout is missing required control wells: %s. Please go back to Plate Layout and assign these well types in the Type matrix.",
+      modal_ok_btn = "OK",
+      no_plate_title = "No Plate Data",
+      no_plate_body = "Please upload plate reader data before generating a report.",
+
       # Omitted wells
       omitted_by_user = "Omitted from analysis by user"
     ),
@@ -979,6 +998,25 @@ get_translations <- function() {
       layout_loaded_msg = "Dise\u00F1o cargado exitosamente.",
       layout_import_success = "Dise\u00F1o de placa importado del archivo.",
       layout_no_saved = "No se encontraron dise\u00F1os guardados.",
+
+      # Di\u00E1logos modales (bienvenida, restaurar sesi\u00F3n, controles ELISA faltantes, sin datos de placa)
+      welcome_title = "Suite de An\u00E1lisis de Ensayos de Uni\u00F3n Competitiva",
+      welcome_intro = "Analice datos de lector de placas RBA y ELISA con ajuste de curva log\u00EDstica de 4 par\u00E1metros.",
+      welcome_qs_label = "Inicio R\u00E1pido:",
+      welcome_step1 = "Elija un tipo de ensayo arriba o haga clic en un bot\u00F3n de Inicio R\u00E1pido",
+      welcome_step2 = "Cargue su archivo del lector de placas (.xlsx, .csv, .txt)",
+      welcome_step3 = "Haga clic en Generar Reporte",
+      welcome_examples_note = "Los conjuntos de datos de ejemplo est\u00E1n en la carpeta %s. Para consultas: kr.moeller@iaea.org",
+      get_started_btn = "Comenzar",
+      restore_title = "\u00BFRestaurar Sesi\u00F3n Anterior?",
+      restore_body = "Se encontr\u00F3 una sesi\u00F3n autoguardada del %s. \u00BFDesea restaurar el dise\u00F1o de placa?",
+      restore_btn = "Restaurar",
+      start_fresh_btn = "Empezar de Nuevo",
+      missing_elisa_title = "Pozos de Control ELISA Faltantes",
+      missing_elisa_body = "Su dise\u00F1o de placa no tiene los pozos de control requeridos: %s. Vuelva a Dise\u00F1o de Placa y asigne estos tipos de pozo en la matriz de Tipo.",
+      modal_ok_btn = "Aceptar",
+      no_plate_title = "Sin Datos de Placa",
+      no_plate_body = "Cargue datos del lector de placas antes de generar un reporte.",
 
       # Omitted wells
       omitted_by_user = "Omitido del an\u00E1lisis por el usuario"

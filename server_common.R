@@ -32,14 +32,13 @@ server_common <- function(input, output, session, shared) {
         newest <- recent[which.max(file.info(recent)$mtime)]
         saved <- tryCatch(readRDS(newest), error = function(e) NULL)
         if (!is.null(saved) && !is.null(saved$timestamp)) {
+          lang <- isolate(input$app_language %||% "en")
           showModal(modalDialog(
-            title = "Restore Previous Session?",
-            paste0("An auto-saved session from ",
-                   format(saved$timestamp, "%Y-%m-%d %H:%M:%S"),
-                   " was found. Would you like to restore the plate layout?"),
+            title = tr("restore_title", lang),
+            tr("restore_body", lang, format(saved$timestamp, "%Y-%m-%d %H:%M:%S")),
             footer = tagList(
-              actionButton("restore_autosave", "Restore", class = "btn-primary"),
-              modalButton("Start Fresh")
+              actionButton("restore_autosave", tr("restore_btn", lang), class = "btn-primary"),
+              modalButton(tr("start_fresh_btn", lang))
             ),
             easyClose = TRUE
           ))
@@ -100,26 +99,26 @@ server_common <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
 
   observe({
+    lang <- isolate(input$app_language %||% "en")
     showModal(modalDialog(
-      title = tagList(icon("flask"), " Competitive Binding Assay Analysis Suite"),
+      title = tagList(icon("flask"), " ", tr("welcome_title", lang)),
       size = "l",
       easyClose = TRUE,
       div(
         style = "font-size: 14px;",
-        p("Analyze RBA and ELISA plate reader data with 4-parameter logistic curve fitting."),
+        p(tr("welcome_intro", lang)),
         hr(),
-        tags$b("Quick Start:"),
+        tags$b(tr("welcome_qs_label", lang)),
         tags$ol(
-          tags$li("Choose an assay type above, or click a Quick Start button"),
-          tags$li("Upload your plate reader file (.xlsx, .csv, .txt)"),
-          tags$li("Click Generate Report")
+          tags$li(tr("welcome_step1", lang)),
+          tags$li(tr("welcome_step2", lang)),
+          tags$li(tr("welcome_step3", lang))
         ),
         hr(),
         p(style = "color: #666; font-size: 12px;",
-          "Example datasets are included in the ", tags$code("examples/"), " folder. ",
-          "For questions: kr.moeller@iaea.org")
+          tr("welcome_examples_note", lang, "examples/"))
       ),
-      footer = modalButton("Get Started")
+      footer = modalButton(tr("get_started_btn", lang))
     ))
   }) |> bindEvent(session$clientData$url_protocol, once = TRUE)
 
@@ -136,13 +135,11 @@ server_common <- function(input, output, session, shared) {
         required_controls <- c("Blank", "NSB", "B0")
         missing_controls <- required_controls[!required_controls %in% well_types]
         if (length(missing_controls) > 0) {
+          lang <- isolate(input$app_language %||% "en")
           showModal(modalDialog(
-            title = "Missing ELISA Control Wells",
-            paste0("Your plate layout is missing required control wells: ",
-                   paste(missing_controls, collapse = ", "), ". ",
-                   "Please go back to Plate Layout and assign these ",
-                   "well types in the Type matrix."),
-            footer = modalButton("OK"), easyClose = TRUE
+            title = tr("missing_elisa_title", lang),
+            tr("missing_elisa_body", lang, paste(missing_controls, collapse = ", ")),
+            footer = modalButton(tr("modal_ok_btn", lang)), easyClose = TRUE
           ))
           return(FALSE)
         }
@@ -150,10 +147,11 @@ server_common <- function(input, output, session, shared) {
     }
     plate <- shared$matrix_measresults()
     if (is.null(plate) || !any(!is.na(as.numeric(unlist(plate))))) {
+      lang <- isolate(input$app_language %||% "en")
       showModal(modalDialog(
-        title = "No Plate Data",
-        "Please upload plate reader data before generating a report.",
-        footer = modalButton("OK"), easyClose = TRUE
+        title = tr("no_plate_title", lang),
+        tr("no_plate_body", lang),
+        footer = modalButton(tr("modal_ok_btn", lang)), easyClose = TRUE
       ))
       return(FALSE)
     }
