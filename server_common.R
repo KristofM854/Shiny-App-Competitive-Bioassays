@@ -661,7 +661,9 @@ server_common <- function(input, output, session, shared) {
         element = "#qc_section",
         intro = tr("tour_qc_rba", lang),
         tab = "tab_layout",
-        position = "auto",
+        # #qc_section sits below the matrix grid; "top" anchors the tooltip
+        # above the section so the two input fields remain visible below.
+        position = "top",
         stringsAsFactors = FALSE
       ))
     } else if (assay == "elisa") {
@@ -669,21 +671,24 @@ server_common <- function(input, output, session, shared) {
         element = "#tissue_weight_section",
         intro = tr("tour_tissue_weights", lang),
         tab = "tab_layout",
-        position = "auto",
+        position = "top",
         stringsAsFactors = FALSE
       ))
     }
     tour_steps <- rbind(tour_steps, layout_steps)
 
     # --- Tab 3: Upload & Preview -----------------------------------------
+    # Target the narrower #upload_controls wrapper (import method + file input
+    # + download example) rather than the full #upload_section, which is very
+    # tall and pushes the tooltip off-screen under intro.js "auto" placement.
     tour_steps <- rbind(tour_steps, data.frame(
-      element = c("#upload_section", "#heatmap_preview_section"),
+      element = c("#upload_controls", "#heatmap_preview_section"),
       intro = c(
         tr("tour_upload", lang),
         tr("tour_heatmap_preview", lang)
       ),
       tab = "tab_upload",
-      position = c("auto", "auto"),
+      position = c("bottom", "top"),
       stringsAsFactors = FALSE
     ))
 
@@ -692,11 +697,16 @@ server_common <- function(input, output, session, shared) {
       element = "#analysis_settings_section",
       intro = tr("tour_analysis", lang),
       tab = "tab_analysis",
-      position = "auto",
+      position = "top",
       stringsAsFactors = FALSE
     ))
 
     # --- Tab 5: Generate Report ------------------------------------------
+    # Explicit positions: preflight sits below the two columns so "top"
+    # anchors above it; convert_section is the column(8) block so "right"
+    # points the tooltip at it from the notes side; notes_feedback_section
+    # is the column(4) block on the right so "left" anchors the tooltip
+    # into the page rather than off the right edge.
     tour_steps <- rbind(tour_steps, data.frame(
       element = c("#preflight_section", "#convert_section", "#notes_feedback_section"),
       intro = c(
@@ -705,7 +715,7 @@ server_common <- function(input, output, session, shared) {
         tr("tour_notes", lang)
       ),
       tab = "tab_report",
-      position = c("auto", "auto", "auto"),
+      position = c("top", "right", "left"),
       stringsAsFactors = FALSE
     ))
 
