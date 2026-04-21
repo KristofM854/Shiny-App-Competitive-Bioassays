@@ -2723,12 +2723,7 @@ tryCatch({
     cat("- $m_{tissue}$ = mass of tissue extracted (mg, converted to g by /1000)\n")
     cat("- $C_{tissue}$ = final concentration (pg/g tissue)\n\n")
 
-    cat("> **Note on extraction volume:** $V_{extraction}$ is the *total* volume ",
-        "the tissue was extracted into, before any plate-loading dilutions. ",
-        "For example, 50 mg of tissue homogenized in 500 \u00b5L of buffer, ",
-        "then diluted 1:10 before plate loading, is recorded as ",
-        "$V_{extraction}$ = 500 \u00b5L here and the 1:10 dilution is ",
-        "recorded in the DilutionFactor matrix (as 0.1 or `1:10`).\n\n", sep = "")
+    cat("> ", tr("extraction_volume_report_note", lang), "\n\n", sep = "")
 
     # Build per-sample conversion table
     tw_trace <- data.frame(

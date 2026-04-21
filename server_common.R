@@ -280,6 +280,30 @@ server_common <- function(input, output, session, shared) {
     lang <- input$app_language %||% "en"
     assay <- input$assay_type %||% "rba"
 
+    # ------------------------------------------------------------------
+    # [TOUR DIAGNOSTIC v4 §1.1/1.3] Temporary instrumentation. Remove
+    # after the tour-silence bug is diagnosed and fixed (plan §3.3).
+    # ------------------------------------------------------------------
+    shinyjs::runjs(
+      "window.addEventListener('error', function(e) {
+         console.error('[TOUR DIAGNOSTIC] window.error:',
+                       e.message, 'at', e.filename + ':' + e.lineno);
+       }, {once: false});"
+    )
+    shinyjs::runjs(sprintf(
+      "console.group('[TOUR DIAGNOSTIC]');
+       console.log('tour trigger fired at', new Date().toISOString());
+       console.log('assay_type:', %s);
+       console.log('app_language:', %s);
+       console.log('introJs available:', typeof introJs);
+       console.log('rintrojs global:', typeof rintrojs);
+       console.log('jQuery available:', typeof jQuery);
+       console.groupEnd();",
+      jsonlite::toJSON(assay, auto_unbox = TRUE),
+      jsonlite::toJSON(lang,  auto_unbox = TRUE)
+    ))
+    # ------------------------------------------------------------------
+
     # --- Tab 1: Configuration --------------------------------------------
     tour_steps <- data.frame(
       element = c("#language_toggle_section",
@@ -362,6 +386,45 @@ server_common <- function(input, output, session, shared) {
 
     # Start from the Configuration tab so the first element is visible.
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_config")
+
+    # ------------------------------------------------------------------
+    # [TOUR DIAGNOSTIC v4 §1.2] Dump the resolved step list and inspect
+    # each target's DOM presence + visibility. Remove after diagnosis.
+    # ------------------------------------------------------------------
+    shinyjs::runjs(sprintf(
+      "(function() {
+        var steps = %s;
+        console.group('[TOUR DIAGNOSTIC] resolved steps');
+        steps.forEach(function(s, i) {
+          var el = document.querySelector(s.element);
+          if (!el) {
+            console.warn(i, s.element, 'NOT FOUND IN DOM');
+            return;
+          }
+          var rect = el.getBoundingClientRect();
+          var style = window.getComputedStyle(el);
+          var hidden = false;
+          var walker = el;
+          while (walker) {
+            var ws = window.getComputedStyle(walker);
+            if (ws.display === 'none' || ws.visibility === 'hidden') {
+              hidden = walker.id || walker.tagName;
+              break;
+            }
+            walker = walker.parentElement;
+          }
+          console.log(i, s.element,
+            'w=' + rect.width.toFixed(0),
+            'h=' + rect.height.toFixed(0),
+            'z=' + style.zIndex,
+            hidden ? ('HIDDEN by ' + hidden) : 'visible');
+        });
+        console.groupEnd();
+      })();",
+      jsonlite::toJSON(tour_steps[, c("element", "intro")],
+                       auto_unbox = FALSE)
+    ))
+    # ------------------------------------------------------------------
 
     # intro.js cannot highlight elements inside an inactive .tab-pane
     # (display:none) so onbeforechange asks the server to activate the
