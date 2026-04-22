@@ -29,34 +29,56 @@ progress is auto-saved every 60 seconds.
 ## Screenshots
 
 ### 1. Configuration — Quick Start and assay setup
-![Configuration tab](docs/screenshots/01_configuration.png)
+![Configuration tab](docs/screenshots/01_configuration.jpeg)
 
-Pick an assay type and load a preset, or configure manually. Each Quick Start preset has two buttons: "Instant demo" loads example data so you can see a full report in seconds, and "Configure manually" sets up the assay type and layout so you can upload your own plate reader file.
+Pick an assay type and load a preset, or configure manually. 
+Quick Start presets auto-fill assay type, standard concentrations, 
+and plate layout so you can go straight to uploading data.
 
 ### 2. Plate Layout — four synchronized matrices
-![Plate Layout tab](docs/screenshots/02_plate_layout.png)
+![Plate Layout tab](docs/screenshots/02_plate_layout.jpeg)
 
-Define sample type, sample ID, dilution factor, and replicate groups in parallel. Presets, import from CSV/Excel, and undo/redo all supported.
+Define sample type, sample ID, dilution fraction, and replicate 
+groups in parallel. Presets, import from CSV/Excel, and 
+undo/redo all supported.
 
 ### 3. Upload & Preview — auto-detected heatmap
-![Upload tab](docs/screenshots/03_upload_heatmap.png)
+![Upload tab](docs/screenshots/03_upload_heatmap.jpeg)
 
-The app auto-detects plate regions in `.xlsx`, `.csv`, and `.txt` files. The heatmap preview lets you confirm the correct region was detected before running the analysis.
+The app auto-detects plate regions in `.xlsx`, `.csv`, and 
+`.txt` files. The heatmap preview lets you confirm the correct 
+region was detected before running the analysis.
 
-### 4. Analysis Settings — advanced statistical options
-![Analysis Settings tab](docs/screenshots/04_analysis_settings.png)
+### 4. Analysis Settings — statistical options
+![Analysis Settings tab](docs/screenshots/04_analysis_settings.jpeg)
 
-Choose regression weighting (including data-driven Auto option), confidence interval method, outlier detection strategy, and quantification range.
+Choose regression weighting, confidence interval method, outlier 
+detection strategy, and quantification range. The Advanced Options 
+panel exposes CV thresholds and normality-test options for outlier 
+detection.
 
-### 5. Report — executive summary and dose-response curve
-![Report — summary and DRC](docs/screenshots/05_report_summary.png)
+### 5. Generate Report — formats, language, and pre-flight check
+![Generate Report tab](docs/screenshots/05_generate_report.jpeg)
 
-Every report opens with a colour-coded executive summary, a QC traffic-light table, and the fitted dose-response curve.
+Select output formats (HTML, Word, PDF) and report language. 
+The Pre-Flight Check panel confirms that plate data, standards, 
+dilution factors, replicate groups, and sample IDs are all valid 
+before generating.
 
-### 6. Report — quantified samples with confidence intervals
-![Report — sample results](docs/screenshots/06_report_results.png)
+### 6. Report — executive summary and dose-response curve
+![Report summary](docs/screenshots/06_report_summary.jpeg)
 
-Per-replicate-group mean concentrations with 95% confidence intervals, CV, range flags, and (for ELISA with tissue weights) pg/g tissue.
+Every report opens with a colour-coded executive summary 
+showing assay type, curve fit (R² and RMSE), quantifiable 
+range (LLOQ/ULOQ), control hierarchy, and overall pass/fail status.
+
+### 7. Report — quantified samples with confidence intervals
+![Report sample results](docs/screenshots/07_report_results.jpeg)
+
+Per-replicate-group mean concentrations with 95% confidence 
+intervals, CV, %B/B0, range flags, and interpolation status. 
+The final dose-response plot overlays sample points on the 
+fitted standard curve.
 
 ## Quick Start
 
