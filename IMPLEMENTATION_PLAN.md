@@ -28,7 +28,7 @@ Each task has a status checkbox, a scope description, and acceptance criteria. T
 
 ### B2. Add MIT License
 
-- [ ] Create `LICENSE` at repo root with the MIT License text:
+- [x] Create `LICENSE` at repo root with the MIT License text:
 
 ```
 MIT License
@@ -54,7 +54,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-- [ ] Add a `## License` section at the bottom of `README.md`:
+- [x] Add a `## License` section at the bottom of `README.md`:
 
 ```markdown
 ## License
@@ -64,7 +64,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 Copyright (c) 2026 Kristof Moeller and Arnold Molina Porras.
 ```
 
-- [ ] Add a short license badge near the top of the README, right after the title:
+- [x] Add a short license badge near the top of the README, right after the title:
 
 ```markdown
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
