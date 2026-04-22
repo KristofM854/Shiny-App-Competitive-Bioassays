@@ -81,24 +81,66 @@ server_upload <- function(input, output, session, shared) {
   # Download Report Handler
   # --------------------------------------------------------------------------
 
+  # H4: generic handler that returns either the compact or the full report
+  # filename / content based on the `prefer` argument.
+  pick_report_file <- function(prefer = "compact") {
+    out_dir <- session$userData$output_dir
+    fmt <- input$export_formats[1] %||% "html"
+    ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
+    compact_files <- list.files(out_dir,
+                                pattern = paste0("-compact\\.", ext, "$"),
+                                full.names = TRUE)
+    full_files    <- list.files(out_dir,
+                                pattern = paste0("-full\\.", ext, "$"),
+                                full.names = TRUE)
+    if (prefer == "compact" && length(compact_files) > 0) {
+      return(compact_files[which.max(file.info(compact_files)$mtime)])
+    }
+    if (length(full_files) > 0) {
+      return(full_files[which.max(file.info(full_files)$mtime)])
+    }
+    # Backstop: any report in the selected format.
+    other <- list.files(out_dir, pattern = paste0("\\.", ext, "$"),
+                        full.names = TRUE)
+    if (length(other) > 0) {
+      return(other[which.max(file.info(other)$mtime)])
+    }
+    NULL
+  }
+
   output$download_report <- downloadHandler(
     filename = function() {
       fmt <- input$export_formats[1] %||% "html"
       ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
-      paste0("bioassay_report_", format(Sys.Date(), "%Y%m%d"), ".", ext)
+      paste0("bioassay_report_compact_",
+             format(Sys.Date(), "%Y%m%d"), ".", ext)
     },
     content = function(file) {
-      out_dir <- session$userData$output_dir
-      # Find the most recent report file in the selected format
+      src <- pick_report_file(prefer = "compact")
+      if (!is.null(src)) {
+        file.copy(src, file)
+      } else {
+        showNotification("No report found. Generate a report first.",
+                         type = "warning")
+      }
+    }
+  )
+
+  # H4: second handler for the detailed / full-audit report.
+  output$download_report_full <- downloadHandler(
+    filename = function() {
       fmt <- input$export_formats[1] %||% "html"
       ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
-      report_files <- list.files(out_dir, pattern = paste0("\\.", ext, "$"), full.names = TRUE)
-      if (length(report_files) > 0) {
-        # Get most recent
-        newest <- report_files[which.max(file.info(report_files)$mtime)]
-        file.copy(newest, file)
+      paste0("bioassay_report_detailed_",
+             format(Sys.Date(), "%Y%m%d"), ".", ext)
+    },
+    content = function(file) {
+      src <- pick_report_file(prefer = "full")
+      if (!is.null(src)) {
+        file.copy(src, file)
       } else {
-        showNotification("No report found. Generate a report first.", type = "warning")
+        showNotification("No detailed report found. Generate a report first.",
+                         type = "warning")
       }
     }
   )

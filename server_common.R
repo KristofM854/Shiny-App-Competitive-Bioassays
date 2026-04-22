@@ -17,15 +17,40 @@ server_common <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
   # Session State Auto-Save (every 60 seconds)
   # --------------------------------------------------------------------------
+  #
+  # M2: autosaves live in a per-user directory under tools::R_user_dir so
+  # user A can never be offered user B's layout on a shared machine. The
+  # legacy behaviour (write into tempdir()) meant a shared Rstudio Server
+  # or SLURM allocation would leak sessions across OS users because the
+  # tempdir() scan was system-wide. The scan now restricts itself to the
+  # current user's data dir.
 
-  autosave_path <- file.path(tempdir(), paste0("bioassay_autosave_", session$token, ".rds"))
+  autosave_dir <- tryCatch(
+    tools::R_user_dir("bioassay-analysis", which = "data"),
+    error = function(e) tempdir()
+  )
+  dir.create(autosave_dir, showWarnings = FALSE, recursive = TRUE)
+  autosave_path <- file.path(autosave_dir,
+                             paste0("autosave_", session$token, ".rds"))
 
-  # Check for a previous auto-save and offer to restore
+  # Startup cleanup: remove autosaves older than 7 days so the user-scoped
+  # directory does not grow unbounded across sessions.
+  tryCatch({
+    old <- list.files(autosave_dir, pattern = "^autosave_.*\\.rds$",
+                      full.names = TRUE)
+    if (length(old) > 0) {
+      ages <- difftime(Sys.time(), file.info(old)$mtime, units = "days")
+      expired <- old[!is.na(ages) & ages > 7]
+      if (length(expired) > 0) unlink(expired)
+    }
+  }, error = function(e) invisible(NULL))
+
+  # Check for a previous auto-save and offer to restore. Scan only the
+  # user-scoped directory (was tempdir() before M2).
   observe({
-    # Run once on startup — look for any recent autosave (< 2 hours old)
-    candidates <- list.files(tempdir(), pattern = "^bioassay_autosave_.*\\.rds$", full.names = TRUE)
+    candidates <- list.files(autosave_dir, pattern = "^autosave_.*\\.rds$",
+                             full.names = TRUE)
     if (length(candidates) > 0) {
-      # Find the most recent file that is less than 2 hours old
       info <- file.info(candidates)
       recent <- candidates[difftime(Sys.time(), info$mtime, units = "hours") < 2]
       if (length(recent) > 0) {
@@ -42,11 +67,24 @@ server_common <- function(input, output, session, shared) {
             ),
             easyClose = TRUE
           ))
+          # Remember which file was offered so we can delete it on accept or
+          # on Start Fresh — prevents it being re-offered next launch.
           session$userData$pending_restore <- saved
+          session$userData$pending_restore_path <- newest
         }
       }
     }
   }) |> bindEvent(session$clientData$url_protocol, once = TRUE)
+
+  # Helper: delete the offered autosave file (used by both accept + dismiss).
+  drop_pending_restore <- function() {
+    p <- session$userData$pending_restore_path
+    if (!is.null(p) && file.exists(p)) {
+      tryCatch(unlink(p), error = function(e) invisible(NULL))
+    }
+    session$userData$pending_restore <- NULL
+    session$userData$pending_restore_path <- NULL
+  }
 
   observeEvent(input$restore_autosave, {
     saved <- session$userData$pending_restore
@@ -62,15 +100,20 @@ server_common <- function(input, output, session, shared) {
       }
       showNotification("Session restored successfully.", type = "message", duration = 3)
     }
-    session$userData$pending_restore <- NULL
+    drop_pending_restore()
     removeModal()
   })
+
+  # Dismissal via Start Fresh also drops the file so the next launch does
+  # not re-offer the same restore.
+  observeEvent(session$input$.shinymodal_dismissed, {
+    drop_pending_restore()
+  }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
   autoSaveTimer <- reactiveTimer(60000)
   observe({
     autoSaveTimer()
     tryCatch({
-      # Collect standard concentrations
       n_std <- as.integer(isolate(input$num_standards) %||% 0)
       std_vals <- if (n_std > 0) {
         sapply(seq_len(n_std), function(i) isolate(input[[paste0("std", i)]]) %||% "")
@@ -253,6 +296,30 @@ server_common <- function(input, output, session, shared) {
     tags$small(style = "color: #666;", tr("quickstart_or_manual", lang))
   })
 
+  # H1: row headers for the 2x3 Quick Start grid
+  output$quickstart_demo_row_label_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$h5(style = "margin-top: 12px; margin-bottom: 6px; color: #0D47A1;",
+            tr("quickstart_demo_row_label", lang))
+  })
+  output$quickstart_manual_row_label_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$h5(style = "margin-top: 14px; margin-bottom: 6px; color: #4A148C;",
+            tr("quickstart_manual_row_label", lang))
+  })
+  # H1: "No example data — use Configure manually" placeholder in the empty
+  # ELISA-Custom Instant-demo slot.
+  output$quickstart_no_demo_slot_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste("display: flex; align-items: center; justify-content: center;",
+                    "width: 100%; height: 48px; margin-bottom: 8px; padding: 0 10px;",
+                    "border: 2px dashed #BDBDBD; border-radius: 4px;",
+                    "color: #757575; font-size: 13px; font-style: italic;"),
+      tr("quickstart_no_demo_available", lang)
+    )
+  })
+
   output$select_assay_type_heading_ui <- renderUI({
     lang <- input$app_language %||% "en"
     h5(tags$b(tr("select_assay_type", lang)))
@@ -292,11 +359,22 @@ server_common <- function(input, output, session, shared) {
     h5(style = "margin-top: 0;", tr("preflight_heading", lang))
   })
 
+  # H4: compact download (default / recommended)
   output$download_report_ui <- renderUI({
     lang <- input$app_language %||% "en"
-    downloadButton("download_report", tr("download_last_report", lang),
+    downloadButton("download_report",
+                   tr("download_last_report_compact", lang),
                    class = "btn btn-success btn-lg",
                    style = "width: 100%;")
+  })
+
+  # H4: full / detailed download (full audit report)
+  output$download_report_full_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    downloadButton("download_report_full",
+                   tr("download_last_report_full", lang),
+                   class = "btn btn-default btn-lg",
+                   style = "width: 100%; margin-top: 8px;")
   })
 
   output$give_feedback_ui <- renderUI({
@@ -457,6 +535,35 @@ server_common <- function(input, output, session, shared) {
   })
 
   # --------------------------------------------------------------------------
+  # H2: "Auto" regression weighting is mutually exclusive with the three
+  # manual choices. Toggle observer uses a guard flag to avoid infinite
+  # recursion when we update the very input we are watching.
+  # --------------------------------------------------------------------------
+
+  auto_weight_guard <- reactiveVal(FALSE)
+  observeEvent(input$regression_weight, ignoreInit = TRUE, {
+    if (isTRUE(auto_weight_guard())) {
+      auto_weight_guard(FALSE)
+      return()
+    }
+    sel <- input$regression_weight
+    if (is.null(sel) || !length(sel)) return()
+    # If "auto" was just enabled alongside other choices, drop the others.
+    if ("auto" %in% sel && length(sel) > 1) {
+      auto_weight_guard(TRUE)
+      updateCheckboxGroupInput(session, "regression_weight", selected = "auto")
+      return()
+    }
+    # If a manual choice was enabled while "auto" was selected, drop "auto".
+    if ("auto" %in% sel && length(sel) == 1) return()  # auto-only: fine
+    if ("auto" %in% sel) {
+      auto_weight_guard(TRUE)
+      updateCheckboxGroupInput(session, "regression_weight",
+                               selected = setdiff(sel, "auto"))
+    }
+  })
+
+  # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
 
@@ -468,12 +575,18 @@ server_common <- function(input, output, session, shared) {
                        label = tagList(icon("file-arrow-down"), " ",
                                        tr("generate_report", lang)))
 
-    # Tab 1: Quick Start buttons (icon + translated label)
-    updateActionButton(session, "qs_rba_stx",
+    # Tab 1: Quick Start buttons (H1 — 2x3 grid: 5 active buttons across two
+    # rows. Each row has its own header uiOutput; buttons get icon + label
+    # updated here so both rows re-translate on language toggle.)
+    updateActionButton(session, "qs_rba_stx_demo",
                        label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
-    updateActionButton(session, "qs_elisa_cortisol",
+    updateActionButton(session, "qs_elisa_cortisol_demo",
                        label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
-    updateActionButton(session, "qs_elisa_custom",
+    updateActionButton(session, "qs_rba_stx_manual",
+                       label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
+    updateActionButton(session, "qs_elisa_cortisol_manual",
+                       label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
+    updateActionButton(session, "qs_elisa_custom_manual",
                        label = tagList(icon("cog"), " ", tr("preset_elisa_custom_btn", lang)))
 
     # Tab 1: Assay type / toxin / analyte / units / num_standards
@@ -548,14 +661,17 @@ server_common <- function(input, output, session, shared) {
                                c("html", "docx", "pdf"),
                                c("format_html", "format_docx", "format_pdf"), lang),
                              selected = input$export_formats %||% "html")
+    updateCheckboxInput(session, "generate_compact",
+                        label = tr("generate_compact_label", lang))
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
     updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
                        placeholder = tr("notes_report_placeholder", lang))
     updateCheckboxGroupInput(session, "regression_weight",
                              label = tr("regression_weight_label", lang),
                              choices = tr_choices(
-                               c("none", "inv_y", "inv_y2"),
-                               c("weight_unweighted", "weight_inv_y", "weight_inv_y2"),
+                               c("none", "inv_y", "inv_y2", "auto"),
+                               c("weight_unweighted", "weight_inv_y",
+                                 "weight_inv_y2", "weight_auto"),
                                lang),
                              selected = input$regression_weight %||% "none")
     updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
@@ -661,7 +777,9 @@ server_common <- function(input, output, session, shared) {
         element = "#qc_section",
         intro = tr("tour_qc_rba", lang),
         tab = "tab_layout",
-        position = "auto",
+        # #qc_section sits below the matrix grid; "top" anchors the tooltip
+        # above the section so the two input fields remain visible below.
+        position = "top",
         stringsAsFactors = FALSE
       ))
     } else if (assay == "elisa") {
@@ -669,21 +787,24 @@ server_common <- function(input, output, session, shared) {
         element = "#tissue_weight_section",
         intro = tr("tour_tissue_weights", lang),
         tab = "tab_layout",
-        position = "auto",
+        position = "top",
         stringsAsFactors = FALSE
       ))
     }
     tour_steps <- rbind(tour_steps, layout_steps)
 
     # --- Tab 3: Upload & Preview -----------------------------------------
+    # Target the narrower #upload_controls wrapper (import method + file input
+    # + download example) rather than the full #upload_section, which is very
+    # tall and pushes the tooltip off-screen under intro.js "auto" placement.
     tour_steps <- rbind(tour_steps, data.frame(
-      element = c("#upload_section", "#heatmap_preview_section"),
+      element = c("#upload_controls", "#heatmap_preview_section"),
       intro = c(
         tr("tour_upload", lang),
         tr("tour_heatmap_preview", lang)
       ),
       tab = "tab_upload",
-      position = c("auto", "auto"),
+      position = c("bottom", "top"),
       stringsAsFactors = FALSE
     ))
 
@@ -692,11 +813,16 @@ server_common <- function(input, output, session, shared) {
       element = "#analysis_settings_section",
       intro = tr("tour_analysis", lang),
       tab = "tab_analysis",
-      position = "auto",
+      position = "top",
       stringsAsFactors = FALSE
     ))
 
     # --- Tab 5: Generate Report ------------------------------------------
+    # Explicit positions: preflight sits below the two columns so "top"
+    # anchors above it; convert_section is the column(8) block so "right"
+    # points the tooltip at it from the notes side; notes_feedback_section
+    # is the column(4) block on the right so "left" anchors the tooltip
+    # into the page rather than off the right edge.
     tour_steps <- rbind(tour_steps, data.frame(
       element = c("#preflight_section", "#convert_section", "#notes_feedback_section"),
       intro = c(
@@ -705,7 +831,7 @@ server_common <- function(input, output, session, shared) {
         tr("tour_notes", lang)
       ),
       tab = "tab_report",
-      position = c("auto", "auto", "auto"),
+      position = c("top", "right", "left"),
       stringsAsFactors = FALSE
     ))
 

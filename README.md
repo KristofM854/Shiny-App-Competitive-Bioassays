@@ -1,5 +1,7 @@
 # Competitive Binding Assay Analysis Suite
 
+[![R-tests](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml)
+
 If you run receptor binding assays or ELISAs and want reproducible 4-parameter
 logistic curve fitting, quantified samples with proper confidence intervals,
 and a formatted HTML/Word/PDF report — this app does that in a guided 5-step
@@ -37,7 +39,7 @@ shiny::runGitHub("Shiny-App-Competitive-Bioassays", "KristofM854")
 Or clone and run locally:
 
 ```r
-source("run_analysis_modular.R")
+shiny::runApp("app.R")
 ```
 
 ## Try it with example data
@@ -114,7 +116,6 @@ See `examples/README.md` for details on each file.
 ├── app.R                          # Main Shiny app (UI + server)
 ├── global.R                       # Packages, constants, theme, helpers
 ├── i18n.R                         # Bilingual translations (EN/ES)
-├── run_analysis_modular.R         # Local entry point (env setup + report render)
 ├── utils_plate.R                  # Plate matrix creation and conversion
 ├── utils_import_v3.R              # Smart plate reader file import
 ├── utils_import_multiwavelength.R # Multi-wavelength Excel parsing
