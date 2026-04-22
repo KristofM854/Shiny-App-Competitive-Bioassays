@@ -19,8 +19,6 @@ jobs:
           r-version: '4.3'
           use-public-rspm: true
       - uses: r-lib/actions/setup-pandoc@v2
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
