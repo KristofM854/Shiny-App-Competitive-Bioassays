@@ -404,7 +404,8 @@ server_report <- function(input, output, session, shared, config_reactives) {
       save_analysis_artifacts(df_normalized, artifact_config, session)
       incProgress(0.7, detail = "Rendering report (this may take a minute)...")
 
-      # Stage 5: Render reports
+      # Stage 5: Render reports (H4: compact + detailed when the user leaves
+      # generate_compact checked)
       render_reports(
         params = list(
           output_dir         = session$userData$output_dir,
@@ -412,6 +413,7 @@ server_report <- function(input, output, session, shared, config_reactives) {
           is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
           wavelengths        = shared$rv$wavelengths,
           selected_formats   = input$export_formats,
+          generate_compact   = isTRUE(input$generate_compact),
           csv_path           = session$userData$csv_path
         ),
         session = session
