@@ -584,13 +584,13 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] Scope the autosave scan to a user-specific directory. Use `tools::R_user_dir("bioassay-analysis", "data")` as the base directory (this resolves to a per-user location on all platforms).
+- [x] Scope the autosave scan to a user-specific directory. Use `tools::R_user_dir("bioassay-analysis", "data")` as the base directory (this resolves to a per-user location on all platforms).
 
-- [ ] Within that directory, store autosaves as `autosave_<session_token>.rds`. On startup, list files matching that pattern in the user-specific directory only.
+- [x] Within that directory, store autosaves as `autosave_<session_token>.rds`. On startup, list files matching that pattern in the user-specific directory only.
 
-- [ ] Add a cleanup step: on successful restore or on "Start Fresh" dismissal, delete the loaded autosave file so it isn't re-offered on the next launch.
+- [x] Add a cleanup step: on successful restore or on "Start Fresh" dismissal, delete the loaded autosave file so it isn't re-offered on the next launch.
 
-- [ ] Add a background cleanup of autosaves older than 7 days (run once at app startup).
+- [x] Add a background cleanup of autosaves older than 7 days (run once at app startup).
 
 **Acceptance:** Autosaves written by one OS user are invisible to another OS user on the same machine. The restore modal only offers autosaves from the current user.
 
