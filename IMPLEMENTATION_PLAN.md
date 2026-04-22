@@ -14,11 +14,11 @@ Each task has a status checkbox, a scope description, and acceptance criteria. T
 
 ### B1. Delete `run_analysis_modular.R`
 
-- [ ] Remove the file `run_analysis_modular.R` from the repo root
-- [ ] Update the README `Quick Start` section so it shows only two entry points:
+- [x] Remove the file `run_analysis_modular.R` from the repo root
+- [x] Update the README `Quick Start` section so it shows only two entry points:
   - `shiny::runGitHub("Shiny-App-Competitive-Bioassays", "KristofM854")` for remote use
   - `shiny::runApp("app.R")` for local use after cloning
-- [ ] Remove any references to `run_analysis_modular.R` in other documentation
+- [x] Remove any references to `run_analysis_modular.R` in other documentation
 
 **Rationale:** The file is obsolete. `app.R` handles standalone mode (output directory creation, environment variables, folder picker) since the modular refactor. The rstudioapi-based path-discovery mechanism is fragile outside RStudio and produces a misleading "please run the script again" error. No downstream tooling depends on it.
 
@@ -78,9 +78,9 @@ Copyright (c) 2026 Kristof Moeller and Arnold Molina Porras.
 
 ### B3. Add screenshot placeholders to README **[MANUAL screenshots, code for placeholders]**
 
-- [ ] Create directory `docs/screenshots/`
-- [ ] Add a placeholder `.gitkeep` file so the empty directory is tracked
-- [ ] Update `README.md` to include image references at the appropriate points. Insert a `## Screenshots` section immediately after the `## The 5-step workflow` section. The section should include six images, each with a caption:
+- [x] Create directory `docs/screenshots/`
+- [x] Add a placeholder `.gitkeep` file so the empty directory is tracked
+- [x] Update `README.md` to include image references at the appropriate points. Insert a `## Screenshots` section immediately after the `## The 5-step workflow` section. The section should include six images, each with a caption:
 
 ```markdown
 ## Screenshots
@@ -131,7 +131,7 @@ Per-replicate-group mean concentrations with 95% confidence intervals, CV, range
 
 ### B4. Set up GitHub Actions CI
 
-- [ ] Create `.github/workflows/R-CMD-check.yml` with a minimal workflow that:
+- [x] Create `.github/workflows/R-CMD-check.yml` with a minimal workflow that:
   - Runs on push to `main` and on pull requests
   - Uses `ubuntu-latest`
   - Installs R 4.3
@@ -186,7 +186,7 @@ jobs:
         run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
 ```
 
-- [ ] Add a badge to the top of README:
+- [x] Add a badge to the top of README:
 
 ```markdown
 [![R-tests](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml)
@@ -200,7 +200,7 @@ jobs:
 
 ### B5. Add `shinytest2` happy-path tests
 
-- [ ] Create `tests/testthat/test-shinytest-rba.R`:
+- [x] Create `tests/testthat/test-shinytest-rba.R`:
 
 ```r
 # End-to-end happy path: RBA Saxitoxin with Instant Demo button
@@ -261,18 +261,18 @@ test_that("RBA Instant Demo produces a complete report", {
 })
 ```
 
-- [ ] Create `tests/testthat/test-shinytest-elisa.R` with analogous logic using `qs_elisa_cortisol_demo` and asserting that the Cortisol report renders. Include an assertion that `control_summary` appears in the report (grep the HTML output for "Blank average" text).
+- [x] Create `tests/testthat/test-shinytest-elisa.R` with analogous logic using `qs_elisa_cortisol_demo` and asserting that the Cortisol report renders. Include an assertion that `control_summary` appears in the report (grep the HTML output for "Blank average" text).
 
-- [ ] Create `tests/testthat/test-shinytest-multiwavelength.R`:
+- [x] Create `tests/testthat/test-shinytest-multiwavelength.R`:
   - Upload a synthetic multi-wavelength fixture (see below)
   - Assert that two per-wavelength CSVs are written
   - Assert that the Bland-Altman plot section appears in the report
 
-- [ ] Create the multi-wavelength fixture at `tests/testthat/fixtures/multiwave_synthetic.csv`. The file should contain two "Raw Data (450)" and "Raw Data (630)" blocks with labeled A-H rows and 12 columns of plausible absorbance values. Generate using a script `tests/testthat/fixtures/generate_multiwave.R` so future updates are reproducible.
+- [x] Create the multi-wavelength fixture at `tests/testthat/fixtures/multiwave_synthetic.csv`. The file should contain two "Raw Data (450)" and "Raw Data (630)" blocks with labeled A-H rows and 12 columns of plausible absorbance values. Generate using a script `tests/testthat/fixtures/generate_multiwave.R` so future updates are reproducible.
 
-- [ ] **Performance note:** Add `app$set_window_size(width = 1400, height = 900)` before interactions to ensure consistent layouts.
+- [x] **Performance note:** Add `app$set_window_size(width = 1400, height = 900)` before interactions to ensure consistent layouts.
 
-- [ ] Update `.github/workflows/R-CMD-check.yml` to install Chrome for shinytest2:
+- [x] Update `.github/workflows/R-CMD-check.yml` to install Chrome for shinytest2:
 
 ```yaml
       - name: Install Chrome
@@ -287,9 +287,9 @@ Add this step before the `Run tests` step.
 
 ### B6. Golden-number regression test
 
-- [ ] Create `tests/testthat/test-report-numbers.R` that renders the unified RBA template against the `rba_stx_example.csv` fixture and asserts specific numeric outputs. This catches silent statistical regressions where a report still generates but the numbers have shifted.
+- [x] Create `tests/testthat/test-report-numbers.R` that renders the unified RBA template against the `rba_stx_example.csv` fixture and asserts specific numeric outputs. This catches silent statistical regressions where a report still generates but the numbers have shifted.
 
-- [ ] The test should:
+- [x] The test should:
   - Build the necessary config JSON files in `tempdir()` to simulate what the app writes
   - Copy the example CSV as `long_data_output.csv` (after running `matrix_to_long()`)
   - Call `rmarkdown::render()` with the test fixture
@@ -334,30 +334,30 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `app.R`, replace the current Quick Start `fluidRow` (lines ~90-110) with a 2×3 grid layout. Use a header for each row ("🚀 Instant demo" / "⚙️ Configure manually"). The ELISA Custom "Instant demo" slot should be an empty placeholder div or a short message ("No example data — use Configure manually"), not an active button.
+- [x] In `app.R`, replace the current Quick Start `fluidRow` (lines ~90-110) with a 2×3 grid layout. Use a header for each row ("🚀 Instant demo" / "⚙️ Configure manually"). The ELISA Custom "Instant demo" slot should be an empty placeholder div or a short message ("No example data — use Configure manually"), not an active button.
 
-- [ ] Button IDs:
+- [x] Button IDs:
   - Row 1 (Instant demo): `qs_rba_stx_demo`, `qs_elisa_cortisol_demo`, (empty slot)
   - Row 2 (Configure manually): `qs_rba_stx_manual`, `qs_elisa_cortisol_manual`, `qs_elisa_custom_manual`
 
-- [ ] In `server_config.R`, create a helper function `load_preset(assay, analyte, load_example = FALSE)` that:
+- [x] In `server_config.R`, create a helper function `load_preset(assay, analyte, load_example = FALSE)` that:
   - Updates the assay type and analyte selectors
   - Populates the matrix state (type, id, dilution, replicate) using either preset RDS or generator functions
   - If `load_example = TRUE`: calls `parse_plate_file()` on the matching example file, pushes results into `shared$matrix_measresults()` (and `shared$rv$wavelength_plates` if multi-wave), and navigates to `tab_upload`. Wraps the file read in `tryCatch()` — on failure, show a notification ("Example file not found — please upload your own data") and still navigate to `tab_upload`.
   - If `load_example = FALSE`: navigates to `tab_layout` for manual configuration.
 
-- [ ] Replace the current `qs_rba_stx`, `qs_elisa_cortisol`, `qs_elisa_custom` observers with six observers (five for Custom) calling the appropriate `load_preset()` variant.
+- [x] Replace the current `qs_rba_stx`, `qs_elisa_cortisol`, `qs_elisa_custom` observers with six observers (five for Custom) calling the appropriate `load_preset()` variant.
 
-- [ ] Example file paths (hardcoded, relative to app root):
+- [x] Example file paths (hardcoded, relative to app root):
   - RBA Saxitoxin: `examples/rba_stx_example.csv`
   - ELISA Cortisol: `examples/elisa_cortisol_example.csv`
   - ELISA Custom: no example file
 
-- [ ] Update notifications:
+- [x] Update notifications:
   - Demo buttons: "RBA Saxitoxin example loaded. Click Generate Report to see the full workflow." (and analogous for ELISA)
   - Manual buttons: "RBA Saxitoxin preset loaded. Configure your plate layout and upload your data." (and analogous)
 
-- [ ] Add new i18n keys for the Quick Start section:
+- [x] Add new i18n keys for the Quick Start section:
   - `quickstart_demo_row_label` = "🚀 Instant demo"
   - `quickstart_manual_row_label` = "⚙️ Configure manually"
   - `quickstart_no_demo_available` = "No example data — use Configure manually"
@@ -365,7 +365,7 @@ The exact expected values need to be captured from one known-good run; include a
   - Six new notification message keys
   - Spanish translations for all
 
-- [ ] In `server_common.R` language observer, add `updateActionButton()` calls for all six new button IDs.
+- [x] In `server_common.R` language observer, add `updateActionButton()` calls for all six new button IDs.
 
 **Acceptance:** The Tab 1 Quick Start section shows a 2×3 grid. Clicking any "Instant demo" button loads example data and navigates to Tab 3 with the heatmap visible. Clicking any "Configure manually" button sets up the assay type and navigates to Tab 2. Language toggle correctly updates all new labels.
 
@@ -379,14 +379,14 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `app.R`, add a fourth choice to the `regression_weight` `checkboxGroupInput`:
+- [x] In `app.R`, add a fourth choice to the `regression_weight` `checkboxGroupInput`:
   - Value: `"auto"`
   - Label: "Auto (data-driven)"
   - Default: keep current default (`"none"`)
 
-- [ ] In `server_report.R` or new `server_common.R` observer: when the user checks "Auto", uncheck all other options. When the user checks any other option, uncheck "Auto". Use a `observeEvent(input$regression_weight, ...)` with a helper flag to avoid infinite loops.
+- [x] In `server_report.R` or new `server_common.R` observer: when the user checks "Auto", uncheck all other options. When the user checks any other option, uncheck "Auto". Use a `observeEvent(input$regression_weight, ...)` with a helper flag to avoid infinite loops.
 
-- [ ] In `reports/unified_analysis_template.Rmd` `model-fitting` chunk (or the extracted `fit_all_models()` function after M1), handle `"auto"`:
+- [x] In `reports/unified_analysis_template.Rmd` `model-fitting` chunk (or the extracted `fit_all_models()` function after M1), handle `"auto"`:
   - Fit unweighted LL.4 as the initial model
   - Call `assess_heteroscedasticity()` on it
   - Map to a weighting choice:
@@ -397,16 +397,16 @@ The exact expected values need to be captured from one known-good run; include a
   - Set `selected_weights <- c(chosen_weight)` so downstream code treats it as single-weight
   - Store the auto-selection result for reporting
 
-- [ ] Edge case: if the initial unweighted fit fails (falls back to LL.3 or interpolation), default to 1/Y² without a diagnostic and log a note.
+- [x] Edge case: if the initial unweighted fit fails (falls back to LL.3 or interpolation), default to 1/Y² without a diagnostic and log a note.
 
-- [ ] In the report, add a paragraph in the model-fitting section (or the weighting suitability section) that explicitly documents the auto-decision:
+- [x] In the report, add a paragraph in the model-fitting section (or the weighting suitability section) that explicitly documents the auto-decision:
 
   > "Auto-weighting selected **1/Y²** based on the Brown-Forsythe test
   > (F = 7.3, p = 0.002). Residual variance increased strongly across
   > concentration levels, justifying down-weighting of high-response
   > points."
 
-- [ ] Add i18n keys for the auto option:
+- [x] Add i18n keys for the auto option:
   - `weight_auto` = "Auto (data-driven)"
   - `weight_auto_help` = "Picks unweighted, 1/Y, or 1/Y² based on a Brown-Forsythe test on an initial unweighted fit."
   - `weight_auto_decision` = "Auto-weighting selected **%s** based on %s (statistic = %.3f, p = %.4f)."
@@ -425,9 +425,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `reports/multiwavelength_analysis_template.Rmd`, after the wavelength-summary chunk and before the detailed wavelength reports, compute the Lin's CCC for the primary vs secondary wavelength pair.
+- [x] In `reports/multiwavelength_analysis_template.Rmd`, after the wavelength-summary chunk and before the detailed wavelength reports, compute the Lin's CCC for the primary vs secondary wavelength pair.
 
-- [ ] Add a one-line result immediately after the overview:
+- [x] Add a one-line result immediately after the overview:
 
   > "**Wavelength agreement:** 450nm and 630nm show **excellent agreement** (CCC = 0.994). Either wavelength can be used interchangeably for quantification."
 
@@ -435,13 +435,13 @@ The exact expected values need to be captured from one known-good run; include a
 
   > "**Wavelength agreement:** 450nm and 630nm show **poor agreement** (CCC = 0.82). Investigate wavelength-specific effects before interchangeable use."
 
-- [ ] Use the same interpretation buckets as the detailed CCC section (> 0.99 excellent, 0.95-0.99 good, 0.90-0.95 moderate, < 0.90 poor).
+- [x] Use the same interpretation buckets as the detailed CCC section (> 0.99 excellent, 0.95-0.99 good, 0.90-0.95 moderate, < 0.90 poor).
 
-- [ ] For 3+ wavelengths, report the minimum pairwise CCC across all pairs and the corresponding pair name: "Worst-pair agreement across 3 wavelengths: 450nm vs 630nm (CCC = 0.92, moderate)."
+- [x] For 3+ wavelengths, report the minimum pairwise CCC across all pairs and the corresponding pair name: "Worst-pair agreement across 3 wavelengths: 450nm vs 630nm (CCC = 0.92, moderate)."
 
-- [ ] Wrap in `tryCatch()` — if the CCC computation fails (too few paired samples), fall back to "Wavelength agreement could not be computed (insufficient paired data)." rather than crashing the report.
+- [x] Wrap in `tryCatch()` — if the CCC computation fails (too few paired samples), fall back to "Wavelength agreement could not be computed (insufficient paired data)." rather than crashing the report.
 
-- [ ] Add i18n keys for all the summary messages and their Spanish translations.
+- [x] Add i18n keys for all the summary messages and their Spanish translations.
 
 **Acceptance:** A multi-wavelength report's executive summary contains a prominent agreement statement within the first three lines.
 
@@ -457,9 +457,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks (pre-split, stopgap):**
 
-- [ ] Add `compact` to the `params` block of `unified_analysis_template.Rmd` (default `FALSE`).
+- [x] Add `compact` to the `params` block of `unified_analysis_template.Rmd` (default `FALSE`).
 
-- [ ] Wrap optional sections with `if (!params$compact) { ... }`. Sections to suppress in compact mode:
+- [x] Wrap optional sections with `if (!params$compact) { ... }`. Sections to suppress in compact mode:
   - Exclusion audit
   - Weighting comparison (when multiple weights selected)
   - Model stability assessment
@@ -469,7 +469,7 @@ The exact expected values need to be captured from one known-good run; include a
   - Plate positional QC
   - Tissue normalization traceability (keep the final pg/g numbers, skip the worked example and formula)
 
-- [ ] Keep in compact mode:
+- [x] Keep in compact mode:
   - Executive summary
   - QC traffic light
   - Dose-response curve plot
@@ -480,15 +480,15 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks (always, regardless of split status):**
 
-- [ ] In `render_reports()` in `report_pipeline.R`, change the loop to render twice per format: once with `compact = TRUE` (output filename `-compact` suffix), once with `compact = FALSE` (output filename `-full` suffix).
+- [x] In `render_reports()` in `report_pipeline.R`, change the loop to render twice per format: once with `compact = TRUE` (output filename `-compact` suffix), once with `compact = FALSE` (output filename `-full` suffix).
 
-- [ ] Add a "Generate compact report" checkbox to Tab 5, default checked. If unchecked, only the detailed report is generated.
+- [x] Add a "Generate compact report" checkbox to Tab 5, default checked. If unchecked, only the detailed report is generated.
 
-- [ ] In `server_upload.R`, update the `download_report` handler: default to the compact report, fall back to the detailed report if no compact version exists.
+- [x] In `server_upload.R`, update the `download_report` handler: default to the compact report, fall back to the detailed report if no compact version exists.
 
-- [ ] On Tab 5, after report generation, show two download links: "📄 Compact report (recommended)" and "📋 Detailed report (full audit)". Both should point to the correct files.
+- [x] On Tab 5, after report generation, show two download links: "📄 Compact report (recommended)" and "📋 Detailed report (full audit)". Both should point to the correct files.
 
-- [ ] Add i18n keys for the new UI elements and their Spanish translations.
+- [x] Add i18n keys for the new UI elements and their Spanish translations.
 
 **Sub-tasks (post-split, eventual):**
 
@@ -570,7 +570,7 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`.
 
-- [ ] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
+- [x] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
 
 **Acceptance after all sub-tasks:** `unified_analysis_template.Rmd` is ~700-900 lines (down from ~2000). Each new function has a unit test. Rendering the template against the RBA example CSV produces a report identical to the pre-refactor version (compare via B6 golden-number test).
 
@@ -584,13 +584,13 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] Scope the autosave scan to a user-specific directory. Use `tools::R_user_dir("bioassay-analysis", "data")` as the base directory (this resolves to a per-user location on all platforms).
+- [x] Scope the autosave scan to a user-specific directory. Use `tools::R_user_dir("bioassay-analysis", "data")` as the base directory (this resolves to a per-user location on all platforms).
 
-- [ ] Within that directory, store autosaves as `autosave_<session_token>.rds`. On startup, list files matching that pattern in the user-specific directory only.
+- [x] Within that directory, store autosaves as `autosave_<session_token>.rds`. On startup, list files matching that pattern in the user-specific directory only.
 
-- [ ] Add a cleanup step: on successful restore or on "Start Fresh" dismissal, delete the loaded autosave file so it isn't re-offered on the next launch.
+- [x] Add a cleanup step: on successful restore or on "Start Fresh" dismissal, delete the loaded autosave file so it isn't re-offered on the next launch.
 
-- [ ] Add a background cleanup of autosaves older than 7 days (run once at app startup).
+- [x] Add a background cleanup of autosaves older than 7 days (run once at app startup).
 
 **Acceptance:** Autosaves written by one OS user are invisible to another OS user on the same machine. The restore modal only offers autosaves from the current user.
 
