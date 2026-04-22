@@ -379,14 +379,14 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `app.R`, add a fourth choice to the `regression_weight` `checkboxGroupInput`:
+- [x] In `app.R`, add a fourth choice to the `regression_weight` `checkboxGroupInput`:
   - Value: `"auto"`
   - Label: "Auto (data-driven)"
   - Default: keep current default (`"none"`)
 
-- [ ] In `server_report.R` or new `server_common.R` observer: when the user checks "Auto", uncheck all other options. When the user checks any other option, uncheck "Auto". Use a `observeEvent(input$regression_weight, ...)` with a helper flag to avoid infinite loops.
+- [x] In `server_report.R` or new `server_common.R` observer: when the user checks "Auto", uncheck all other options. When the user checks any other option, uncheck "Auto". Use a `observeEvent(input$regression_weight, ...)` with a helper flag to avoid infinite loops.
 
-- [ ] In `reports/unified_analysis_template.Rmd` `model-fitting` chunk (or the extracted `fit_all_models()` function after M1), handle `"auto"`:
+- [x] In `reports/unified_analysis_template.Rmd` `model-fitting` chunk (or the extracted `fit_all_models()` function after M1), handle `"auto"`:
   - Fit unweighted LL.4 as the initial model
   - Call `assess_heteroscedasticity()` on it
   - Map to a weighting choice:
@@ -397,16 +397,16 @@ The exact expected values need to be captured from one known-good run; include a
   - Set `selected_weights <- c(chosen_weight)` so downstream code treats it as single-weight
   - Store the auto-selection result for reporting
 
-- [ ] Edge case: if the initial unweighted fit fails (falls back to LL.3 or interpolation), default to 1/Y² without a diagnostic and log a note.
+- [x] Edge case: if the initial unweighted fit fails (falls back to LL.3 or interpolation), default to 1/Y² without a diagnostic and log a note.
 
-- [ ] In the report, add a paragraph in the model-fitting section (or the weighting suitability section) that explicitly documents the auto-decision:
+- [x] In the report, add a paragraph in the model-fitting section (or the weighting suitability section) that explicitly documents the auto-decision:
 
   > "Auto-weighting selected **1/Y²** based on the Brown-Forsythe test
   > (F = 7.3, p = 0.002). Residual variance increased strongly across
   > concentration levels, justifying down-weighting of high-response
   > points."
 
-- [ ] Add i18n keys for the auto option:
+- [x] Add i18n keys for the auto option:
   - `weight_auto` = "Auto (data-driven)"
   - `weight_auto_help` = "Picks unweighted, 1/Y, or 1/Y² based on a Brown-Forsythe test on an initial unweighted fit."
   - `weight_auto_decision` = "Auto-weighting selected **%s** based on %s (statistic = %.3f, p = %.4f)."

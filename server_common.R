@@ -457,6 +457,35 @@ server_common <- function(input, output, session, shared) {
   })
 
   # --------------------------------------------------------------------------
+  # H2: "Auto" regression weighting is mutually exclusive with the three
+  # manual choices. Toggle observer uses a guard flag to avoid infinite
+  # recursion when we update the very input we are watching.
+  # --------------------------------------------------------------------------
+
+  auto_weight_guard <- reactiveVal(FALSE)
+  observeEvent(input$regression_weight, ignoreInit = TRUE, {
+    if (isTRUE(auto_weight_guard())) {
+      auto_weight_guard(FALSE)
+      return()
+    }
+    sel <- input$regression_weight
+    if (is.null(sel) || !length(sel)) return()
+    # If "auto" was just enabled alongside other choices, drop the others.
+    if ("auto" %in% sel && length(sel) > 1) {
+      auto_weight_guard(TRUE)
+      updateCheckboxGroupInput(session, "regression_weight", selected = "auto")
+      return()
+    }
+    # If a manual choice was enabled while "auto" was selected, drop "auto".
+    if ("auto" %in% sel && length(sel) == 1) return()  # auto-only: fine
+    if ("auto" %in% sel) {
+      auto_weight_guard(TRUE)
+      updateCheckboxGroupInput(session, "regression_weight",
+                               selected = setdiff(sel, "auto"))
+    }
+  })
+
+  # --------------------------------------------------------------------------
   # Language Observer — update all input labels on language change
   # --------------------------------------------------------------------------
 
@@ -554,8 +583,9 @@ server_common <- function(input, output, session, shared) {
     updateCheckboxGroupInput(session, "regression_weight",
                              label = tr("regression_weight_label", lang),
                              choices = tr_choices(
-                               c("none", "inv_y", "inv_y2"),
-                               c("weight_unweighted", "weight_inv_y", "weight_inv_y2"),
+                               c("none", "inv_y", "inv_y2", "auto"),
+                               c("weight_unweighted", "weight_inv_y",
+                                 "weight_inv_y2", "weight_auto"),
                                lang),
                              selected = input$regression_weight %||% "none")
     updateNumericInput(session, "quant_range_min", label = tr("quant_range_min_label", lang))
