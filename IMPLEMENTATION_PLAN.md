@@ -287,9 +287,9 @@ Add this step before the `Run tests` step.
 
 ### B6. Golden-number regression test
 
-- [ ] Create `tests/testthat/test-report-numbers.R` that renders the unified RBA template against the `rba_stx_example.csv` fixture and asserts specific numeric outputs. This catches silent statistical regressions where a report still generates but the numbers have shifted.
+- [x] Create `tests/testthat/test-report-numbers.R` that renders the unified RBA template against the `rba_stx_example.csv` fixture and asserts specific numeric outputs. This catches silent statistical regressions where a report still generates but the numbers have shifted.
 
-- [ ] The test should:
+- [x] The test should:
   - Build the necessary config JSON files in `tempdir()` to simulate what the app writes
   - Copy the example CSV as `long_data_output.csv` (after running `matrix_to_long()`)
   - Call `rmarkdown::render()` with the test fixture
