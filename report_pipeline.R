@@ -311,38 +311,55 @@ render_reports <- function(params, session) {
 
   output_paths <- list()
 
+  # H4: render 1-2 variants per format. If generate_compact is TRUE the app
+  # renders a compact version (suffix -compact) alongside the detailed one
+  # (suffix -full). If FALSE only the detailed report is produced.
+  want_compact <- isTRUE(params$generate_compact)
+  # "detailed" is always produced (the existing full-audit report).
+  variants <- if (want_compact) c("compact", "full") else "full"
+
   for (fmt in params$selected_formats) {
-    showNotification(sprintf("Rendering %s report...", toupper(fmt)),
-                     type = "message", duration = 3)
+    for (variant in variants) {
+      is_compact_variant <- identical(variant, "compact")
+      showNotification(sprintf("Rendering %s %s report...",
+                               toupper(fmt),
+                               if (is_compact_variant) "compact" else "detailed"),
+                       type = "message", duration = 3)
 
-    render_ok <- tryCatch({
-      render_params <- list(output_dir = out_dir_abs, lang = params$report_lang)
-      if (is_mw) render_params$wavelengths <- params$wavelengths
+      render_ok <- tryCatch({
+        render_params <- list(output_dir = out_dir_abs,
+                              lang = params$report_lang,
+                              compact = is_compact_variant)
+        if (is_mw) render_params$wavelengths <- params$wavelengths
 
-      out_name <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
+        base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
+        out_name <- paste0(base_out, "-", variant)
 
-      out_file <- rmarkdown::render(
-        input = report_template,
-        output_format = formats_map[[fmt]],
-        output_file = out_name,
-        output_dir = out_dir_abs,
-        params = render_params,
-        knit_root_dir = dirname(report_template),
-        envir = new.env(parent = globalenv())
-      )
-      output_paths[[fmt]] <- out_file
-      TRUE
-    }, error = function(e) {
-      showNotification(
-        sprintf("Report rendering failed (%s): %s", toupper(fmt), e$message),
-        type = "error", duration = 10
-      )
-      message(sprintf("Report render error (%s): %s", fmt, e$message))
-      FALSE
-    })
+        out_file <- rmarkdown::render(
+          input = report_template,
+          output_format = formats_map[[fmt]],
+          output_file = out_name,
+          output_dir = out_dir_abs,
+          params = render_params,
+          knit_root_dir = dirname(report_template),
+          envir = new.env(parent = globalenv())
+        )
+        output_paths[[paste(fmt, variant, sep = "-")]] <- out_file
+        TRUE
+      }, error = function(e) {
+        showNotification(
+          sprintf("Report rendering failed (%s %s): %s",
+                  toupper(fmt), variant, e$message),
+          type = "error", duration = 10
+        )
+        message(sprintf("Report render error (%s %s): %s",
+                        fmt, variant, e$message))
+        FALSE
+      })
 
-    # --- Graceful PDF-to-HTML fallback on render failure ---
-    if (!render_ok && fmt == "pdf" && !"html" %in% names(output_paths)) {
+      # --- Graceful PDF-to-HTML fallback on render failure ---
+      if (!render_ok && fmt == "pdf" &&
+          !(paste("html", variant, sep = "-") %in% names(output_paths))) {
       showNotification(
         "PDF compilation failed. Generating HTML report as fallback...",
         type = "warning", duration = 8
@@ -360,7 +377,7 @@ render_reports <- function(params, session) {
           knit_root_dir = dirname(report_template),
           envir = new.env(parent = globalenv())
         )
-        output_paths[["html"]] <- out_file
+        output_paths[[paste("html", variant, sep = "-")]] <- out_file
         TRUE
       }, error = function(e2) {
         showNotification(
@@ -375,11 +392,13 @@ render_reports <- function(params, session) {
       }
     }
 
-    if (render_ok) {
-      showNotification(sprintf("%s report created!", toupper(fmt)),
-                       type = "message", duration = 5)
-    }
-  }
+      if (render_ok) {
+        showNotification(sprintf("%s %s report created!",
+                                 toupper(fmt), variant),
+                         type = "message", duration = 5)
+      }
+    }  # end for (variant in variants)
+  }  # end for (fmt in params$selected_formats)
 
   showNotification(paste("Reports saved to:", out_dir_abs),
                    type = "message", duration = 8)

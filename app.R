@@ -61,7 +61,7 @@ if (!file.exists("presets/rba_stx_triplicate.rds")) {
   })
 }
 
-# Get output directory from environment (set by run_analysis_modular.R)
+# Get output directory from environment (set by an external wrapper, if any).
 # If not set OR if set by a previous standalone run, create a fresh dated folder
 standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
                     Sys.getenv("RBA_STANDALONE") == "1")
@@ -720,6 +720,9 @@ ui <- fluidPage(
                        choices = c("English" = "en", "Espa\u00f1ol" = "es"),
                        selected = "en",
                        width = "200px"),
+            checkboxInput("generate_compact",
+                          "Generate compact report",
+                          value = TRUE),
             br(),
             actionButton("convert",
                         label = tagList(icon("file-arrow-down"),
@@ -728,7 +731,8 @@ ui <- fluidPage(
                         style = "width: 100%; font-size: 20px; font-weight: 700;
                                 padding: 14px; border-radius: 12px;"),
             br(), br(),
-            uiOutput("download_report_ui")
+            uiOutput("download_report_ui"),
+            uiOutput("download_report_full_ui")
           )
         ),
         column(4,
