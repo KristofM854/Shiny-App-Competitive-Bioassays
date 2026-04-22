@@ -457,9 +457,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks (pre-split, stopgap):**
 
-- [ ] Add `compact` to the `params` block of `unified_analysis_template.Rmd` (default `FALSE`).
+- [x] Add `compact` to the `params` block of `unified_analysis_template.Rmd` (default `FALSE`).
 
-- [ ] Wrap optional sections with `if (!params$compact) { ... }`. Sections to suppress in compact mode:
+- [x] Wrap optional sections with `if (!params$compact) { ... }`. Sections to suppress in compact mode:
   - Exclusion audit
   - Weighting comparison (when multiple weights selected)
   - Model stability assessment
@@ -469,7 +469,7 @@ The exact expected values need to be captured from one known-good run; include a
   - Plate positional QC
   - Tissue normalization traceability (keep the final pg/g numbers, skip the worked example and formula)
 
-- [ ] Keep in compact mode:
+- [x] Keep in compact mode:
   - Executive summary
   - QC traffic light
   - Dose-response curve plot
@@ -480,15 +480,15 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks (always, regardless of split status):**
 
-- [ ] In `render_reports()` in `report_pipeline.R`, change the loop to render twice per format: once with `compact = TRUE` (output filename `-compact` suffix), once with `compact = FALSE` (output filename `-full` suffix).
+- [x] In `render_reports()` in `report_pipeline.R`, change the loop to render twice per format: once with `compact = TRUE` (output filename `-compact` suffix), once with `compact = FALSE` (output filename `-full` suffix).
 
-- [ ] Add a "Generate compact report" checkbox to Tab 5, default checked. If unchecked, only the detailed report is generated.
+- [x] Add a "Generate compact report" checkbox to Tab 5, default checked. If unchecked, only the detailed report is generated.
 
-- [ ] In `server_upload.R`, update the `download_report` handler: default to the compact report, fall back to the detailed report if no compact version exists.
+- [x] In `server_upload.R`, update the `download_report` handler: default to the compact report, fall back to the detailed report if no compact version exists.
 
-- [ ] On Tab 5, after report generation, show two download links: "📄 Compact report (recommended)" and "📋 Detailed report (full audit)". Both should point to the correct files.
+- [x] On Tab 5, after report generation, show two download links: "📄 Compact report (recommended)" and "📋 Detailed report (full audit)". Both should point to the correct files.
 
-- [ ] Add i18n keys for the new UI elements and their Spanish translations.
+- [x] Add i18n keys for the new UI elements and their Spanish translations.
 
 **Sub-tasks (post-split, eventual):**
 
