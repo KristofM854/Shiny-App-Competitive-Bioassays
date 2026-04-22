@@ -14,11 +14,11 @@ Each task has a status checkbox, a scope description, and acceptance criteria. T
 
 ### B1. Delete `run_analysis_modular.R`
 
-- [ ] Remove the file `run_analysis_modular.R` from the repo root
-- [ ] Update the README `Quick Start` section so it shows only two entry points:
+- [x] Remove the file `run_analysis_modular.R` from the repo root
+- [x] Update the README `Quick Start` section so it shows only two entry points:
   - `shiny::runGitHub("Shiny-App-Competitive-Bioassays", "KristofM854")` for remote use
   - `shiny::runApp("app.R")` for local use after cloning
-- [ ] Remove any references to `run_analysis_modular.R` in other documentation
+- [x] Remove any references to `run_analysis_modular.R` in other documentation
 
 **Rationale:** The file is obsolete. `app.R` handles standalone mode (output directory creation, environment variables, folder picker) since the modular refactor. The rstudioapi-based path-discovery mechanism is fragile outside RStudio and produces a misleading "please run the script again" error. No downstream tooling depends on it.
 
@@ -425,9 +425,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `reports/multiwavelength_analysis_template.Rmd`, after the wavelength-summary chunk and before the detailed wavelength reports, compute the Lin's CCC for the primary vs secondary wavelength pair.
+- [x] In `reports/multiwavelength_analysis_template.Rmd`, after the wavelength-summary chunk and before the detailed wavelength reports, compute the Lin's CCC for the primary vs secondary wavelength pair.
 
-- [ ] Add a one-line result immediately after the overview:
+- [x] Add a one-line result immediately after the overview:
 
   > "**Wavelength agreement:** 450nm and 630nm show **excellent agreement** (CCC = 0.994). Either wavelength can be used interchangeably for quantification."
 
@@ -435,13 +435,13 @@ The exact expected values need to be captured from one known-good run; include a
 
   > "**Wavelength agreement:** 450nm and 630nm show **poor agreement** (CCC = 0.82). Investigate wavelength-specific effects before interchangeable use."
 
-- [ ] Use the same interpretation buckets as the detailed CCC section (> 0.99 excellent, 0.95-0.99 good, 0.90-0.95 moderate, < 0.90 poor).
+- [x] Use the same interpretation buckets as the detailed CCC section (> 0.99 excellent, 0.95-0.99 good, 0.90-0.95 moderate, < 0.90 poor).
 
-- [ ] For 3+ wavelengths, report the minimum pairwise CCC across all pairs and the corresponding pair name: "Worst-pair agreement across 3 wavelengths: 450nm vs 630nm (CCC = 0.92, moderate)."
+- [x] For 3+ wavelengths, report the minimum pairwise CCC across all pairs and the corresponding pair name: "Worst-pair agreement across 3 wavelengths: 450nm vs 630nm (CCC = 0.92, moderate)."
 
-- [ ] Wrap in `tryCatch()` — if the CCC computation fails (too few paired samples), fall back to "Wavelength agreement could not be computed (insufficient paired data)." rather than crashing the report.
+- [x] Wrap in `tryCatch()` — if the CCC computation fails (too few paired samples), fall back to "Wavelength agreement could not be computed (insufficient paired data)." rather than crashing the report.
 
-- [ ] Add i18n keys for all the summary messages and their Spanish translations.
+- [x] Add i18n keys for all the summary messages and their Spanish translations.
 
 **Acceptance:** A multi-wavelength report's executive summary contains a prominent agreement statement within the first three lines.
 
@@ -457,9 +457,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks (pre-split, stopgap):**
 
-- [ ] Add `compact` to the `params` block of `unified_analysis_template.Rmd` (default `FALSE`).
+- [x] Add `compact` to the `params` block of `unified_analysis_template.Rmd` (default `FALSE`).
 
-- [ ] Wrap optional sections with `if (!params$compact) { ... }`. Sections to suppress in compact mode:
+- [x] Wrap optional sections with `if (!params$compact) { ... }`. Sections to suppress in compact mode:
   - Exclusion audit
   - Weighting comparison (when multiple weights selected)
   - Model stability assessment
@@ -469,7 +469,7 @@ The exact expected values need to be captured from one known-good run; include a
   - Plate positional QC
   - Tissue normalization traceability (keep the final pg/g numbers, skip the worked example and formula)
 
-- [ ] Keep in compact mode:
+- [x] Keep in compact mode:
   - Executive summary
   - QC traffic light
   - Dose-response curve plot
@@ -480,15 +480,15 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks (always, regardless of split status):**
 
-- [ ] In `render_reports()` in `report_pipeline.R`, change the loop to render twice per format: once with `compact = TRUE` (output filename `-compact` suffix), once with `compact = FALSE` (output filename `-full` suffix).
+- [x] In `render_reports()` in `report_pipeline.R`, change the loop to render twice per format: once with `compact = TRUE` (output filename `-compact` suffix), once with `compact = FALSE` (output filename `-full` suffix).
 
-- [ ] Add a "Generate compact report" checkbox to Tab 5, default checked. If unchecked, only the detailed report is generated.
+- [x] Add a "Generate compact report" checkbox to Tab 5, default checked. If unchecked, only the detailed report is generated.
 
-- [ ] In `server_upload.R`, update the `download_report` handler: default to the compact report, fall back to the detailed report if no compact version exists.
+- [x] In `server_upload.R`, update the `download_report` handler: default to the compact report, fall back to the detailed report if no compact version exists.
 
-- [ ] On Tab 5, after report generation, show two download links: "📄 Compact report (recommended)" and "📋 Detailed report (full audit)". Both should point to the correct files.
+- [x] On Tab 5, after report generation, show two download links: "📄 Compact report (recommended)" and "📋 Detailed report (full audit)". Both should point to the correct files.
 
-- [ ] Add i18n keys for the new UI elements and their Spanish translations.
+- [x] Add i18n keys for the new UI elements and their Spanish translations.
 
 **Sub-tasks (post-split, eventual):**
 
@@ -570,7 +570,7 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`.
 
-- [ ] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
+- [x] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
 
 **Acceptance after all sub-tasks:** `unified_analysis_template.Rmd` is ~700-900 lines (down from ~2000). Each new function has a unit test. Rendering the template against the RBA example CSV produces a report identical to the pre-refactor version (compare via B6 golden-number test).
 
@@ -584,13 +584,13 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] Scope the autosave scan to a user-specific directory. Use `tools::R_user_dir("bioassay-analysis", "data")` as the base directory (this resolves to a per-user location on all platforms).
+- [x] Scope the autosave scan to a user-specific directory. Use `tools::R_user_dir("bioassay-analysis", "data")` as the base directory (this resolves to a per-user location on all platforms).
 
-- [ ] Within that directory, store autosaves as `autosave_<session_token>.rds`. On startup, list files matching that pattern in the user-specific directory only.
+- [x] Within that directory, store autosaves as `autosave_<session_token>.rds`. On startup, list files matching that pattern in the user-specific directory only.
 
-- [ ] Add a cleanup step: on successful restore or on "Start Fresh" dismissal, delete the loaded autosave file so it isn't re-offered on the next launch.
+- [x] Add a cleanup step: on successful restore or on "Start Fresh" dismissal, delete the loaded autosave file so it isn't re-offered on the next launch.
 
-- [ ] Add a background cleanup of autosaves older than 7 days (run once at app startup).
+- [x] Add a background cleanup of autosaves older than 7 days (run once at app startup).
 
 **Acceptance:** Autosaves written by one OS user are invisible to another OS user on the same machine. The restore modal only offers autosaves from the current user.
 
