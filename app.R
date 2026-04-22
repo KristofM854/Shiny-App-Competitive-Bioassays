@@ -627,7 +627,8 @@ ui <- fluidPage(
         checkboxGroupInput("regression_weight", "DRC regression weighting:",
                    choices = c("Unweighted" = "none",
                                "1/Y (moderate)" = "inv_y",
-                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
+                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2",
+                               "Auto (data-driven)" = "auto"),
                    selected = "none"),
         uiOutput("regression_weight_help_ui"),
 

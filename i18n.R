@@ -386,6 +386,10 @@ get_translations <- function() {
       weight_unweighted = "Unweighted",
       weight_inv_y = "1/Y (moderate)",
       weight_inv_y2 = "1/Y\u00B2 (recommended for immunoassays)",
+      weight_auto = "Auto (data-driven)",
+      weight_auto_help = "Picks unweighted, 1/Y, or 1/Y\u00B2 based on a Brown-Forsythe test on an initial unweighted fit.",
+      weight_auto_decision = "Auto-weighting selected **%s** based on %s (statistic = %.3f, p = %.4f).",
+      weight_auto_fallback = "Auto-weighting defaulted to 1/Y\u00B2 because the initial unweighted fit could not be assessed.",
       ci_t_dist = "t-distribution (default)",
       ci_bootstrap_choice = "Bootstrap (1000 resamples)",
 
@@ -897,6 +901,10 @@ get_translations <- function() {
       weight_unweighted = "Sin ponderar",
       weight_inv_y = "1/Y (moderada)",
       weight_inv_y2 = "1/Y\u00B2 (recomendada para inmunoensayos)",
+      weight_auto = "Auto (basada en datos)",
+      weight_auto_help = "Elige sin ponderar, 1/Y o 1/Y\u00B2 seg\u00FAn una prueba de Brown-Forsythe sobre un ajuste inicial sin ponderar.",
+      weight_auto_decision = "Ponderaci\u00F3n autom\u00E1tica seleccion\u00F3 **%s** con base en %s (estad\u00EDstico = %.3f, p = %.4f).",
+      weight_auto_fallback = "Ponderaci\u00F3n autom\u00E1tica us\u00F3 1/Y\u00B2 por defecto porque no se pudo evaluar el ajuste inicial sin ponderar.",
       ci_t_dist = "distribuci\u00F3n t (predeterminada)",
       ci_bootstrap_choice = "Bootstrap (1000 remuestreos)",
 
