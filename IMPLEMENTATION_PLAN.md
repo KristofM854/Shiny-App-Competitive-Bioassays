@@ -425,9 +425,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `reports/multiwavelength_analysis_template.Rmd`, after the wavelength-summary chunk and before the detailed wavelength reports, compute the Lin's CCC for the primary vs secondary wavelength pair.
+- [x] In `reports/multiwavelength_analysis_template.Rmd`, after the wavelength-summary chunk and before the detailed wavelength reports, compute the Lin's CCC for the primary vs secondary wavelength pair.
 
-- [ ] Add a one-line result immediately after the overview:
+- [x] Add a one-line result immediately after the overview:
 
   > "**Wavelength agreement:** 450nm and 630nm show **excellent agreement** (CCC = 0.994). Either wavelength can be used interchangeably for quantification."
 
@@ -435,13 +435,13 @@ The exact expected values need to be captured from one known-good run; include a
 
   > "**Wavelength agreement:** 450nm and 630nm show **poor agreement** (CCC = 0.82). Investigate wavelength-specific effects before interchangeable use."
 
-- [ ] Use the same interpretation buckets as the detailed CCC section (> 0.99 excellent, 0.95-0.99 good, 0.90-0.95 moderate, < 0.90 poor).
+- [x] Use the same interpretation buckets as the detailed CCC section (> 0.99 excellent, 0.95-0.99 good, 0.90-0.95 moderate, < 0.90 poor).
 
-- [ ] For 3+ wavelengths, report the minimum pairwise CCC across all pairs and the corresponding pair name: "Worst-pair agreement across 3 wavelengths: 450nm vs 630nm (CCC = 0.92, moderate)."
+- [x] For 3+ wavelengths, report the minimum pairwise CCC across all pairs and the corresponding pair name: "Worst-pair agreement across 3 wavelengths: 450nm vs 630nm (CCC = 0.92, moderate)."
 
-- [ ] Wrap in `tryCatch()` — if the CCC computation fails (too few paired samples), fall back to "Wavelength agreement could not be computed (insufficient paired data)." rather than crashing the report.
+- [x] Wrap in `tryCatch()` — if the CCC computation fails (too few paired samples), fall back to "Wavelength agreement could not be computed (insufficient paired data)." rather than crashing the report.
 
-- [ ] Add i18n keys for all the summary messages and their Spanish translations.
+- [x] Add i18n keys for all the summary messages and their Spanish translations.
 
 **Acceptance:** A multi-wavelength report's executive summary contains a prominent agreement statement within the first three lines.
 
