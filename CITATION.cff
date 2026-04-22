@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Competitive Binding Assay Analysis Suite"
+abstract: >
+  A guided Shiny application for analysing receptor binding
+  assay (RBA) and ELISA plate reader data. Produces reproducible
+  4-parameter logistic dose-response fits, quantified sample
+  concentrations with confidence intervals, and bilingual
+  (English/Spanish) HTML, Word, or PDF reports.
+authors:
+  - family-names: "Moeller"
+    given-names: "Kristof"
+    affiliation: "IAEA Marine Environment Laboratories, Monaco"
+    orcid: "https://orcid.org/0000-0002-4590-6223"
+  - family-names: "Molina Porras"
+    given-names: "Arnold"
+    affiliation: "Universidad de Costa Rica"
+version: "0.9.0"
+date-released: "2026-04-22"
+license: MIT
+repository-code: "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays"
+url: "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays"
+keywords:
+  - receptor binding assay
+  - ELISA
+  - dose-response
+  - 4-parameter logistic
+  - Shiny
+  - bioassay
+  - harmful algal blooms
+  - marine biotoxins
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19691224"
+    description: "Concept DOI (always resolves to the latest version)"
+  - type: doi
+    value: "10.5281/zenodo.19691223"
+    description: "Version DOI for v0.9.0"
