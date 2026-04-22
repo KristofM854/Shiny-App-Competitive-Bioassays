@@ -27,6 +27,7 @@ header-includes:
 params:
   output_dir: NULL
   lang: "en"
+  compact: false
 ---
 
 <!--
@@ -112,6 +113,9 @@ library(jsonlite)
 
 # %||% operator is defined in global.R (loaded before rendering)
 
+# H4: compact-mode flag for chunk gating below.
+is_compact <- isTRUE(params$compact)
+
 # Validate output directory
 output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
 
@@ -163,7 +167,11 @@ if (!i18n_found) {
 }
 
 # Check if all required function files exist
-required_files <- c("report_constants.R", "report_functions.R", "plot_functions.R")
+# M1.7: analysis_pipeline.R and report_sections.R are scaffolded empty now;
+# subsequent M1.1-M1.6 extractions will populate them.
+required_files <- c("report_constants.R", "report_functions.R",
+                    "plot_functions.R", "analysis_pipeline.R",
+                    "report_sections.R")
 missing_files <- c()
 
 for (file in required_files) {
@@ -184,6 +192,8 @@ if (length(missing_files) > 0) {
 source(file.path(script_dir, "report_constants.R"))
 source(file.path(script_dir, "report_functions.R"))
 source(file.path(script_dir, "plot_functions.R"))
+source(file.path(script_dir, "analysis_pipeline.R"))
+source(file.path(script_dir, "report_sections.R"))
 
 # Load assay configuration
 assay_config <- tryCatch({
@@ -494,6 +504,58 @@ if (is.null(selected_weights) || length(selected_weights) == 0) selected_weights
 if (is.character(selected_weights)) selected_weights <- as.character(selected_weights)
 
 multi_weight_mode <- length(selected_weights) > 1
+
+# ---- H2: Auto (data-driven) weighting ------------------------------------
+# If the user picked "Auto", fit an unweighted LL.4 first, run the
+# heteroscedasticity diagnostic, and rewrite selected_weights to the single
+# chosen weight. auto_weighting_result is consumed by the weighting-
+# suitability chunk further down so the report explains the auto decision.
+auto_weighting_result <- NULL
+if ("auto" %in% selected_weights) {
+  initial_fml <- as.formula(paste(response_var, "~ concentration"))
+  initial_fit <- tryCatch(
+    drc::drm(initial_fml, data = standards_for_model, fct = drc::LL.4()),
+    error = function(e) NULL
+  )
+  if (is.null(initial_fit)) {
+    # Initial unweighted fit failed — default to 1/Y^2 without diagnostic.
+    auto_weighting_result <- list(
+      chosen_weight = "inv_y2",
+      fallback = TRUE,
+      test_name = NA_character_, statistic = NA_real_, p_value = NA_real_,
+      variance_ratio = NA_real_
+    )
+  } else {
+    hetero_auto <- assess_heteroscedasticity(initial_fit, standards_for_model,
+                                             response_var)
+    chosen <- if (!is.na(hetero_auto$p_value) && hetero_auto$p_value < 0.01 &&
+                  !is.na(hetero_auto$variance_ratio) &&
+                  hetero_auto$variance_ratio > 10) {
+      "inv_y2"
+    } else if (!is.na(hetero_auto$p_value) && hetero_auto$p_value < 0.05) {
+      "inv_y"
+    } else if (!is.na(hetero_auto$variance_ratio) &&
+               hetero_auto$variance_ratio > 10) {
+      "inv_y2"
+    } else if (!is.na(hetero_auto$variance_ratio) &&
+               hetero_auto$variance_ratio >= 3) {
+      "inv_y"
+    } else {
+      "none"
+    }
+    auto_weighting_result <- list(
+      chosen_weight  = chosen,
+      fallback       = FALSE,
+      test_name      = hetero_auto$test_name,
+      statistic      = hetero_auto$statistic,
+      p_value        = hetero_auto$p_value,
+      variance_ratio = hetero_auto$variance_ratio
+    )
+  }
+  selected_weights <- auto_weighting_result$chosen_weight
+  multi_weight_mode <- FALSE
+}
+# -------------------------------------------------------------------------
 
 # Fit ALL selected models and store results
 all_models <- list()
@@ -937,7 +999,7 @@ tryCatch({
 section_end()
 ```
 
-```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
+```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
 # Show comparison of multiple weighting methods if the user selected more than one
 if (multi_weight_mode && length(all_models) > 1) {
   section_start("Click to expand weighting comparison")
@@ -1054,14 +1116,14 @@ if (multi_weight_mode && length(all_models) > 1) {
 }
 ```
 
-```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
+```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
 # Separate chunk so render_plot() return value is visible to knitr
 if (exists("cmp_plot") && multi_weight_mode && length(all_models) > 1) {
   render_plot(cmp_plot)
 }
 ```
 
-```{r weight-comparison-close, results='asis'}
+```{r weight-comparison-close, results='asis', eval=!is_compact}
 if (multi_weight_mode && length(all_models) > 1) {
   cat(sprintf("\n\n*%s*\n\n",
       tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
@@ -1082,6 +1144,24 @@ if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
 ```
 
 ```{r weighting-suitability, results='asis'}
+# H2: document the auto-weighting decision (if taken) at the top of the
+# weighting-suitability section, before the full diagnostic block below.
+if (!is.null(auto_weighting_result)) {
+  weight_labels <- list(none = "Unweighted", inv_y = "1/Y", inv_y2 = "1/Y²")
+  chosen_label <- weight_labels[[auto_weighting_result$chosen_weight]] %||%
+                  auto_weighting_result$chosen_weight
+  if (isTRUE(auto_weighting_result$fallback)) {
+    cat("\n\n", tr("weight_auto_fallback", lang), "\n\n", sep = "")
+  } else {
+    cat("\n\n", tr("weight_auto_decision", lang,
+                    chosen_label,
+                    auto_weighting_result$test_name %||% "Brown-Forsythe",
+                    auto_weighting_result$statistic %||% NA_real_,
+                    auto_weighting_result$p_value %||% NA_real_),
+        "\n\n", sep = "")
+  }
+}
+
 # Formal heteroscedasticity diagnostic (assess_heteroscedasticity)
 tryCatch({
   # Determine which model to assess: prefer the unweighted model, otherwise
@@ -1132,7 +1212,7 @@ tryCatch({
 })
 ```
 
-```{r model-stability-assessment, results='asis'}
+```{r model-stability-assessment, results='asis', eval=!is_compact}
 # Convergence and stability diagnostics for all fitted models
 tryCatch({
   if (!drc_failed_completely && length(all_models) > 0) {
@@ -1432,7 +1512,7 @@ write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 
 `r section_open("Click to expand standard back-calculation and recovery")`
 
-```{r standard-backcalculation, results='asis'}
+```{r standard-backcalculation, results='asis', eval=!is_compact}
 # Back-calculate concentrations for each standard well using the fitted model
 # and compute % recovery vs nominal concentration
 standards_backcalc <- data_long %>%
@@ -2434,7 +2514,7 @@ tryCatch({
 
 `r section_close()`
 
-```{r plate-positional-qc, results='asis'}
+```{r plate-positional-qc, results='asis', eval=!is_compact}
 section_start("Click to expand plate positional quality")
 emit_heading("Plate Positional Quality", 4)
 if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
@@ -2562,7 +2642,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
 ## `r tr("parallelism_title", lang)`
 
-```{r parallelism-assessment, results='asis'}
+```{r parallelism-assessment, results='asis', eval=!is_compact}
 # Task C (HP7): Optional parallelism / relative potency assessment
 tryCatch({
   if (exists("model_fit") && !is.null(model_fit) && exists("data_long") && exists("response_var")) {
@@ -2707,7 +2787,7 @@ tryCatch({
 })
 ```
 
-```{r tissue-normalization-traceability, results='asis'}
+```{r tissue-normalization-traceability, results='asis', eval=!is_compact}
 # M8: Tissue Normalization Traceability (ELISA + tissue weights only)
 tryCatch({
   if (isTRUE(is_elisa) && exists("tissue_weights") && !is.null(tissue_weights) && length(tissue_weights) > 0) {
@@ -2808,7 +2888,7 @@ tryCatch({
 
 `r section_open("Click to expand exclusion audit trail")`
 
-```{r exclusion-audit, results='asis'}
+```{r exclusion-audit, results='asis', eval=!is_compact}
 # M5: Formal Exclusion Audit Table
 tryCatch({
   ol_flags_for_audit <- if (exists("outlier_flags") && !is.null(outlier_flags) && nrow(outlier_flags) > 0) {

@@ -147,6 +147,82 @@ message(sprintf("Processing %d wavelengths: %s",
 - `r tr("multi_exec_summary", lang)`
 - `r tr("multi_detailed", lang)`
 
+```{r wavelength-agreement-summary, results='asis', warning=FALSE, message=FALSE}
+# H3: prominent one-line CCC agreement statement near the top of the report
+# so the user does not have to scroll to the buried concordance section to
+# find out whether wavelengths agreed.
+tryCatch({
+  if (length(wavelengths) < 2) {
+    # Nothing to compare; stay silent.
+  } else {
+    wl_results_h3 <- list()
+    for (wl in wavelengths) {
+      fp <- file.path(output_dir, wl, "unknown_results_summary.csv")
+      if (file.exists(fp)) {
+        r <- tryCatch(read.csv(fp, stringsAsFactors = FALSE), error = function(e) NULL)
+        if (!is.null(r) && nrow(r) > 0 && "mean_concentration" %in% names(r)) {
+          wl_results_h3[[wl]] <- r
+        }
+      }
+    }
+    if (length(wl_results_h3) < 2) {
+      cat("**", tr("multi_agreement_label", lang), "** ",
+          tr("multi_agreement_no_data", lang), "\n\n", sep = "")
+    } else {
+      lins_ccc_h3 <- function(x, y) {
+        n <- length(x)
+        if (n < 3) return(NA_real_)
+        mx <- mean(x); my <- mean(y); sx <- sd(x); sy <- sd(y)
+        sxy <- sum((x - mx) * (y - my)) / (n - 1)
+        (2 * sxy) / (sx^2 + sy^2 + (mx - my)^2)
+      }
+      wl_names_h3 <- names(wl_results_h3)
+      pair_list <- utils::combn(wl_names_h3, 2, simplify = FALSE)
+      ccc_tbl <- lapply(pair_list, function(p) {
+        a <- wl_results_h3[[p[1]]]; b <- wl_results_h3[[p[2]]]
+        merged <- merge(a[, c("replicate_group", "mean_concentration")],
+                        b[, c("replicate_group", "mean_concentration")],
+                        by = "replicate_group", suffixes = c("_a", "_b"))
+        ok <- is.finite(merged$mean_concentration_a) &
+              is.finite(merged$mean_concentration_b)
+        if (sum(ok) < 3) return(NULL)
+        list(pair = paste(p[1], "vs", p[2]),
+             ccc  = lins_ccc_h3(merged$mean_concentration_a[ok],
+                                merged$mean_concentration_b[ok]))
+      })
+      ccc_tbl <- Filter(Negate(is.null), ccc_tbl)
+      if (!length(ccc_tbl)) {
+        cat("**", tr("multi_agreement_label", lang), "** ",
+            tr("multi_agreement_no_data", lang), "\n\n", sep = "")
+      } else {
+        worst <- ccc_tbl[[which.min(sapply(ccc_tbl, function(x) x$ccc))]]
+        bucket_key <- if (worst$ccc > 0.99) "concordance_excellent"
+                      else if (worst$ccc > 0.95) "concordance_good"
+                      else if (worst$ccc > 0.90) "concordance_moderate"
+                      else                       "concordance_poor"
+        verdict <- tr(bucket_key, lang)
+        recommend <- if (worst$ccc > 0.95) tr("multi_agreement_interchangeable", lang)
+                     else                   tr("multi_agreement_investigate",   lang)
+        if (length(wavelengths) > 2) {
+          cat("**", tr("multi_agreement_label", lang), "** ",
+              tr("multi_agreement_worstpair", lang,
+                 length(wavelengths), worst$pair, worst$ccc, verdict),
+              " ", recommend, "\n\n", sep = "")
+        } else {
+          cat("**", tr("multi_agreement_label", lang), "** ",
+              tr("multi_agreement_single_pair", lang,
+                 worst$pair, verdict, worst$ccc),
+              " ", recommend, "\n\n", sep = "")
+        }
+      }
+    }
+  }
+}, error = function(e) {
+  cat("**", tr("multi_agreement_label", lang), "** ",
+      tr("multi_agreement_no_data", lang), "\n\n", sep = "")
+})
+```
+
 ---
 
 ```{r generate-wavelength-reports, results='asis'}
