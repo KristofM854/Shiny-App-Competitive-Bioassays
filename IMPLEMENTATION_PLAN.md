@@ -334,30 +334,30 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks:**
 
-- [ ] In `app.R`, replace the current Quick Start `fluidRow` (lines ~90-110) with a 2×3 grid layout. Use a header for each row ("🚀 Instant demo" / "⚙️ Configure manually"). The ELISA Custom "Instant demo" slot should be an empty placeholder div or a short message ("No example data — use Configure manually"), not an active button.
+- [x] In `app.R`, replace the current Quick Start `fluidRow` (lines ~90-110) with a 2×3 grid layout. Use a header for each row ("🚀 Instant demo" / "⚙️ Configure manually"). The ELISA Custom "Instant demo" slot should be an empty placeholder div or a short message ("No example data — use Configure manually"), not an active button.
 
-- [ ] Button IDs:
+- [x] Button IDs:
   - Row 1 (Instant demo): `qs_rba_stx_demo`, `qs_elisa_cortisol_demo`, (empty slot)
   - Row 2 (Configure manually): `qs_rba_stx_manual`, `qs_elisa_cortisol_manual`, `qs_elisa_custom_manual`
 
-- [ ] In `server_config.R`, create a helper function `load_preset(assay, analyte, load_example = FALSE)` that:
+- [x] In `server_config.R`, create a helper function `load_preset(assay, analyte, load_example = FALSE)` that:
   - Updates the assay type and analyte selectors
   - Populates the matrix state (type, id, dilution, replicate) using either preset RDS or generator functions
   - If `load_example = TRUE`: calls `parse_plate_file()` on the matching example file, pushes results into `shared$matrix_measresults()` (and `shared$rv$wavelength_plates` if multi-wave), and navigates to `tab_upload`. Wraps the file read in `tryCatch()` — on failure, show a notification ("Example file not found — please upload your own data") and still navigate to `tab_upload`.
   - If `load_example = FALSE`: navigates to `tab_layout` for manual configuration.
 
-- [ ] Replace the current `qs_rba_stx`, `qs_elisa_cortisol`, `qs_elisa_custom` observers with six observers (five for Custom) calling the appropriate `load_preset()` variant.
+- [x] Replace the current `qs_rba_stx`, `qs_elisa_cortisol`, `qs_elisa_custom` observers with six observers (five for Custom) calling the appropriate `load_preset()` variant.
 
-- [ ] Example file paths (hardcoded, relative to app root):
+- [x] Example file paths (hardcoded, relative to app root):
   - RBA Saxitoxin: `examples/rba_stx_example.csv`
   - ELISA Cortisol: `examples/elisa_cortisol_example.csv`
   - ELISA Custom: no example file
 
-- [ ] Update notifications:
+- [x] Update notifications:
   - Demo buttons: "RBA Saxitoxin example loaded. Click Generate Report to see the full workflow." (and analogous for ELISA)
   - Manual buttons: "RBA Saxitoxin preset loaded. Configure your plate layout and upload your data." (and analogous)
 
-- [ ] Add new i18n keys for the Quick Start section:
+- [x] Add new i18n keys for the Quick Start section:
   - `quickstart_demo_row_label` = "🚀 Instant demo"
   - `quickstart_manual_row_label` = "⚙️ Configure manually"
   - `quickstart_no_demo_available` = "No example data — use Configure manually"
@@ -365,7 +365,7 @@ The exact expected values need to be captured from one known-good run; include a
   - Six new notification message keys
   - Spanish translations for all
 
-- [ ] In `server_common.R` language observer, add `updateActionButton()` calls for all six new button IDs.
+- [x] In `server_common.R` language observer, add `updateActionButton()` calls for all six new button IDs.
 
 **Acceptance:** The Tab 1 Quick Start section shows a 2×3 grid. Clicking any "Instant demo" button loads example data and navigates to Tab 3 with the heatmap visible. Clicking any "Configure manually" button sets up the assay type and navigates to Tab 2. Language toggle correctly updates all new labels.
 
