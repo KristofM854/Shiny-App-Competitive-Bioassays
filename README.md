@@ -1,6 +1,6 @@
 # Competitive Binding Assay Analysis Suite
 
-[![R-tests](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 If you run receptor binding assays or ELISAs and want reproducible 4-parameter
 logistic curve fitting, quantified samples with proper confidence intervals,
@@ -26,7 +26,37 @@ flowchart LR
 Each step is a tab in the app. Navigate forward and backward at any time;
 progress is auto-saved every 60 seconds.
 
-*(Screenshots for each step will be added in a future release.)*
+## Screenshots
+
+### 1. Configuration — Quick Start and assay setup
+![Configuration tab](docs/screenshots/01_configuration.png)
+
+Pick an assay type and load a preset, or configure manually. Each Quick Start preset has two buttons: "Instant demo" loads example data so you can see a full report in seconds, and "Configure manually" sets up the assay type and layout so you can upload your own plate reader file.
+
+### 2. Plate Layout — four synchronized matrices
+![Plate Layout tab](docs/screenshots/02_plate_layout.png)
+
+Define sample type, sample ID, dilution factor, and replicate groups in parallel. Presets, import from CSV/Excel, and undo/redo all supported.
+
+### 3. Upload & Preview — auto-detected heatmap
+![Upload tab](docs/screenshots/03_upload_heatmap.png)
+
+The app auto-detects plate regions in `.xlsx`, `.csv`, and `.txt` files. The heatmap preview lets you confirm the correct region was detected before running the analysis.
+
+### 4. Analysis Settings — advanced statistical options
+![Analysis Settings tab](docs/screenshots/04_analysis_settings.png)
+
+Choose regression weighting (including data-driven Auto option), confidence interval method, outlier detection strategy, and quantification range.
+
+### 5. Report — executive summary and dose-response curve
+![Report — summary and DRC](docs/screenshots/05_report_summary.png)
+
+Every report opens with a colour-coded executive summary, a QC traffic-light table, and the fitted dose-response curve.
+
+### 6. Report — quantified samples with confidence intervals
+![Report — sample results](docs/screenshots/06_report_results.png)
+
+Per-replicate-group mean concentrations with 95% confidence intervals, CV, range flags, and (for ELISA with tissue weights) pg/g tissue.
 
 ## Quick Start
 
@@ -242,3 +272,9 @@ this citation once the DOI is available.
 For questions or bug reports: kr.moeller@iaea.org
 
 [Give Feedback](https://forms.office.com/e/q8eqJfp4QM)
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 Kristof Moeller and Arnold Molina Porras.
