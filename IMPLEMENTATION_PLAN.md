@@ -570,7 +570,7 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`.
 
-- [ ] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
+- [x] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
 
 **Acceptance after all sub-tasks:** `unified_analysis_template.Rmd` is ~700-900 lines (down from ~2000). Each new function has a unit test. Rendering the template against the RBA example CSV produces a report identical to the pre-refactor version (compare via B6 golden-number test).
 
