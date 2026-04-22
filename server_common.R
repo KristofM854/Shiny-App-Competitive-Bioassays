@@ -292,11 +292,22 @@ server_common <- function(input, output, session, shared) {
     h5(style = "margin-top: 0;", tr("preflight_heading", lang))
   })
 
+  # H4: compact download (default / recommended)
   output$download_report_ui <- renderUI({
     lang <- input$app_language %||% "en"
-    downloadButton("download_report", tr("download_last_report", lang),
+    downloadButton("download_report",
+                   tr("download_last_report_compact", lang),
                    class = "btn btn-success btn-lg",
                    style = "width: 100%;")
+  })
+
+  # H4: full / detailed download (full audit report)
+  output$download_report_full_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    downloadButton("download_report_full",
+                   tr("download_last_report_full", lang),
+                   class = "btn btn-default btn-lg",
+                   style = "width: 100%; margin-top: 8px;")
   })
 
   output$give_feedback_ui <- renderUI({
@@ -548,6 +559,8 @@ server_common <- function(input, output, session, shared) {
                                c("html", "docx", "pdf"),
                                c("format_html", "format_docx", "format_pdf"), lang),
                              selected = input$export_formats %||% "html")
+    updateCheckboxInput(session, "generate_compact",
+                        label = tr("generate_compact_label", lang))
     updateSelectInput(session, "report_language", label = tr("report_language", lang))
     updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
                        placeholder = tr("notes_report_placeholder", lang))

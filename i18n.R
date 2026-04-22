@@ -167,6 +167,9 @@ get_translations <- function() {
       notes_full_label = "Notes (optional) - will appear in the report:",
       notes_report_placeholder = "Observations, sample info, run notes...",
       download_last_report = "Download Last Report",
+      download_last_report_compact = "\U0001F4C4 Compact report (recommended)",
+      download_last_report_full = "\U0001F4CB Detailed report (full audit)",
+      generate_compact_label = "Generate compact report",
 
       # Pre-flight check panel (Tab 5 preflight_checks renderUI)
       pf_plate_ok = "Plate data uploaded",
@@ -669,6 +672,9 @@ get_translations <- function() {
       notes_full_label = "Notas (opcional) - aparecer\u00E1n en el reporte:",
       notes_report_placeholder = "Observaciones, informaci\u00F3n de muestras, notas de corrida...",
       download_last_report = "Descargar \u00DAltimo Reporte",
+      download_last_report_compact = "\U0001F4C4 Reporte compacto (recomendado)",
+      download_last_report_full = "\U0001F4CB Reporte detallado (auditor\u00EDa completa)",
+      generate_compact_label = "Generar reporte compacto",
 
       # Panel de verificación previa (Tab 5)
       pf_plate_ok = "Datos de placa cargados",

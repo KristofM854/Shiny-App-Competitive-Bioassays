@@ -27,6 +27,7 @@ header-includes:
 params:
   output_dir: NULL
   lang: "en"
+  compact: false
 ---
 
 <!--
@@ -111,6 +112,9 @@ library(tibble)
 library(jsonlite)
 
 # %||% operator is defined in global.R (loaded before rendering)
+
+# H4: compact-mode flag for chunk gating below.
+is_compact <- isTRUE(params$compact)
 
 # Validate output directory
 output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
@@ -937,7 +941,7 @@ tryCatch({
 section_end()
 ```
 
-```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
+```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
 # Show comparison of multiple weighting methods if the user selected more than one
 if (multi_weight_mode && length(all_models) > 1) {
   section_start("Click to expand weighting comparison")
@@ -1054,14 +1058,14 @@ if (multi_weight_mode && length(all_models) > 1) {
 }
 ```
 
-```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE}
+```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
 # Separate chunk so render_plot() return value is visible to knitr
 if (exists("cmp_plot") && multi_weight_mode && length(all_models) > 1) {
   render_plot(cmp_plot)
 }
 ```
 
-```{r weight-comparison-close, results='asis'}
+```{r weight-comparison-close, results='asis', eval=!is_compact}
 if (multi_weight_mode && length(all_models) > 1) {
   cat(sprintf("\n\n*%s*\n\n",
       tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
@@ -1081,7 +1085,7 @@ if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
 }
 ```
 
-```{r weighting-suitability, results='asis'}
+```{r weighting-suitability, results='asis', eval=!is_compact}
 # Formal heteroscedasticity diagnostic (assess_heteroscedasticity)
 tryCatch({
   # Determine which model to assess: prefer the unweighted model, otherwise
@@ -1132,7 +1136,7 @@ tryCatch({
 })
 ```
 
-```{r model-stability-assessment, results='asis'}
+```{r model-stability-assessment, results='asis', eval=!is_compact}
 # Convergence and stability diagnostics for all fitted models
 tryCatch({
   if (!drc_failed_completely && length(all_models) > 0) {
@@ -1432,7 +1436,7 @@ write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 
 `r section_open("Click to expand standard back-calculation and recovery")`
 
-```{r standard-backcalculation, results='asis'}
+```{r standard-backcalculation, results='asis', eval=!is_compact}
 # Back-calculate concentrations for each standard well using the fitted model
 # and compute % recovery vs nominal concentration
 standards_backcalc <- data_long %>%
@@ -2434,7 +2438,7 @@ tryCatch({
 
 `r section_close()`
 
-```{r plate-positional-qc, results='asis'}
+```{r plate-positional-qc, results='asis', eval=!is_compact}
 section_start("Click to expand plate positional quality")
 emit_heading("Plate Positional Quality", 4)
 if (exists("data_long") && "MeasurementValue" %in% names(data_long)) {
@@ -2562,7 +2566,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
 ## `r tr("parallelism_title", lang)`
 
-```{r parallelism-assessment, results='asis'}
+```{r parallelism-assessment, results='asis', eval=!is_compact}
 # Task C (HP7): Optional parallelism / relative potency assessment
 tryCatch({
   if (exists("model_fit") && !is.null(model_fit) && exists("data_long") && exists("response_var")) {
@@ -2707,7 +2711,7 @@ tryCatch({
 })
 ```
 
-```{r tissue-normalization-traceability, results='asis'}
+```{r tissue-normalization-traceability, results='asis', eval=!is_compact}
 # M8: Tissue Normalization Traceability (ELISA + tissue weights only)
 tryCatch({
   if (isTRUE(is_elisa) && exists("tissue_weights") && !is.null(tissue_weights) && length(tissue_weights) > 0) {
@@ -2808,7 +2812,7 @@ tryCatch({
 
 `r section_open("Click to expand exclusion audit trail")`
 
-```{r exclusion-audit, results='asis'}
+```{r exclusion-audit, results='asis', eval=!is_compact}
 # M5: Formal Exclusion Audit Table
 tryCatch({
   ol_flags_for_audit <- if (exists("outlier_flags") && !is.null(outlier_flags) && nrow(outlier_flags) > 0) {
