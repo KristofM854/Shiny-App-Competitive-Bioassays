@@ -61,7 +61,7 @@ if (!file.exists("presets/rba_stx_triplicate.rds")) {
   })
 }
 
-# Get output directory from environment (set by run_analysis_modular.R)
+# Get output directory from environment (set by an external wrapper, if any).
 # If not set OR if set by a previous standalone run, create a fresh dated folder
 standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
                     Sys.getenv("RBA_STANDALONE") == "1")
@@ -189,26 +189,56 @@ ui <- fluidPage(
                     class = "btn btn-primary btn-lg")
       ),
 
-      # Quick Start panel
+      # Quick Start panel (2x3 grid: row = Instant demo / Configure manually,
+      # column = preset). ELISA Custom has no "Instant demo" variant.
       div(
         id = "quickstart_section",
         style = "background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px;",
         uiOutput("quickstart_heading_ui"),
+
+        # Row 1 — Instant demo
+        uiOutput("quickstart_demo_row_label_ui"),
         fluidRow(
           column(4,
-            actionButton("qs_rba_stx", label = tagList(icon("flask"), " RBA Saxitoxin"),
-                        class = "btn btn-lg btn-primary", style = "width: 100%; margin-bottom: 8px;")
+            actionButton("qs_rba_stx_demo",
+                        label = tagList(icon("flask"), " RBA Saxitoxin"),
+                        class = "btn btn-lg btn-primary",
+                        style = "width: 100%; margin-bottom: 8px;")
           ),
           column(4,
-            actionButton("qs_elisa_cortisol", label = tagList(icon("vial"), " ELISA Cortisol"),
-                        class = "btn btn-lg btn-success", style = "width: 100%; margin-bottom: 8px;")
+            actionButton("qs_elisa_cortisol_demo",
+                        label = tagList(icon("vial"), " ELISA Cortisol"),
+                        class = "btn btn-lg btn-success",
+                        style = "width: 100%; margin-bottom: 8px;")
           ),
           column(4,
-            actionButton("qs_elisa_custom", label = tagList(icon("cog"), " ELISA Custom"),
+            uiOutput("quickstart_no_demo_slot_ui")
+          )
+        ),
+
+        # Row 2 — Configure manually
+        uiOutput("quickstart_manual_row_label_ui"),
+        fluidRow(
+          column(4,
+            actionButton("qs_rba_stx_manual",
+                        label = tagList(icon("flask"), " RBA Saxitoxin"),
+                        class = "btn btn-lg btn-default",
+                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #1976D2; color: #1976D2;")
+          ),
+          column(4,
+            actionButton("qs_elisa_cortisol_manual",
+                        label = tagList(icon("vial"), " ELISA Cortisol"),
+                        class = "btn btn-lg btn-default",
+                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #388E3C; color: #388E3C;")
+          ),
+          column(4,
+            actionButton("qs_elisa_custom_manual",
+                        label = tagList(icon("cog"), " ELISA Custom"),
                         class = "btn btn-lg btn-default",
                         style = "width: 100%; margin-bottom: 8px; border: 2px solid #9C27B0; color: #9C27B0;")
           )
         ),
+
         uiOutput("quickstart_manual_note_ui")
       ),
 
@@ -541,17 +571,20 @@ ui <- fluidPage(
                       class = "btn btn-primary btn-lg")
         ),
 
-        radioButtons("import_method", "Import method:",
-                    choices = c("Classic Import" = "classic",
-                                "Visual Plate Selector" = "visual"),
-                    selected = "classic", inline = TRUE),
-
         div(
-          style = "display:flex; gap:10px;",
-          uiOutput("upload_counts_ui"),
-          uiOutput("clear_upload_ui")
+          id = "upload_controls",
+          radioButtons("import_method", "Import method:",
+                      choices = c("Classic Import" = "classic",
+                                  "Visual Plate Selector" = "visual"),
+                      selected = "classic", inline = TRUE),
+
+          div(
+            style = "display:flex; gap:10px;",
+            uiOutput("upload_counts_ui"),
+            uiOutput("clear_upload_ui")
+          ),
+          uiOutput("download_plate_template_ui")
         ),
-        uiOutput("download_plate_template_ui"),
 
         # Visual plate selector panel
         conditionalPanel(
@@ -624,7 +657,8 @@ ui <- fluidPage(
         checkboxGroupInput("regression_weight", "DRC regression weighting:",
                    choices = c("Unweighted" = "none",
                                "1/Y (moderate)" = "inv_y",
-                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2"),
+                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2",
+                               "Auto (data-driven)" = "auto"),
                    selected = "none"),
         uiOutput("regression_weight_help_ui"),
 
@@ -716,6 +750,9 @@ ui <- fluidPage(
                        choices = c("English" = "en", "Espa\u00f1ol" = "es"),
                        selected = "en",
                        width = "200px"),
+            checkboxInput("generate_compact",
+                          "Generate compact report",
+                          value = TRUE),
             br(),
             actionButton("convert",
                         label = tagList(icon("file-arrow-down"),
@@ -724,7 +761,8 @@ ui <- fluidPage(
                         style = "width: 100%; font-size: 20px; font-weight: 700;
                                 padding: 14px; border-radius: 12px;"),
             br(), br(),
-            uiOutput("download_report_ui")
+            uiOutput("download_report_ui"),
+            uiOutput("download_report_full_ui")
           )
         ),
         column(4,
