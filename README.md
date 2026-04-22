@@ -1,5 +1,7 @@
 # Competitive Binding Assay Analysis Suite
 
+[![R-tests](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml)
+
 If you run receptor binding assays or ELISAs and want reproducible 4-parameter
 logistic curve fitting, quantified samples with proper confidence intervals,
 and a formatted HTML/Word/PDF report — this app does that in a guided 5-step
