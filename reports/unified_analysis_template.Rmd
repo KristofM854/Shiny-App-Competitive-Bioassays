@@ -163,7 +163,11 @@ if (!i18n_found) {
 }
 
 # Check if all required function files exist
-required_files <- c("report_constants.R", "report_functions.R", "plot_functions.R")
+# M1.7: analysis_pipeline.R and report_sections.R are scaffolded empty now;
+# subsequent M1.1-M1.6 extractions will populate them.
+required_files <- c("report_constants.R", "report_functions.R",
+                    "plot_functions.R", "analysis_pipeline.R",
+                    "report_sections.R")
 missing_files <- c()
 
 for (file in required_files) {
@@ -184,6 +188,8 @@ if (length(missing_files) > 0) {
 source(file.path(script_dir, "report_constants.R"))
 source(file.path(script_dir, "report_functions.R"))
 source(file.path(script_dir, "plot_functions.R"))
+source(file.path(script_dir, "analysis_pipeline.R"))
+source(file.path(script_dir, "report_sections.R"))
 
 # Load assay configuration
 assay_config <- tryCatch({
