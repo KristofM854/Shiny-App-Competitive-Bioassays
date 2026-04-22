@@ -131,7 +131,7 @@ Per-replicate-group mean concentrations with 95% confidence intervals, CV, range
 
 ### B4. Set up GitHub Actions CI
 
-- [ ] Create `.github/workflows/R-CMD-check.yml` with a minimal workflow that:
+- [x] Create `.github/workflows/R-CMD-check.yml` with a minimal workflow that:
   - Runs on push to `main` and on pull requests
   - Uses `ubuntu-latest`
   - Installs R 4.3
@@ -186,7 +186,7 @@ jobs:
         run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
 ```
 
-- [ ] Add a badge to the top of README:
+- [x] Add a badge to the top of README:
 
 ```markdown
 [![R-tests](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/KristofM854/Shiny-App-Competitive-Bioassays/actions/workflows/R-CMD-check.yml)
