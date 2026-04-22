@@ -17,15 +17,40 @@ server_common <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
   # Session State Auto-Save (every 60 seconds)
   # --------------------------------------------------------------------------
+  #
+  # M2: autosaves live in a per-user directory under tools::R_user_dir so
+  # user A can never be offered user B's layout on a shared machine. The
+  # legacy behaviour (write into tempdir()) meant a shared Rstudio Server
+  # or SLURM allocation would leak sessions across OS users because the
+  # tempdir() scan was system-wide. The scan now restricts itself to the
+  # current user's data dir.
 
-  autosave_path <- file.path(tempdir(), paste0("bioassay_autosave_", session$token, ".rds"))
+  autosave_dir <- tryCatch(
+    tools::R_user_dir("bioassay-analysis", which = "data"),
+    error = function(e) tempdir()
+  )
+  dir.create(autosave_dir, showWarnings = FALSE, recursive = TRUE)
+  autosave_path <- file.path(autosave_dir,
+                             paste0("autosave_", session$token, ".rds"))
 
-  # Check for a previous auto-save and offer to restore
+  # Startup cleanup: remove autosaves older than 7 days so the user-scoped
+  # directory does not grow unbounded across sessions.
+  tryCatch({
+    old <- list.files(autosave_dir, pattern = "^autosave_.*\\.rds$",
+                      full.names = TRUE)
+    if (length(old) > 0) {
+      ages <- difftime(Sys.time(), file.info(old)$mtime, units = "days")
+      expired <- old[!is.na(ages) & ages > 7]
+      if (length(expired) > 0) unlink(expired)
+    }
+  }, error = function(e) invisible(NULL))
+
+  # Check for a previous auto-save and offer to restore. Scan only the
+  # user-scoped directory (was tempdir() before M2).
   observe({
-    # Run once on startup — look for any recent autosave (< 2 hours old)
-    candidates <- list.files(tempdir(), pattern = "^bioassay_autosave_.*\\.rds$", full.names = TRUE)
+    candidates <- list.files(autosave_dir, pattern = "^autosave_.*\\.rds$",
+                             full.names = TRUE)
     if (length(candidates) > 0) {
-      # Find the most recent file that is less than 2 hours old
       info <- file.info(candidates)
       recent <- candidates[difftime(Sys.time(), info$mtime, units = "hours") < 2]
       if (length(recent) > 0) {
@@ -42,11 +67,24 @@ server_common <- function(input, output, session, shared) {
             ),
             easyClose = TRUE
           ))
+          # Remember which file was offered so we can delete it on accept or
+          # on Start Fresh — prevents it being re-offered next launch.
           session$userData$pending_restore <- saved
+          session$userData$pending_restore_path <- newest
         }
       }
     }
   }) |> bindEvent(session$clientData$url_protocol, once = TRUE)
+
+  # Helper: delete the offered autosave file (used by both accept + dismiss).
+  drop_pending_restore <- function() {
+    p <- session$userData$pending_restore_path
+    if (!is.null(p) && file.exists(p)) {
+      tryCatch(unlink(p), error = function(e) invisible(NULL))
+    }
+    session$userData$pending_restore <- NULL
+    session$userData$pending_restore_path <- NULL
+  }
 
   observeEvent(input$restore_autosave, {
     saved <- session$userData$pending_restore
@@ -62,15 +100,20 @@ server_common <- function(input, output, session, shared) {
       }
       showNotification("Session restored successfully.", type = "message", duration = 3)
     }
-    session$userData$pending_restore <- NULL
+    drop_pending_restore()
     removeModal()
   })
+
+  # Dismissal via Start Fresh also drops the file so the next launch does
+  # not re-offer the same restore.
+  observeEvent(session$input$.shinymodal_dismissed, {
+    drop_pending_restore()
+  }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
   autoSaveTimer <- reactiveTimer(60000)
   observe({
     autoSaveTimer()
     tryCatch({
-      # Collect standard concentrations
       n_std <- as.integer(isolate(input$num_standards) %||% 0)
       std_vals <- if (n_std > 0) {
         sapply(seq_len(n_std), function(i) isolate(input[[paste0("std", i)]]) %||% "")
