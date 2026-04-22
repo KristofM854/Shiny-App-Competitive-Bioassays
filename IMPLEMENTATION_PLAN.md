@@ -200,7 +200,7 @@ jobs:
 
 ### B5. Add `shinytest2` happy-path tests
 
-- [ ] Create `tests/testthat/test-shinytest-rba.R`:
+- [x] Create `tests/testthat/test-shinytest-rba.R`:
 
 ```r
 # End-to-end happy path: RBA Saxitoxin with Instant Demo button
@@ -261,18 +261,18 @@ test_that("RBA Instant Demo produces a complete report", {
 })
 ```
 
-- [ ] Create `tests/testthat/test-shinytest-elisa.R` with analogous logic using `qs_elisa_cortisol_demo` and asserting that the Cortisol report renders. Include an assertion that `control_summary` appears in the report (grep the HTML output for "Blank average" text).
+- [x] Create `tests/testthat/test-shinytest-elisa.R` with analogous logic using `qs_elisa_cortisol_demo` and asserting that the Cortisol report renders. Include an assertion that `control_summary` appears in the report (grep the HTML output for "Blank average" text).
 
-- [ ] Create `tests/testthat/test-shinytest-multiwavelength.R`:
+- [x] Create `tests/testthat/test-shinytest-multiwavelength.R`:
   - Upload a synthetic multi-wavelength fixture (see below)
   - Assert that two per-wavelength CSVs are written
   - Assert that the Bland-Altman plot section appears in the report
 
-- [ ] Create the multi-wavelength fixture at `tests/testthat/fixtures/multiwave_synthetic.csv`. The file should contain two "Raw Data (450)" and "Raw Data (630)" blocks with labeled A-H rows and 12 columns of plausible absorbance values. Generate using a script `tests/testthat/fixtures/generate_multiwave.R` so future updates are reproducible.
+- [x] Create the multi-wavelength fixture at `tests/testthat/fixtures/multiwave_synthetic.csv`. The file should contain two "Raw Data (450)" and "Raw Data (630)" blocks with labeled A-H rows and 12 columns of plausible absorbance values. Generate using a script `tests/testthat/fixtures/generate_multiwave.R` so future updates are reproducible.
 
-- [ ] **Performance note:** Add `app$set_window_size(width = 1400, height = 900)` before interactions to ensure consistent layouts.
+- [x] **Performance note:** Add `app$set_window_size(width = 1400, height = 900)` before interactions to ensure consistent layouts.
 
-- [ ] Update `.github/workflows/R-CMD-check.yml` to install Chrome for shinytest2:
+- [x] Update `.github/workflows/R-CMD-check.yml` to install Chrome for shinytest2:
 
 ```yaml
       - name: Install Chrome
