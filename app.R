@@ -719,6 +719,9 @@ ui <- fluidPage(
                        choices = c("English" = "en", "Espa\u00f1ol" = "es"),
                        selected = "en",
                        width = "200px"),
+            checkboxInput("generate_compact",
+                          "Generate compact report",
+                          value = TRUE),
             br(),
             actionButton("convert",
                         label = tagList(icon("file-arrow-down"),
@@ -727,7 +730,8 @@ ui <- fluidPage(
                         style = "width: 100%; font-size: 20px; font-weight: 700;
                                 padding: 14px; border-radius: 12px;"),
             br(), br(),
-            uiOutput("download_report_ui")
+            uiOutput("download_report_ui"),
+            uiOutput("download_report_full_ui")
           )
         ),
         column(4,
