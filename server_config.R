@@ -9,34 +9,88 @@ server_config <- function(input, output, session, shared) {
   # Quick Start Buttons
   # --------------------------------------------------------------------------
 
-  observeEvent(input$qs_rba_stx, {
-    updateSelectInput(session, "assay_type", selected = "rba")
-    updateSelectInput(session, "preset_layout", selected = "rba_stx_triplicate")
-    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
-    showNotification("RBA Saxitoxin preset loaded. Upload your plate data.", type = "message", duration = 5)
+  # Load a preset plate layout + (optionally) preload example data.
+  # H1: five Quick Start buttons call this with different arg combinations.
+  #
+  # assay         One of "rba" or "elisa".
+  # analyte       For RBA: "Saxitoxin". For ELISA: "cortisol" or "custom".
+  # load_example  If TRUE, also read the matching example CSV into
+  #               shared$matrix_measresults() and jump to the Upload tab.
+  #               If FALSE, jump to the Plate Layout tab for manual config.
+  load_preset <- function(assay, analyte, load_example = FALSE) {
+    updateSelectInput(session, "assay_type", selected = assay)
+
+    if (assay == "elisa") {
+      updateSelectInput(session, "elisa_analyte", selected = analyte)
+      n <- if (identical(analyte, "custom")) 0L else 8L
+      shared$matrix_type(create_type_matrix("elisa", n))
+      shared$matrix_id(create_id_matrix("elisa", n))
+      shared$matrix_dilution(create_dilution_matrix())
+      shared$matrix_replicate(create_replicate_matrix("elisa"))
+    } else {
+      # RBA: use the existing preset RDS via the preset_layout selector so
+      # the standard concentrations + dilution grid come from the same
+      # source of truth used when the user picks the preset manually.
+      updateSelectInput(session, "preset_layout", selected = "rba_stx_triplicate")
+    }
+
+    if (load_example) {
+      lang <- input$app_language %||% "en"
+      example_file <- switch(paste(assay, analyte, sep = "/"),
+        "rba/Saxitoxin"    = "examples/rba_stx_example.csv",
+        "elisa/cortisol"   = "examples/elisa_cortisol_example.csv",
+        NULL
+      )
+      loaded <- FALSE
+      if (!is.null(example_file) && file.exists(example_file)) {
+        parsed <- tryCatch(parse_plate_file(example_file),
+                           error = function(e) NULL)
+        if (!is.null(parsed)) {
+          shared$rv$is_multiwavelength <- isTRUE(parsed$is_multiwavelength)
+          shared$rv$wavelengths        <- parsed$wavelengths
+          shared$rv$wavelength_plates  <- if (isTRUE(parsed$is_multiwavelength)) parsed$plates else NULL
+          shared$matrix_measresults(parsed$plates[[1]])
+          loaded <- TRUE
+        }
+      }
+      if (!loaded) {
+        showNotification(
+          "Example file not found — please upload your own data.",
+          type = "warning", duration = 5
+        )
+      }
+      updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
+    } else {
+      updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
+    }
+
+    # User-facing notification
+    msg_key <- if (load_example) {
+      paste0("qs_notify_", assay, "_", analyte, "_demo")
+    } else {
+      paste0("qs_notify_", assay, "_", analyte, "_manual")
+    }
+    lang <- input$app_language %||% "en"
+    showNotification(tr(msg_key, lang), type = "message", duration = 5)
+  }
+
+  # H1 Row 1 (Instant demo) observers
+  observeEvent(input$qs_rba_stx_demo, {
+    load_preset("rba", "Saxitoxin", load_example = TRUE)
+  })
+  observeEvent(input$qs_elisa_cortisol_demo, {
+    load_preset("elisa", "cortisol", load_example = TRUE)
   })
 
-  observeEvent(input$qs_elisa_cortisol, {
-    updateSelectInput(session, "assay_type", selected = "elisa")
-    # Generate matrices directly from functions (bypasses stale .rds files)
-    n <- 8L
-    shared$matrix_type(create_type_matrix("elisa", n))
-    shared$matrix_id(create_id_matrix("elisa", n))
-    shared$matrix_dilution(create_dilution_matrix())
-    shared$matrix_replicate(create_replicate_matrix("elisa"))
-    updateTabsetPanel(session, "wizard_tabs", selected = "tab_upload")
-    showNotification("ELISA Cortisol preset loaded. Upload your plate data.", type = "message", duration = 5)
+  # H1 Row 2 (Configure manually) observers
+  observeEvent(input$qs_rba_stx_manual, {
+    load_preset("rba", "Saxitoxin", load_example = FALSE)
   })
-
-  observeEvent(input$qs_elisa_custom, {
-    updateSelectInput(session, "assay_type", selected = "elisa")
-    # Generate matrices directly from functions (bypasses stale .rds files)
-    shared$matrix_type(create_type_matrix("elisa", 0))
-    shared$matrix_id(create_id_matrix("elisa", 0))
-    shared$matrix_dilution(create_dilution_matrix())
-    shared$matrix_replicate(create_replicate_matrix("elisa"))
-    updateTabsetPanel(session, "wizard_tabs", selected = "tab_layout")
-    showNotification("ELISA custom template loaded. Configure your plate layout.", type = "message", duration = 5)
+  observeEvent(input$qs_elisa_cortisol_manual, {
+    load_preset("elisa", "cortisol", load_example = FALSE)
+  })
+  observeEvent(input$qs_elisa_custom_manual, {
+    load_preset("elisa", "custom", load_example = FALSE)
   })
 
   # --------------------------------------------------------------------------

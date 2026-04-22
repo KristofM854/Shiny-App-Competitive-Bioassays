@@ -253,6 +253,30 @@ server_common <- function(input, output, session, shared) {
     tags$small(style = "color: #666;", tr("quickstart_or_manual", lang))
   })
 
+  # H1: row headers for the 2x3 Quick Start grid
+  output$quickstart_demo_row_label_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$h5(style = "margin-top: 12px; margin-bottom: 6px; color: #0D47A1;",
+            tr("quickstart_demo_row_label", lang))
+  })
+  output$quickstart_manual_row_label_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$h5(style = "margin-top: 14px; margin-bottom: 6px; color: #4A148C;",
+            tr("quickstart_manual_row_label", lang))
+  })
+  # H1: "No example data — use Configure manually" placeholder in the empty
+  # ELISA-Custom Instant-demo slot.
+  output$quickstart_no_demo_slot_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste("display: flex; align-items: center; justify-content: center;",
+                    "width: 100%; height: 48px; margin-bottom: 8px; padding: 0 10px;",
+                    "border: 2px dashed #BDBDBD; border-radius: 4px;",
+                    "color: #757575; font-size: 13px; font-style: italic;"),
+      tr("quickstart_no_demo_available", lang)
+    )
+  })
+
   output$select_assay_type_heading_ui <- renderUI({
     lang <- input$app_language %||% "en"
     h5(tags$b(tr("select_assay_type", lang)))
@@ -468,12 +492,18 @@ server_common <- function(input, output, session, shared) {
                        label = tagList(icon("file-arrow-down"), " ",
                                        tr("generate_report", lang)))
 
-    # Tab 1: Quick Start buttons (icon + translated label)
-    updateActionButton(session, "qs_rba_stx",
+    # Tab 1: Quick Start buttons (H1 — 2x3 grid: 5 active buttons across two
+    # rows. Each row has its own header uiOutput; buttons get icon + label
+    # updated here so both rows re-translate on language toggle.)
+    updateActionButton(session, "qs_rba_stx_demo",
                        label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
-    updateActionButton(session, "qs_elisa_cortisol",
+    updateActionButton(session, "qs_elisa_cortisol_demo",
                        label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
-    updateActionButton(session, "qs_elisa_custom",
+    updateActionButton(session, "qs_rba_stx_manual",
+                       label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
+    updateActionButton(session, "qs_elisa_cortisol_manual",
+                       label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
+    updateActionButton(session, "qs_elisa_custom_manual",
                        label = tagList(icon("cog"), " ", tr("preset_elisa_custom_btn", lang)))
 
     # Tab 1: Assay type / toxin / analyte / units / num_standards
