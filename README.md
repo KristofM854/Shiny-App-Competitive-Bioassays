@@ -1,6 +1,7 @@
 # Competitive Binding Assay Analysis Suite
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19691224.svg)](https://doi.org/10.5281/zenodo.19691224)
 
 If you run receptor binding assays or ELISAs and want reproducible 4-parameter
 logistic curve fitting, quantified samples with proper confidence intervals,
@@ -282,12 +283,7 @@ the curve near the top asymptote.
 
 If you use this software in published work, please cite:
 
-> Moeller, K. & Molina Porras, A. (2026). *Competitive Binding Assay Analysis
-> Suite* (v2.0.0) [Computer software].
-> https://github.com/KristofM854/Shiny-App-Competitive-Bioassays
-
-A persistent DOI via Zenodo is planned for the next tagged release; update
-this citation once the DOI is available.
+> Moeller, K. & Molina Porras, A. (2026). *Competitive Binding Assay Analysis Suite* (v0.9.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19691224
 
 ## Contact
 
