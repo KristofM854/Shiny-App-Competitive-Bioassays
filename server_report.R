@@ -297,6 +297,14 @@ server_report <- function(input, output, session, shared, config_reactives) {
   observe({
     assay <- input$assay_type %||% "rba"
 
+    # Task 2: also re-fire whenever the user lands on a different wizard tab.
+    # The button can drift to "disabled" when shared$dilution_error() flips
+    # transiently during normalization or layout edits while preflight stays
+    # green; depending on tab navigation alone for a fresh evaluation
+    # ensures the convert button always reflects the latest state when the
+    # user is looking at it on tab 5.
+    invisible(input$wizard_tabs)
+
     # Plate data must be confirmed/imported (not just file selected)
     plate <- shared$matrix_measresults()
     plate_data_ok <- !is.null(plate) && any(!is.na(plate))
@@ -333,6 +341,26 @@ server_report <- function(input, output, session, shared, config_reactives) {
 
     withProgress(message = tr("generating_report", input$app_language %||% "en"), value = 0, {
 
+      # Task 1: every Generate Report click writes into a fresh
+      # run_HHMMSS/ subdir under the session container so a second click
+      # does not overwrite the first. session_root was captured at session
+      # start (app.R) and stays put for the whole session; output_dir +
+      # csv_path are repointed at the new run dir for downstream stages.
+      .session_root <- session$userData$session_root %||%
+                       session$userData$output_dir
+      .ts <- format(Sys.time(), "%H%M%S")
+      .run_dir <- file.path(.session_root, paste0("run_", .ts))
+      .suffix <- 1
+      while (dir.exists(.run_dir)) {
+        .run_dir <- file.path(.session_root,
+                              paste0("run_", .ts, "_", .suffix))
+        .suffix <- .suffix + 1
+      }
+      dir.create(.run_dir, recursive = TRUE, showWarnings = FALSE)
+      session$userData$output_dir <- .run_dir
+      session$userData$csv_path   <- file.path(.run_dir, "long_data_output.csv")
+      message(sprintf("[generate-report] writing artifacts to %s", .run_dir))
+
       # Stage 1: Flush pending layout state
       flush_latest_layout_state(input, shared)
 
@@ -355,8 +383,13 @@ server_report <- function(input, output, session, shared, config_reactives) {
       artifact_config <- list(
         csv_path       = session$userData$csv_path,
         output_dir     = session$userData$output_dir,
-        fmt_json       = session$userData$fmt_json,
-        notes_file     = session$userData$notes_file,
+        # Task 1: redirect the two JSON sidecars into the per-run dir so each
+        # run is a self-contained bundle (instead of every run overwriting
+        # the session-root copies).
+        fmt_json       = file.path(session$userData$output_dir,
+                                   basename(session$userData$fmt_json)),
+        notes_file     = file.path(session$userData$output_dir,
+                                   basename(session$userData$notes_file)),
         export_formats = input$export_formats,
         notes          = input$notes %||% "",
         assay_type     = assay,
