@@ -314,8 +314,12 @@ render_reports <- function(params, session) {
   # H4: render 1-2 variants per format. If generate_compact is TRUE the app
   # renders a compact version (suffix -compact) alongside the detailed one
   # (suffix -full). If FALSE only the detailed report is produced.
-  want_compact <- isTRUE(params$generate_compact)
-  # "detailed" is always produced (the existing full-audit report).
+  #
+  # The compact/full split is a feature of unified_analysis_template.Rmd only.
+  # multiwavelength_analysis_template.Rmd doesn't declare a `compact` param
+  # and has no compact-mode logic, so for multi-wavelength data we always
+  # render a single "full" variant and never pass `compact` through.
+  want_compact <- isTRUE(params$generate_compact) && !is_mw
   variants <- if (want_compact) c("compact", "full") else "full"
 
   for (fmt in params$selected_formats) {
@@ -328,8 +332,8 @@ render_reports <- function(params, session) {
 
       render_ok <- tryCatch({
         render_params <- list(output_dir = out_dir_abs,
-                              lang = params$report_lang,
-                              compact = is_compact_variant)
+                              lang = params$report_lang)
+        if (!is_mw) render_params$compact <- is_compact_variant
         if (is_mw) render_params$wavelengths <- params$wavelengths
 
         base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
