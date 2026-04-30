@@ -311,6 +311,23 @@ render_reports <- function(params, session) {
 
   output_paths <- list()
 
+  # H4 perf cache: unified_analysis_template.Rmd's model-fitting and
+  # sample-analysis chunks now serialise their results to .rds files inside
+  # output_dir on first render and read them back on subsequent renders.
+  # All variants (compact/full × html/docx) of one render_reports() call
+  # share the same fit + quantification, so this trims n>1 renders to a
+  # single compute pass. For multi-wavelength runs the cache lives in each
+  # per-plate `Plate N/` subdir (because the child render's output_dir is
+  # the per-plate dir), so we walk the output_dir recursively to wipe any
+  # stale entries before we start a fresh run.
+  for (cache_pattern in c("^\\.fit_all_models_cache\\.rds$",
+                          "^\\.quantify_samples_cache\\.rds$")) {
+    hits <- list.files(out_dir_abs, pattern = cache_pattern,
+                       recursive = TRUE, all.files = TRUE,
+                       full.names = TRUE, include.dirs = FALSE)
+    for (h in hits) try(file.remove(h), silent = TRUE)
+  }
+
   # H4: render 1-2 variants per format. If generate_compact is TRUE the app
   # renders a compact version (suffix -compact) alongside the detailed one
   # (suffix -full). If FALSE only the detailed report is produced.
