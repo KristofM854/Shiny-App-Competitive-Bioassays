@@ -566,9 +566,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [ ] **M1.4 Extract `standard-backcalculation` chunk.** Function: `compute_standard_recovery(data_long, model_fit, response_var, is_elisa)` returning the recovery summary data frame.
 
-- [ ] **M1.5 Extract `plate-positional-qc` chunk.** Function: `assess_plate_positional(data_long)` returning the row stats, column stats, and flag lists.
+- [x] **M1.5 Extract `plate-positional-qc` chunk.** Function: `assess_plate_positional(data_long)` returning the row stats, column stats, and flag lists. *(landed: `reports/analysis_pipeline.R`; covered by `tests/testthat/test-analysis-pipeline.R`)*
 
-- [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`.
+- [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`. *(partial: `render_exclusion_audit_section()` and `render_tissue_normalization_section()` landed; **executive summary and QC traffic light still pending** — defer until B6 golden test can render end-to-end since both pull dozens of state vars from the Rmd setup env and a misroute would not be caught by a before/after report diff that includes the M1.6 work in both renders)*
 
 - [x] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
 
@@ -603,6 +603,28 @@ The exact expected values need to be captured from one known-good run; include a
 ---
 
 ## FUTURE / DEFERRED (not for v1.0)
+
+### F0. Machine-comparable golden-artifacts diff script
+
+**Scope:** Add a small CLI script `tests/testthat/diff_golden_artifacts.R` that takes two output directories (`before-rba/` vs `after-rba/`, and analogously for ELISA) and prints any numerical drift exceeding a configurable tolerance (default 1e-9) across `model_stats.json`, `unknown_results_summary.csv`, and `replicate_stats.csv`.
+
+**Rationale:** The B6 golden test only pins R², IC50, and replicate-group count. After M1.1–M1.4 land, we want a tighter ratchet: every numeric field in the JSON/CSV sidecars stays byte-identical to the pre-refactor baseline (modulo float epsilon). A standalone script keeps the comparison out of the regular test loop (no need to redistribute baseline artifacts) but gives a one-shot assertion before merge.
+
+**Sketch:**
+
+```r
+# Rscript tests/testthat/diff_golden_artifacts.R before/ after/ [tol]
+diff_golden_artifacts <- function(before, after, tol = 1e-9) {
+  # walk model_stats.json: per-key abs(before - after) <= tol * max(1, abs(before))
+  # walk unknown_results_summary.csv: per-(SampleID,column) numeric diff
+  # walk replicate_stats.csv if present
+  # exit non-zero with a one-line summary if any field exceeds tol
+}
+```
+
+**Status:** Add when M1.1–M1.4 are scheduled; not needed before then.
+
+---
 
 ### F1. Automatic CurveID detection for parallelism studies
 
