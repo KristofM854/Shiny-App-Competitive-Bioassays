@@ -551,6 +551,7 @@ fit_all_models <- function(data_long, response_var, analysis_config,
     weight_desc           = weight_desc,
     R2                    = R2,
     RMSE                  = RMSE,
+    conc_range            = conc_range,
     model_fits            = model_fits,
     ec20                  = ec20,
     ec80                  = ec80
@@ -598,15 +599,23 @@ quantify_samples <- function(data_long, response_var, model_fit,
     )
 
   if (nrow(samples_to_analyze) == 0) {
+    # Empty-result branch: return the same empty data frames the original
+    # chunk's else-block created plus an empty outlier_flags so downstream
+    # `nrow(outlier_flags) > 0` checks don't crash on NULL. The optional
+    # fields (outlier_method_log, tissue_weights, processing_config) are
+    # *omitted* from the list so list2env() doesn't shadow the chunk env's
+    # original `exists()` semantics for them.
     return(list(
+      samples_to_analyze   = samples_to_analyze,
       sample_results       = data.frame(),
       sample_results_clean = data.frame(),
       replicate_stats      = data.frame(),
       replicate_summary    = data.frame(),
-      outlier_flags        = NULL,
-      outlier_method_log   = NULL,
-      tissue_weights       = NULL,
-      processing_config    = NULL
+      outlier_flags        = data.frame(Well = character(),
+                                        Replicate = character(),
+                                        is_outlier = logical(),
+                                        method = character(),
+                                        stringsAsFactors = FALSE)
     ))
   }
 
@@ -977,14 +986,22 @@ quantify_samples <- function(data_long, response_var, model_fit,
       cv_percent         = cv_percent
     )
 
-  list(
+  # Conditional injection: outlier_method_log only exists in the chunk env
+  # when outlier detection actually ran; tissue_weights / processing_config
+  # only exist when ELISA + sidecar JSON loaded. Omitting NULLs from the
+  # result list preserves the original chunk's `exists()` semantics so
+  # later `if (exists("outlier_method_log") && nrow(outlier_method_log) > 0)`
+  # checks behave identically.
+  result <- list(
+    samples_to_analyze   = samples_to_analyze,
     sample_results       = sample_results,
     sample_results_clean = sample_results_clean,
     replicate_stats      = replicate_stats,
     replicate_summary    = replicate_summary,
-    outlier_flags        = outlier_flags,
-    outlier_method_log   = outlier_method_log,
-    tissue_weights       = tissue_weights,
-    processing_config    = processing_config
+    outlier_flags        = outlier_flags
   )
+  if (!is.null(outlier_method_log)) result$outlier_method_log <- outlier_method_log
+  if (!is.null(tissue_weights))     result$tissue_weights     <- tissue_weights
+  if (!is.null(processing_config))  result$processing_config  <- processing_config
+  result
 }
