@@ -37,5 +37,7 @@ jobs:
             any::jsonlite
             any::rhandsontable
             any::kableExtra
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
       - name: Run tests
         run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'

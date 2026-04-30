@@ -1,17 +1,42 @@
-# Load app dependencies for testing
+# Load app dependencies for testing.
 # Run tests from the repo root: testthat::test_dir("tests/testthat")
+#
+# testthat sources helpers with chdir=TRUE so the working directory while
+# this file is sourced is tests/testthat/. Resolve all paths relative to the
+# repo root via "../..".
+#
+# global.R loads heavy packages (drc, shinyFeedback, rintrojs, ...) that may
+# be unavailable in minimal CI sandboxes. Tests that need a specific package
+# should `skip_if_not_installed()` themselves; non-app utility tests should
+# still be able to source utils_plate.R and friends even when global.R fails.
 
-library(dplyr)
-library(tidyr)
-library(tibble)
-library(stringr)
-library(jsonlite)
+suppressPackageStartupMessages({
+  for (pkg in c("dplyr", "tidyr", "tibble", "stringr", "jsonlite")) {
+    if (requireNamespace(pkg, quietly = TRUE)) {
+      library(pkg, character.only = TRUE, warn.conflicts = FALSE)
+    }
+  }
+})
 
-# Source app modules (assumes working directory is repo root)
-source("global.R")
-source("utils_plate.R")
-source("utils_import_v3.R")
-source("utils_normalization.R")
-source("reports/report_constants.R")
-source("reports/report_functions.R")
-source("reports/plot_functions.R")
+.repo_root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+
+.try_source <- function(path) {
+  tryCatch(
+    source(path),
+    error = function(e) {
+      message(sprintf("helper-setup.R: skipping %s (%s)",
+                      basename(path), conditionMessage(e)))
+      NULL
+    }
+  )
+}
+
+.try_source(file.path(.repo_root, "global.R"))
+.try_source(file.path(.repo_root, "utils_plate.R"))
+.try_source(file.path(.repo_root, "utils_import_v3.R"))
+.try_source(file.path(.repo_root, "utils_normalization.R"))
+.try_source(file.path(.repo_root, "reports", "report_constants.R"))
+.try_source(file.path(.repo_root, "reports", "report_functions.R"))
+.try_source(file.path(.repo_root, "reports", "plot_functions.R"))
+.try_source(file.path(.repo_root, "reports", "analysis_pipeline.R"))
+.try_source(file.path(.repo_root, "reports", "report_sections.R"))
