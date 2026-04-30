@@ -1875,23 +1875,42 @@ section_end()
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   standards_plot_data <- data_long %>%
-    dplyr::filter(!is.na(concentration), SampleType == "Standard")
-  
+    dplyr::filter(!is.na(concentration), SampleType == "Standard") %>%
+    # Task 3: pre-compute hover text for the standards layer so plotly's
+    # tooltip="text" picks it up. Inline aes(text = paste0(...)) would also
+    # work but a mutate keeps the response-column dynamic lookup
+    # (.data[[response_var]]) outside the aesthetic mapping.
+    dplyr::mutate(
+      .response_for_hover = .data[[response_var]],
+      .hover_text = paste0(
+        "Standard: ", SampleID, "<br>",
+        "Concentration: ",
+        if (isTRUE(is_elisa)) {
+          format(concentration, digits = 4, big.mark = ",")
+        } else {
+          scales::scientific(concentration, digits = 2)
+        }, "<br>",
+        labels$y_label, ": ", round(.response_for_hover, 2), "<br>",
+        "Variability: ", high_variability
+      )
+    )
+
   unknown_plot_data <- sample_results %>%
     dplyr::filter(!is.na(concentration_diluted), is.finite(concentration_diluted)) %>%
     dplyr::mutate(
       falls_within_range = mapply(classify_range, response_value, estimated_concentration,
                                   MoreArgs = list(is_elisa_assay = is_elisa))
     )
-  
+
   if (nrow(unknown_plot_data) > 0) {
-    
+
     combined_drc <- ggplot() +
-      geom_line(data = model_fits, aes(x = conc, y = p), 
+      geom_line(data = model_fits, aes(x = conc, y = p),
                color = "black", size = 1.2) +
-      geom_point(data = standards_plot_data, 
-                aes(x = concentration, y = .data[[response_var]], 
-                    color = high_variability), 
+      geom_point(data = standards_plot_data,
+                aes(x = concentration, y = .data[[response_var]],
+                    color = high_variability,
+                    text = .hover_text),
                 size = 3, alpha = 0.7) +
       geom_point(data = unknown_plot_data,
                 aes(x = concentration_diluted, y = response_value,
