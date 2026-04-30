@@ -463,15 +463,26 @@ cat("\n\n")
 # chunk-local environment (where bb0_lower / bb0_upper / ec20 / ec80 now
 # live after list2env) rather than the function's local scope, preserving
 # the legacy lookup behaviour for later chunks that call them.
-.fit_res <- fit_all_models(
-  data_long       = data_long,
-  response_var    = response_var,
-  analysis_config = analysis_config,
-  is_elisa        = is_elisa,
-  lang            = lang,
-  cv_limit        = cv_limit,
-  STATS_CONFIG    = STATS_CONFIG
-)
+#
+# H4 cache: render_reports() in report_pipeline.R renders the same template
+# up to four times per run (compact + full × html + docx). All variants share
+# the same fit, so we serialise the first run's result to output_dir and
+# short-circuit subsequent renders. Pipeline clears the file at run start.
+.fit_cache_path <- file.path(output_dir, ".fit_all_models_cache.rds")
+if (file.exists(.fit_cache_path)) {
+  .fit_res <- readRDS(.fit_cache_path)
+} else {
+  .fit_res <- fit_all_models(
+    data_long       = data_long,
+    response_var    = response_var,
+    analysis_config = analysis_config,
+    is_elisa        = is_elisa,
+    lang            = lang,
+    cv_limit        = cv_limit,
+    STATS_CONFIG    = STATS_CONFIG
+  )
+  saveRDS(.fit_res, .fit_cache_path)
+}
 list2env(.fit_res, envir = environment())
 
 # classify_range(): uses different reference axes depending on assay type.
@@ -1307,18 +1318,28 @@ emit_styled_block(dq_lines,
 # LLOQ/ULOQ flagging, and (for ELISA + tissue_weights.json) pg/g tissue.
 # classify_range and flag_range are passed in so the function calls them
 # without re-creating the chunk-scoped closures.
-.samp_res <- quantify_samples(
-  data_long           = data_long,
-  response_var        = response_var,
-  model_fit           = model_fit,
-  standards_for_model = standards_for_model,
-  analysis_config     = analysis_config,
-  STATS_CONFIG        = STATS_CONFIG,
-  is_elisa            = is_elisa,
-  output_dir          = output_dir,
-  classify_range      = classify_range,
-  flag_range          = flag_range
-)
+#
+# H4 cache: as for fit_all_models, all variants in a single render_reports()
+# run share the same per-well quantification; serialise the first render's
+# result and short-circuit the rest. Pipeline clears the file at run start.
+.samp_cache_path <- file.path(output_dir, ".quantify_samples_cache.rds")
+if (file.exists(.samp_cache_path)) {
+  .samp_res <- readRDS(.samp_cache_path)
+} else {
+  .samp_res <- quantify_samples(
+    data_long           = data_long,
+    response_var        = response_var,
+    model_fit           = model_fit,
+    standards_for_model = standards_for_model,
+    analysis_config     = analysis_config,
+    STATS_CONFIG        = STATS_CONFIG,
+    is_elisa            = is_elisa,
+    output_dir          = output_dir,
+    classify_range      = classify_range,
+    flag_range          = flag_range
+  )
+  saveRDS(.samp_res, .samp_cache_path)
+}
 list2env(.samp_res, envir = environment())
 ```
 
