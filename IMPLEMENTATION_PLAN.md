@@ -508,7 +508,7 @@ The exact expected values need to be captured from one known-good run; include a
 
 **Sub-tasks, in recommended order:**
 
-- [ ] **M1.1 Extract `sample-analysis` chunk.** Create `reports/analysis_pipeline.R`. Move the sample-analysis logic into a function:
+- [x] **M1.1 Extract `sample-analysis` chunk.** *(landed: `quantify_samples()` in `reports/analysis_pipeline.R`; chunk shrinks to a `list2env()` of the function result. Numeric output is byte-pinned by the user's archived 2026-04-30 RBA + ELISA reports.)* Create `reports/analysis_pipeline.R`. Move the sample-analysis logic into a function:
 
   ```r
   quantify_samples <- function(data_long, model_fit, analysis_config,
@@ -535,7 +535,7 @@ The exact expected values need to be captured from one known-good run; include a
 
   Add a unit test `tests/testthat/test-quantify-samples.R` with a fixture input and expected outputs.
 
-- [ ] **M1.2 Extract `model-fitting` chunk.** Function signature:
+- [x] **M1.2 Extract `model-fitting` chunk.** *(landed: `fit_all_models()` in `reports/analysis_pipeline.R`; folds in H2 auto-weighting; closures `classify_range` / `flag_range` stay in the chunk so they capture chunk env.)* Function signature:
 
   ```r
   fit_all_models <- function(standards_for_model, response_var,
@@ -562,9 +562,9 @@ The exact expected values need to be captured from one known-good run; include a
 
   Add a unit test.
 
-- [ ] **M1.3 Extract `lloq-uloq` chunk.** Function: `determine_lloq_uloq(standards_for_model, model_fit, response_var, is_elisa)` returning `list(formal_lloq, formal_uloq, backcalc_summary, backcalc_display_df)`.
+- [x] **M1.3 Extract `lloq-uloq` chunk.** *(landed: `determine_lloq_uloq()` returns `list(backcalc_results, backcalc_summary, formal_lloq, formal_uloq, passing_concs)`; the chunk handles localisation + rendering.)* Function: `determine_lloq_uloq(standards_for_model, model_fit, response_var, is_elisa)` returning `list(formal_lloq, formal_uloq, backcalc_summary, backcalc_display_df)`.
 
-- [ ] **M1.4 Extract `standard-backcalculation` chunk.** Function: `compute_standard_recovery(data_long, model_fit, response_var, is_elisa)` returning the recovery summary data frame.
+- [x] **M1.4 Extract `standard-backcalculation` chunk.** *(landed: `compute_standard_recovery()` returns `list(standards_backcalc, recovery_summary)`; the chunk handles formatting + render_table.)* Function: `compute_standard_recovery(data_long, model_fit, response_var, is_elisa)` returning the recovery summary data frame.
 
 - [x] **M1.5 Extract `plate-positional-qc` chunk.** Function: `assess_plate_positional(data_long)` returning the row stats, column stats, and flag lists. *(landed: `reports/analysis_pipeline.R`; covered by `tests/testthat/test-analysis-pipeline.R`)*
 
@@ -623,6 +623,18 @@ diff_golden_artifacts <- function(before, after, tol = 1e-9) {
 ```
 
 **Status:** Add when M1.1–M1.4 are scheduled; not needed before then.
+
+---
+
+### F0a. Multi-plate runs drop sidecars for non-primary plates
+
+**Scope:** Investigate why a multi-plate run (the multi-wavelength template used as a multi-plate analyser, with `wavelength_manifest.json = ["Plate 1", "Plate 2", "Plate 3"]`) saves `model_stats.json` and `unknown_results*.csv` only under `Plate 1/`. `Plate 2/` and `Plate 3/` end up with the configs but no fit results and no per-replicate quantification CSVs.
+
+**Observed:** zip baseline `2026-04-30_03.zip` (cortisol ELISA, 3 plates). Plate 1 has the full sidecar set; Plates 2/3 only have `analysis_config.json`, `assay_config.json`, `long_data_output.csv`, `notes.json`, `qc_params.json`, `sample_processing_config.json`.
+
+**Likely cause:** the per-plate render call inside `multiwavelength_analysis_template.Rmd` either runs the per-plate save step only for the primary plate, or the secondary-plate fits fail silently and skip the artifact write. Needs reproduction + a look at whether `save_analysis_artifacts()` runs per plate or only once.
+
+**Status:** Triage after M1.1–M1.4 ship. Probably small. Not a v1.0 ship-blocker but the multi-plate workflow is misleading without the per-plate sidecars.
 
 ---
 
