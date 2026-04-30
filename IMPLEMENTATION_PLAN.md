@@ -626,6 +626,18 @@ diff_golden_artifacts <- function(before, after, tol = 1e-9) {
 
 ---
 
+### F0a. Multi-plate runs drop sidecars for non-primary plates
+
+**Scope:** Investigate why a multi-plate run (the multi-wavelength template used as a multi-plate analyser, with `wavelength_manifest.json = ["Plate 1", "Plate 2", "Plate 3"]`) saves `model_stats.json` and `unknown_results*.csv` only under `Plate 1/`. `Plate 2/` and `Plate 3/` end up with the configs but no fit results and no per-replicate quantification CSVs.
+
+**Observed:** zip baseline `2026-04-30_03.zip` (cortisol ELISA, 3 plates). Plate 1 has the full sidecar set; Plates 2/3 only have `analysis_config.json`, `assay_config.json`, `long_data_output.csv`, `notes.json`, `qc_params.json`, `sample_processing_config.json`.
+
+**Likely cause:** the per-plate render call inside `multiwavelength_analysis_template.Rmd` either runs the per-plate save step only for the primary plate, or the secondary-plate fits fail silently and skip the artifact write. Needs reproduction + a look at whether `save_analysis_artifacts()` runs per plate or only once.
+
+**Status:** Triage after M1.1–M1.4 ship. Probably small. Not a v1.0 ship-blocker but the multi-plate workflow is misleading without the per-plate sidecars.
+
+---
+
 ### F1. Automatic CurveID detection for parallelism studies
 
 **Scope:** Tab 1 toggle "this plate contains multiple standard curves" that maps the replicate column to `CurveID` and triggers the parallelism assessment. Currently `assess_parallelism()` only fires when a `CurveID` column exists in the long-format data, which it never does in the current UI workflow.
