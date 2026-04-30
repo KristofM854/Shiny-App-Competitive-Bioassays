@@ -349,6 +349,37 @@ server_common <- function(input, output, session, shared) {
                tr("report_formats_pdf_note", lang))
   })
 
+  # #4: small help text under the language checkbox group
+  output$report_languages_help_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    tags$small(class = "text-muted",
+               style = "display: block; margin-top: -4px; margin-bottom: 8px;",
+               tr("report_languages_help", lang))
+  })
+
+  # #3: compact-vs-detailed explainer block, sits above the Generate button
+  output$report_variants_explainer_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    div(
+      style = paste0(
+        "background: #f5f7fa; border-left: 4px solid #1f77b4; ",
+        "padding: 10px 14px; margin: 8px 0; border-radius: 4px; ",
+        "font-size: 13px; line-height: 1.5;"
+      ),
+      tags$div(
+        style = "font-weight: 600; margin-bottom: 6px;",
+        tr("report_variants_explainer_title", lang)
+      ),
+      tags$div(
+        style = "margin-bottom: 4px;",
+        HTML(tr("report_variants_explainer_compact", lang))
+      ),
+      tags$div(
+        HTML(tr("report_variants_explainer_full", lang))
+      )
+    )
+  })
+
   output$notes_feedback_heading_ui <- renderUI({
     lang <- input$app_language %||% "en"
     h4(tr("notes_feedback_heading", lang))
@@ -569,7 +600,9 @@ server_common <- function(input, output, session, shared) {
 
   observeEvent(input$app_language, {
     lang <- input$app_language
-    updateSelectInput(session, "report_language", selected = lang)
+    # #4: report_languages (checkboxGroupInput) is now an independent selection
+    # — the UI language doesn't force which language(s) get rendered, the user
+    # ticks them explicitly.
     updateActionButton(session, "start_tour", label = tr("start_tour", lang))
     updateActionButton(session, "convert",
                        label = tagList(icon("file-arrow-down"), " ",
@@ -663,7 +696,11 @@ server_common <- function(input, output, session, shared) {
                              selected = input$export_formats %||% "html")
     updateCheckboxInput(session, "generate_compact",
                         label = tr("generate_compact_label", lang))
-    updateSelectInput(session, "report_language", label = tr("report_language", lang))
+    updateCheckboxGroupInput(session, "report_languages",
+                             label = tr("report_languages_label", lang),
+                             choices = c("English" = "en", "Español" = "es"),
+                             selected = input$report_languages %||% "en",
+                             inline = TRUE)
     updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
                        placeholder = tr("notes_report_placeholder", lang))
     updateCheckboxGroupInput(session, "regression_weight",

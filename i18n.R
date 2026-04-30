@@ -175,9 +175,14 @@ get_translations <- function() {
       notes_full_label = "Notes (optional) - will appear in the report:",
       notes_report_placeholder = "Observations, sample info, run notes...",
       download_last_report = "Download Last Report",
-      download_last_report_compact = "\U0001F4C4 Compact report (recommended)",
-      download_last_report_full = "\U0001F4CB Detailed report (full audit)",
+      download_last_report_compact = "\U0001F4C4 Compact report",
+      download_last_report_full = "\U0001F4CB Detailed report",
       generate_compact_label = "Generate compact report",
+      report_variants_explainer_title = "Two report flavours per run",
+      report_variants_explainer_compact = "<strong>\U0001F4C4 Compact</strong> — quick 3–5 page summary: executive summary, QC traffic light, dose-response curve, model parameters, and sample results.",
+      report_variants_explainer_full = "<strong>\U0001F4CB Detailed</strong> — full audit version: everything in the compact report plus exclusion log, weighting comparison, model-stability assessment, back-calculation table, heteroscedasticity diagnostic, plate positional QC, and (for ELISA + tissue) the worked tissue-normalisation example.",
+      report_languages_label = "Report language(s):",
+      report_languages_help = "Tick one or both. Each variant will be rendered in every language ticked.",
 
       # Pre-flight check panel (Tab 5 preflight_checks renderUI)
       pf_plate_ok = "Plate data uploaded",
@@ -698,9 +703,14 @@ get_translations <- function() {
       notes_full_label = "Notas (opcional) - aparecer\u00E1n en el reporte:",
       notes_report_placeholder = "Observaciones, informaci\u00F3n de muestras, notas de corrida...",
       download_last_report = "Descargar \u00DAltimo Reporte",
-      download_last_report_compact = "\U0001F4C4 Reporte compacto (recomendado)",
-      download_last_report_full = "\U0001F4CB Reporte detallado (auditor\u00EDa completa)",
+      download_last_report_compact = "\U0001F4C4 Reporte compacto",
+      download_last_report_full = "\U0001F4CB Reporte detallado",
       generate_compact_label = "Generar reporte compacto",
+      report_variants_explainer_title = "Dos versiones del reporte por an\u00E1lisis",
+      report_variants_explainer_compact = "<strong>\U0001F4C4 Compacto</strong> \u2014 resumen breve de 3 a 5 p\u00E1ginas: resumen ejecutivo, sem\u00E1foro de QC, curva dosis-respuesta, par\u00E1metros del modelo y resultados por muestra.",
+      report_variants_explainer_full = "<strong>\U0001F4CB Detallado</strong> \u2014 versi\u00F3n completa para auditor\u00EDa: todo lo del reporte compacto m\u00E1s el registro de exclusiones, comparaci\u00F3n de ponderaciones, evaluaci\u00F3n de la estabilidad del modelo, tabla de retro-c\u00E1lculo, diagn\u00F3stico de heterocedasticidad, QC de posici\u00F3n en la placa y (para ELISA + tejido) el ejemplo trabajado de normalizaci\u00F3n por masa de tejido.",
+      report_languages_label = "Idioma(s) del reporte:",
+      report_languages_help = "Marca uno o ambos. Cada variante se generar\u00E1 en cada idioma marcado.",
 
       # Panel de verificación previa (Tab 5)
       pf_plate_ok = "Datos de placa cargados",

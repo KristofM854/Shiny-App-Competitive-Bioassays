@@ -81,24 +81,39 @@ server_upload <- function(input, output, session, shared) {
   # Download Report Handler
   # --------------------------------------------------------------------------
 
-  # H4: generic handler that returns either the compact or the full report
-  # filename / content based on the `prefer` argument.
+  # H4 + #4: generic handler that returns the requested report variant in
+  # the user's currently-selected app language when available, else any
+  # other language for that variant, else any report in the chosen format.
+  # File names produced by render_reports() are
+  #   <base>-<variant>-<lang>.<ext>
   pick_report_file <- function(prefer = "compact") {
     out_dir <- session$userData$output_dir
-    fmt <- input$export_formats[1] %||% "html"
-    ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
-    compact_files <- list.files(out_dir,
-                                pattern = paste0("-compact\\.", ext, "$"),
-                                full.names = TRUE)
-    full_files    <- list.files(out_dir,
-                                pattern = paste0("-full\\.", ext, "$"),
-                                full.names = TRUE)
-    if (prefer == "compact" && length(compact_files) > 0) {
-      return(compact_files[which.max(file.info(compact_files)$mtime)])
+    fmt     <- input$export_formats[1] %||% "html"
+    ext     <- switch(fmt, docx = "docx", pdf = "pdf", "html")
+    pref_lang <- input$app_language %||% "en"
+    other_lang <- if (pref_lang == "en") "es" else "en"
+
+    pick_by <- function(variant, lang_code) {
+      pat <- paste0("-", variant, "-", lang_code, "\\.", ext, "$")
+      hits <- list.files(out_dir, pattern = pat, full.names = TRUE)
+      if (length(hits) == 0) return(NULL)
+      hits[which.max(file.info(hits)$mtime)]
     }
-    if (length(full_files) > 0) {
-      return(full_files[which.max(file.info(full_files)$mtime)])
+
+    # Strict match on the requested variant first (compact or full), then
+    # fall back to the other variant if nothing of the requested variant
+    # exists yet (e.g. user unticked "Generate compact report" but clicked
+    # the compact download).
+    primary <- if (prefer == "compact") "compact" else "full"
+    fallback_variant <- if (primary == "compact") "full" else "compact"
+
+    for (variant in c(primary, fallback_variant)) {
+      for (lang_code in c(pref_lang, other_lang)) {
+        hit <- pick_by(variant, lang_code)
+        if (!is.null(hit)) return(hit)
+      }
     }
+
     # Backstop: any report in the selected format.
     other <- list.files(out_dir, pattern = paste0("\\.", ext, "$"),
                         full.names = TRUE)
@@ -112,7 +127,8 @@ server_upload <- function(input, output, session, shared) {
     filename = function() {
       fmt <- input$export_formats[1] %||% "html"
       ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
-      paste0("bioassay_report_compact_",
+      lang_tag <- input$app_language %||% "en"
+      paste0("bioassay_report_compact_", lang_tag, "_",
              format(Sys.Date(), "%Y%m%d"), ".", ext)
     },
     content = function(file) {
@@ -131,7 +147,8 @@ server_upload <- function(input, output, session, shared) {
     filename = function() {
       fmt <- input$export_formats[1] %||% "html"
       ext <- switch(fmt, docx = "docx", pdf = "pdf", "html")
-      paste0("bioassay_report_detailed_",
+      lang_tag <- input$app_language %||% "en"
+      paste0("bioassay_report_detailed_", lang_tag, "_",
              format(Sys.Date(), "%Y%m%d"), ".", ext)
     },
     content = function(file) {
@@ -285,7 +302,16 @@ server_upload <- function(input, output, session, shared) {
         cells <- lapply(1:n_preview_cols, function(cc) {
           val <- if (cc <= ncol(mat)) as.character(mat[r, cc]) else ""
           if (is.na(val)) val <- ""
-          tags$td(style = paste0("padding:2px 6px; font-size:11px; border:1px solid #ddd; background:", bg),
+          # #2 visual-plate-selector compactness: fixed narrow column width
+          # so long header text (e.g. "Raw Data (Abs Spectrum); 405 nm") wraps
+          # inside its cell rather than ballooning the whole column. Combined
+          # with table-layout: fixed on the parent table so widths are honoured.
+          tags$td(style = paste0(
+                    "padding:2px 6px; font-size:11px; border:1px solid #ddd;",
+                    " width:70px; min-width:70px; max-width:70px;",
+                    " word-break:break-word; overflow-wrap:break-word;",
+                    " white-space:normal; vertical-align:top;",
+                    " background:", bg),
                   val)
         })
         tags$tr(cells)
@@ -294,7 +320,7 @@ server_upload <- function(input, output, session, shared) {
       rv_file_preview$preview_cache <- tags$div(
         style = "max-height: 300px; overflow: auto; border: 1px solid #ccc; margin: 10px 0; border-radius: 4px;",
         tags$table(
-          style = "border-collapse: collapse; width: 100%;",
+          style = "border-collapse: collapse; table-layout: fixed; width: auto;",
           preview_rows
         )
       )
@@ -674,7 +700,7 @@ server_upload <- function(input, output, session, shared) {
 
   output$meas_preview <- renderTable({
     req(shared$matrix_measresults())
-    head(shared$matrix_measresults(), 3)
+    shared$matrix_measresults()
   })
 
   # --------------------------------------------------------------------------
