@@ -846,6 +846,10 @@ server <- function(input, output, session) {
   session$userData$csv_path <- Sys.getenv("RBA_CSV_PATH")
   session$userData$fmt_json <- Sys.getenv("RBA_FMT_JSON")
   session$userData$notes_file <- Sys.getenv("RBA_NOTES_FILE")
+  # Task 1: session_root is the per-launch container; every Generate Report
+  # click creates a fresh run_HHMMSS subfolder under it (see server_report.R)
+  # so a second report doesn't overwrite the first.
+  session$userData$session_root <- session$userData$output_dir
 
 
   # --------------------------------------------------------------------------
