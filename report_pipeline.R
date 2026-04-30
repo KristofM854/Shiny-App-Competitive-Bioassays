@@ -224,8 +224,13 @@ save_analysis_artifacts <- function(df_normalized, config, session) {
                     file.path(config$output_dir, "sample_processing_config.json"))
   }
 
-  # ---- Report language ----
-  write_json_safe(list(lang = config$report_language),
+  # ---- Report language(s) ----
+  # #4: config$report_languages is a vector of every language the user ticked.
+  # The sidecar JSON keeps the historical `lang` scalar (first ticked language)
+  # for back-compat with run_analysis_modular.R, plus a `langs` vector field.
+  langs_for_sidecar <- config$report_languages %||% config$report_language %||% "en"
+  write_json_safe(list(lang  = langs_for_sidecar[[1]],
+                       langs = as.list(langs_for_sidecar)),
                   file.path(config$output_dir, "report_language.json"))
 
   showNotification(paste("Data saved to:", config$csv_path),
@@ -336,88 +341,107 @@ render_reports <- function(params, session) {
   # multiwavelength_analysis_template.Rmd doesn't declare a `compact` param
   # and has no compact-mode logic, so for multi-wavelength data we always
   # render a single "full" variant and never pass `compact` through.
+  #
+  # #4: report_langs is a vector of language codes the user ticked. We loop
+  # over it so each variant × format is rendered in every requested language;
+  # output filenames carry a -<lang> suffix so the HTML/DOCX files can sit
+  # side-by-side in the same output_dir. The H4 cache lives in output_dir
+  # and is language-agnostic, so multi-language renders share one compute
+  # pass.
   want_compact <- isTRUE(params$generate_compact) && !is_mw
   variants <- if (want_compact) c("compact", "full") else "full"
+  langs <- params$report_langs %||% params$report_lang %||% "en"
 
   for (fmt in params$selected_formats) {
     for (variant in variants) {
-      is_compact_variant <- identical(variant, "compact")
-      showNotification(sprintf("Rendering %s %s report...",
-                               toupper(fmt),
-                               if (is_compact_variant) "compact" else "detailed"),
-                       type = "message", duration = 3)
+      for (lang_code in langs) {
+        is_compact_variant <- identical(variant, "compact")
+        showNotification(sprintf("Rendering %s %s report (%s)...",
+                                 toupper(fmt),
+                                 if (is_compact_variant) "compact" else "detailed",
+                                 toupper(lang_code)),
+                         type = "message", duration = 3)
 
-      render_ok <- tryCatch({
-        render_params <- list(output_dir = out_dir_abs,
-                              lang = params$report_lang)
-        if (!is_mw) render_params$compact <- is_compact_variant
-        if (is_mw) render_params$wavelengths <- params$wavelengths
+        render_ok <- tryCatch({
+          render_params <- list(output_dir = out_dir_abs,
+                                lang = lang_code)
+          if (!is_mw) render_params$compact <- is_compact_variant
+          if (is_mw) render_params$wavelengths <- params$wavelengths
 
-        base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
-        out_name <- paste0(base_out, "-", variant)
+          base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
+          out_name <- paste0(base_out, "-", variant, "-", lang_code)
 
-        out_file <- rmarkdown::render(
-          input = report_template,
-          output_format = formats_map[[fmt]],
-          output_file = out_name,
-          output_dir = out_dir_abs,
-          params = render_params,
-          knit_root_dir = dirname(report_template),
-          envir = new.env(parent = globalenv())
-        )
-        output_paths[[paste(fmt, variant, sep = "-")]] <- out_file
-        TRUE
-      }, error = function(e) {
-        showNotification(
-          sprintf("Report rendering failed (%s %s): %s",
-                  toupper(fmt), variant, e$message),
-          type = "error", duration = 10
-        )
-        message(sprintf("Report render error (%s %s): %s",
-                        fmt, variant, e$message))
-        FALSE
-      })
+          out_file <- rmarkdown::render(
+            input = report_template,
+            output_format = formats_map[[fmt]],
+            output_file = out_name,
+            output_dir = out_dir_abs,
+            params = render_params,
+            knit_root_dir = dirname(report_template),
+            envir = new.env(parent = globalenv())
+          )
+          output_paths[[paste(fmt, variant, lang_code, sep = "-")]] <- out_file
+          TRUE
+        }, error = function(e) {
+          showNotification(
+            sprintf("Report rendering failed (%s %s %s): %s",
+                    toupper(fmt), variant, lang_code, e$message),
+            type = "error", duration = 10
+          )
+          message(sprintf("Report render error (%s %s %s): %s",
+                          fmt, variant, lang_code, e$message))
+          FALSE
+        })
 
-      # --- Graceful PDF-to-HTML fallback on render failure ---
-      if (!render_ok && fmt == "pdf" &&
-          !(paste("html", variant, sep = "-") %in% names(output_paths))) {
-      showNotification(
-        "PDF compilation failed. Generating HTML report as fallback...",
-        type = "warning", duration = 8
-      )
-      html_ok <- tryCatch({
-        render_params <- list(output_dir = out_dir_abs, lang = params$report_lang)
-        if (is_mw) render_params$wavelengths <- params$wavelengths
-        out_name <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
-        out_file <- rmarkdown::render(
-          input = report_template,
-          output_format = formats_map[["html"]],
-          output_file = out_name,
-          output_dir = out_dir_abs,
-          params = render_params,
-          knit_root_dir = dirname(report_template),
-          envir = new.env(parent = globalenv())
-        )
-        output_paths[[paste("html", variant, sep = "-")]] <- out_file
-        TRUE
-      }, error = function(e2) {
-        showNotification(
-          sprintf("HTML fallback also failed: %s", e2$message),
-          type = "error", duration = 10
-        )
-        FALSE
-      })
-      if (html_ok) {
-        showNotification("HTML report created as PDF fallback.",
-                         type = "message", duration = 5)
-      }
-    }
+        # --- Graceful PDF-to-HTML fallback on render failure ---
+        # #4: keyed by (variant, lang_code) so each language gets its own
+        # fallback attempt rather than one accidentally shadowing the other.
+        fallback_key <- paste("html", variant, lang_code, sep = "-")
+        if (!render_ok && fmt == "pdf" &&
+            !(fallback_key %in% names(output_paths))) {
+          showNotification(
+            sprintf("PDF compilation failed (%s). Generating HTML report as fallback...",
+                    toupper(lang_code)),
+            type = "warning", duration = 8
+          )
+          html_ok <- tryCatch({
+            render_params <- list(output_dir = out_dir_abs, lang = lang_code)
+            if (!is_mw) render_params$compact <- is_compact_variant
+            if (is_mw) render_params$wavelengths <- params$wavelengths
+            base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
+            out_name <- paste0(base_out, "-", variant, "-", lang_code)
+            out_file <- rmarkdown::render(
+              input = report_template,
+              output_format = formats_map[["html"]],
+              output_file = out_name,
+              output_dir = out_dir_abs,
+              params = render_params,
+              knit_root_dir = dirname(report_template),
+              envir = new.env(parent = globalenv())
+            )
+            output_paths[[fallback_key]] <- out_file
+            TRUE
+          }, error = function(e2) {
+            showNotification(
+              sprintf("HTML fallback also failed (%s): %s",
+                      toupper(lang_code), e2$message),
+              type = "error", duration = 10
+            )
+            FALSE
+          })
+          if (html_ok) {
+            showNotification(sprintf("HTML report created as PDF fallback (%s).",
+                                     toupper(lang_code)),
+                             type = "message", duration = 5)
+          }
+        }
 
-      if (render_ok) {
-        showNotification(sprintf("%s %s report created!",
-                                 toupper(fmt), variant),
-                         type = "message", duration = 5)
-      }
+        if (render_ok) {
+          showNotification(sprintf("%s %s %s report created!",
+                                   toupper(fmt), variant, toupper(lang_code)),
+                           type = "message", duration = 5)
+        }
+      }  # end for (lang_code in langs)
     }  # end for (variant in variants)
   }  # end for (fmt in params$selected_formats)
 

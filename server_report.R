@@ -397,19 +397,23 @@ server_report <- function(input, output, session, shared, config_reactives) {
           normality_assumption = input$normality_assumption %||% "assume",
           cv_limit = input$cv_limit %||% 30
         ),
-        report_language = input$report_language %||% "en",
-        tissue_weights  = if (assay == "elisa") shared$tissue_weights_rv() else NULL
+        # #4: report_languages is a vector of "en" / "es" the user ticked. If
+        # they unticked both we fall back to "en" so a render still happens.
+        report_languages = if (length(input$report_languages) > 0)
+                             input$report_languages else "en",
+        tissue_weights   = if (assay == "elisa") shared$tissue_weights_rv() else NULL
       )
 
       save_analysis_artifacts(df_normalized, artifact_config, session)
       incProgress(0.7, detail = "Rendering report (this may take a minute)...")
 
       # Stage 5: Render reports (H4: compact + detailed when the user leaves
-      # generate_compact checked)
+      # generate_compact checked; #4: across each ticked language).
       render_reports(
         params = list(
           output_dir         = session$userData$output_dir,
-          report_lang        = input$report_language %||% "en",
+          report_langs       = if (length(input$report_languages) > 0)
+                                 input$report_languages else "en",
           is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
           wavelengths        = shared$rv$wavelengths,
           selected_formats   = input$export_formats,
