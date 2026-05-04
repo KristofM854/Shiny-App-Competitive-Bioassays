@@ -288,83 +288,69 @@ $(function() {
         )
       ),
 
+      # GUI refresh v2 §3.2 — Assay & Standards section. Single bs-card
+      # holding two bs-section-row blocks. Each row has a left
+      # label-col (heading + 1-line description) and a right input-col
+      # (the controls). Replaces the previous half-fluidRow blue
+      # wellPanel layout. All input IDs preserved.
       introBox(
         div(
           id = "step0_section",
-          column(12, uiOutput("step0_header")),
+          class = "bs-card",
 
-          fluidRow(
-            column(
-              width = 6,
-
-              # GUI refresh §3.2: drop the blue tinted wellPanel background;
-              # rely on the bs-card surface + hairline only.
-              div(
-                class = "bs-card",
-                style = "padding: 16px 18px; margin-bottom: 16px;",
-                uiOutput("select_assay_type_heading_ui"),
-                selectInput(
-                  "assay_type",
-                  "Type of assay:",
-                  choices = c(
-                    "Receptor Binding Assay (RBA)" = "rba",
-                    "ELISA (Enzyme-Linked Immunosorbent Assay)" = "elisa"
-                  ),
-                  selected = "rba"
+          # ---- Row 1: Assay type ----
+          div(
+            class = "bs-section-row",
+            div(
+              class = "label-col",
+              h4("Assay type"),
+              p("Receptor binding or competitive ELISA \u2014 determines which curve model and toxin standards apply.")
+            ),
+            div(
+              class = "input-col",
+              selectInput(
+                "assay_type", NULL,
+                choices = c(
+                  "Receptor Binding Assay (RBA)"              = "rba",
+                  "ELISA (Enzyme-Linked Immunosorbent Assay)" = "elisa"
                 ),
-                uiOutput("assay_description")
+                selected = "rba"
               ),
-
-              # Conditional: RBA-specific inputs
+              uiOutput("assay_description"),
               conditionalPanel(
                 condition = "input.assay_type == 'rba'",
-
                 selectInput(
-                  "toxin_class",
-                  "Toxin standard used:",
+                  "toxin_class", "Toxin standard used:",
                   choices = c("Saxitoxin", "Brevetoxin", "Ciguatoxin", "Custom"),
                   selected = "Saxitoxin"
                 ),
-
                 uiOutput("toxin_variant_ui"),
-
                 conditionalPanel(
                   condition = "input.toxin_class == 'Custom'",
                   textInput("toxin_custom_name", "Custom standard name:",
                            placeholder = "e.g., GTX2/3 mix")
                 ),
-
-                div(
-                  style = "max-width: 420px;",
-                  uiOutput("mw_box_ui")
-                )
+                uiOutput("mw_box_ui")
               ),
-
-              # Conditional: ELISA-specific inputs
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
-
                 selectInput(
-                  "elisa_analyte",
-                  "Analyte:",
+                  "elisa_analyte", "Analyte:",
                   choices = c(
-                    "Cortisol" = "cortisol",
+                    "Cortisol"     = "cortisol",
                     "Testosterone" = "testosterone",
-                    "Estradiol" = "estradiol",
-                    "Custom" = "custom"
+                    "Estradiol"    = "estradiol",
+                    "Custom"       = "custom"
                   ),
                   selected = "cortisol"
                 ),
-
                 conditionalPanel(
                   condition = "input.elisa_analyte == 'custom'",
                   textInput("elisa_custom_name", "Custom analyte name:",
                            placeholder = "e.g., Estradiol")
                 ),
-
                 selectInput(
-                  "elisa_units",
-                  "Standard concentration units:",
+                  "elisa_units", "Standard concentration units:",
                   choices = c(
                     "pg/mL" = "pg/mL",
                     "ng/mL" = "ng/ml",
@@ -372,25 +358,29 @@ $(function() {
                   ),
                   selected = "pg/mL"
                 )
-              ),
+              )
+            )
+          ),
 
-              # Standard concentrations (shown for both assay types)
-              hr(),
-              uiOutput("std_concentrations_heading_ui"),
-
-              uiOutput("concentration_unit_guidance"),
-
+          # ---- Row 2: Standard concentrations ----
+          div(
+            class = "bs-section-row",
+            div(
+              class = "label-col",
+              h4("Standard concentrations"),
+              p("Specify the number of standards, then enter each concentration in mol/L using scientific notation (e.g. 1e-6, 3e-8)."),
+              uiOutput("concentration_unit_guidance")
+            ),
+            div(
+              class = "input-col",
               selectInput("num_standards", "Number of standards:",
                          choices = 0:12, selected = 8),
-
               div(
-                style = "display:flex; flex-wrap: wrap; gap: 10px;",
+                class = "bs-std-grid",
                 uiOutput("std_inputs")
               ),
-
               uiOutput("std_error_feedback")
-            ),
-            column(width = 6)
+            )
           )
         ),
         data.step = 0,
@@ -466,104 +456,141 @@ $(function() {
         ),
         br(),
 
-        # GUI refresh §4: layer switcher. The four matrices stay in the
-        # data model; only one renders at a time, driven by
-        # input.active_layer. The matrix_*_section divs themselves are
-        # unchanged so their existing reactives, observers, and shared$
-        # state continue to work — switching layers is purely visibility.
+        # GUI refresh v2 §4 — Plate Layout layer switcher (verbatim
+        # from spec). Two-pane shell: bs-layer-switcher on the left
+        # (240 px) holding a radioButtons() group whose choiceNames
+        # carry data-step spans (the CSS reads them via
+        # selectors targeting span[data-step]) plus an adaptive
+        # bs-layer-bulk panel that shows the right control set per
+        # active layer. bs-matrix-viewport on the right holds the
+        # four conditionalPanel-wrapped matrix divs.
+        # All matrix_*_section IDs preserved; reactives untouched.
         div(
-          id = "layer_switcher_section",
-          radioButtons("active_layer", NULL,
-                       choices = c("Sample Type" = "type",
-                                   "Sample ID"   = "id",
-                                   "Dilution"    = "dilution",
-                                   "Replicates"  = "rep"),
-                       selected = "type",
-                       inline = TRUE)
-        ),
+          class = "bs-layout-shell",
 
-        div(
-          id = "matrix_viewport",
-          class = "bs-card",
-          style = "padding: 16px 18px;",
-
-          # Sample Type layer
-          conditionalPanel(
-            condition = "input.active_layer == 'type'",
-            div(
-              id = "matrix_type_section", role = "grid",
-              `aria-label` = "Sample type matrix: 8 rows by 12 columns",
-              uiOutput("sample_type_heading_ui"),
-              actionButton("reset_type", "Reset", class = "btn btn-xs"),
-              conditionalPanel(
-                condition = "input.assay_type == 'elisa'",
-                uiOutput("elisa_controls_banner_ui")
+          # ---- Left pane: layer switcher + bulk action ----
+          div(
+            class = "bs-layer-switcher",
+            h5("Layers"),
+            radioButtons(
+              "active_layer", NULL,
+              choiceNames = list(
+                tagList(span(`data-step` = "01"), span("Sample Type")),
+                tagList(span(`data-step` = "02"), span("Sample ID")),
+                tagList(span(`data-step` = "03"), span("Dilution")),
+                tagList(span(`data-step` = "04"), span("Replicates"))
               ),
-              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"),
-                                           type = 6, color = "#1f3a5f")
-            )
-          ),
-
-          # Sample ID layer
-          conditionalPanel(
-            condition = "input.active_layer == 'id'",
+              choiceValues = c("type", "id", "dilution", "rep"),
+              selected = "type"
+            ),
             div(
-              id = "matrix_id_section", role = "grid",
-              `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
-              uiOutput("sample_id_heading_ui"),
-              actionButton("reset_id", "Reset", class = "btn btn-xs"),
-              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"),
-                                           type = 6, color = "#1f3a5f")
-            )
-          ),
-
-          # Dilution layer
-          conditionalPanel(
-            condition = "input.active_layer == 'dilution'",
-            div(
-              id = "matrix_dilution_section", role = "grid",
-              `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
-              class = "matrix-bottom-cell",
-              uiOutput("dilution_matrix_header"),
-              div(
-                style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;",
-                div(
-                  style = "display: flex; align-items: center; gap: 6px;",
-                  uiOutput("dilution_set_all_label", inline = TRUE),
-                  tags$input(type = "number", id = "uniform_dilution", value = "1",
-                             min = "0", step = "0.1", class = "form-control",
-                             style = "width: 70px; height: 30px; padding: 2px 6px;")
-                ),
-                actionButton("apply_uniform_dilution", "Apply",
-                             class = "btn btn-sm btn-info",
-                             style = "height: 30px; padding: 2px 12px;"),
-                checkboxInput("advanced_dilution", "Per-well", value = TRUE)
+              class = "bs-layer-bulk",
+              h6("Bulk action"),
+              conditionalPanel(
+                "input.active_layer == 'type'",
+                selectInput("bulk_type", NULL,
+                            choices = c("Standard", "Sample", "Blank", "NSB", "B0")),
+                actionButton("apply_uniform_type", "Set all wells",
+                             class = "btn-default btn-block")
               ),
               conditionalPanel(
-                condition = "input.advanced_dilution == true",
-                div(`aria-live` = "polite", uiOutput("dilution_error_feedback")),
-                div(`aria-live` = "polite", uiOutput("dilution_gt1_warning")),
-                actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
-                div(class = "matrix-table-anchor",
-                    shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"),
-                                                 type = 6, color = "#1f3a5f")),
-                uiOutput("dilution_matrix_help")
+                "input.active_layer == 'id'",
+                textInput("bulk_id_prefix", NULL, placeholder = "S"),
+                actionButton("apply_uniform_id", "Set all wells",
+                             class = "btn-default btn-block")
+              ),
+              conditionalPanel(
+                "input.active_layer == 'dilution'",
+                # Existing apply_uniform_dilution observer wired in
+                # server_layout.R; numericInput keeps its widget ID.
+                numericInput("uniform_dilution", NULL,
+                             value = 1, min = 0, max = 1, step = 0.01),
+                actionButton("apply_uniform_dilution", "Set all wells",
+                             class = "btn-default btn-block")
+              ),
+              conditionalPanel(
+                "input.active_layer == 'rep'",
+                textInput("bulk_rep_group", NULL, placeholder = "A"),
+                actionButton("apply_uniform_rep", "Set all wells",
+                             class = "btn-default btn-block")
               )
             )
           ),
 
-          # Replicates layer
-          conditionalPanel(
-            condition = "input.active_layer == 'rep'",
-            div(
-              id = "matrix_replicate_section", role = "grid",
-              `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
-              class = "matrix-bottom-cell",
-              uiOutput("replicate_heading_ui"),
-              actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
-              div(class = "matrix-table-anchor",
-                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"),
-                                               type = 6, color = "#1f3a5f"))
+          # ---- Right pane: active matrix viewport ----
+          div(
+            class = "bs-matrix-viewport",
+            conditionalPanel(
+              "input.active_layer == 'type'",
+              div(
+                id = "matrix_type_section", role = "grid",
+                `aria-label` = "Sample type matrix: 8 rows by 12 columns",
+                h4("Sample type"),
+                conditionalPanel(
+                  condition = "input.assay_type == 'elisa'",
+                  uiOutput("elisa_controls_banner_ui")
+                ),
+                shinycssloaders::withSpinner(
+                  rHandsontableOutput("matrix_type"),
+                  type = 6, color = "#1f3a5f"),
+                div(
+                  class = "bs-legend",
+                  span(class = "chip", span(class = "dot",
+                                             style = "background:rgba(0,158,115,0.4)"),
+                       "Standard"),
+                  span(class = "chip", span(class = "dot",
+                                             style = "background:rgba(0,114,178,0.4)"),
+                       "Sample"),
+                  span(class = "chip", span(class = "dot",
+                                             style = "background:#f1f3f5"),
+                       "Blank"),
+                  span(class = "chip", span(class = "dot",
+                                             style = "background:rgba(204,121,167,0.4)"),
+                       "NSB"),
+                  span(class = "chip", span(class = "dot",
+                                             style = "background:rgba(230,159,0,0.4)"),
+                       "B0")
+                )
+              )
+            ),
+            conditionalPanel(
+              "input.active_layer == 'id'",
+              div(
+                id = "matrix_id_section", role = "grid",
+                `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
+                h4("Sample ID"),
+                shinycssloaders::withSpinner(
+                  rHandsontableOutput("matrix_id"),
+                  type = 6, color = "#1f3a5f")
+              )
+            ),
+            conditionalPanel(
+              "input.active_layer == 'dilution'",
+              div(
+                id = "matrix_dilution_section", role = "grid",
+                `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
+                h4("Dilution"),
+                # Existing per-well controls preserved
+                div(`aria-live` = "polite", uiOutput("dilution_error_feedback")),
+                div(`aria-live` = "polite", uiOutput("dilution_gt1_warning")),
+                actionButton("reset_dilution", "Reset", class = "btn-default btn-xs"),
+                shinycssloaders::withSpinner(
+                  rHandsontableOutput("matrix_dilution"),
+                  type = 6, color = "#1f3a5f"),
+                div(class = "bs-pill is-info", style = "margin-top: 10px;",
+                    "Enter the fraction of original sample strength remaining (1 = undiluted).")
+              )
+            ),
+            conditionalPanel(
+              "input.active_layer == 'rep'",
+              div(
+                id = "matrix_replicate_section", role = "grid",
+                `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
+                h4("Replicates"),
+                shinycssloaders::withSpinner(
+                  rHandsontableOutput("matrix_replicate"),
+                  type = 6, color = "#1f3a5f")
+              )
             )
           )
         ),
@@ -634,81 +661,96 @@ $(function() {
       value = "tab_upload",
       br(),
 
-      div(
-        id = "upload_section",
-        uiOutput("step2_header"),
-        div(
-          style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
-          actionButton("back_to_layout_top", "\u2190 Back: Plate Layout",
-                      class = "btn btn-default btn-lg"),
-          actionButton("next_to_analysis_top", "Next: Analysis Settings \u2192",
-                      class = "btn btn-primary btn-lg")
-        ),
-
-        div(
-          id = "upload_controls",
-          radioButtons("import_method", "Import method:",
-                      choices = c("Classic Import" = "classic",
-                                  "Visual Plate Selector" = "visual"),
-                      selected = "classic", inline = TRUE),
-
+      fluidRow(
+        # ---- LEFT (8 cols): file picker + preview + heatmap ----
+        column(
+          width = 8,
           div(
-            style = "display:flex; gap:10px;",
-            uiOutput("upload_counts_ui"),
-            uiOutput("clear_upload_ui")
-          ),
-          uiOutput("download_plate_template_ui")
-        ),
-
-        # Visual plate selector panel
-        conditionalPanel(
-          condition = "input.import_method == 'visual'",
-          div(
-            # GUI refresh §5.1: replace blue dashed border with the
-            # standard bs-card surface + accent-soft tint.
-            id = "visual_selector_section",
             class = "bs-card",
-            style = "padding: 16px; margin: 12px 0; background: var(--c-accent-soft); border-color: var(--c-line);",
-            uiOutput("visual_selector_heading_ui"),
-            uiOutput("visual_selector_intro_ui"),
-            uiOutput("visual_file_preview"),
-            uiOutput("visual_plate_selections"),
-            uiOutput("visual_well_exclusion")
+            h3("Upload plate data"),
+            p(class = "bs-card-sub",
+              "Upload your raw absorbance / counts file. We'll validate and preview before you continue."),
+            radioButtons(
+              "import_method", NULL,
+              choices = c("Classic import" = "classic",
+                          "Visual plate selector" = "visual"),
+              selected = "classic", inline = TRUE
+            ),
+            div(
+              style = "display: flex; gap: 12px; flex-wrap: wrap;",
+              uiOutput("upload_counts_ui"),
+              uiOutput("clear_upload_ui"),
+              uiOutput("download_plate_template_ui")
+            ),
+            actionButton("show_sample_layout", "Show default plate layout",
+                         class = "btn-default btn-sm",
+                         style = "margin-top: 8px;")
+          ),
+
+          # Visual plate selector (shown only when method = visual)
+          conditionalPanel(
+            condition = "input.import_method == 'visual'",
+            div(
+              id = "visual_selector_section",
+              class = "bs-card",
+              style = "background: var(--c-accent-soft);",
+              uiOutput("visual_selector_heading_ui"),
+              uiOutput("visual_selector_intro_ui"),
+              uiOutput("visual_file_preview"),
+              uiOutput("visual_plate_selections"),
+              uiOutput("visual_well_exclusion")
+            )
+          ),
+
+          div(
+            class = "bs-card",
+            h4("Plate preview & heatmap"),
+            fluidRow(
+              column(
+                width = 6,
+                h5("Raw values"),
+                tableOutput("meas_preview")
+              ),
+              column(
+                width = 6,
+                h5("Heatmap"),
+                tags$figure(
+                  id = "heatmap_preview_section",
+                  style = "margin: 0;",
+                  `aria-describedby` = "plate_heatmap_desc_text",
+                  role = "figure",
+                  uiOutput("heatmap_title_ui"),
+                  tags$figcaption(id = "plate_heatmap_desc_text",
+                                  uiOutput("heatmap_caption_ui", inline = TRUE)),
+                  plotly::plotlyOutput("plate_heatmap", height = "320px"),
+                  div(class = "sr-only", `aria-live` = "polite",
+                      textOutput("plate_heatmap_description"))
+                )
+              )
+            )
           )
         ),
 
-        actionButton("show_sample_layout", "Show default plate layout",
-                    class = "btn btn-sm btn-secondary",
-                    style = "margin-top: -10px;")
-      ),
-
-      div(id = "upload_preview_section",
-          uiOutput("upload_summary"),
-          tableOutput("meas_preview")),
-      br(),
-
-      # Data heatmap preview
-      tags$figure(
-        id = "heatmap_preview_section",
-        style = "max-width: 700px;",
-        `aria-describedby` = "plate_heatmap_desc_text",
-        role = "figure",
-        uiOutput("heatmap_title_ui"),
-        tags$figcaption(id = "plate_heatmap_desc_text",
-          uiOutput("heatmap_caption_ui", inline = TRUE)
-        ),
-        plotly::plotlyOutput("plate_heatmap", height = "300px"),
-        div(class = "sr-only", `aria-live` = "polite", textOutput("plate_heatmap_description"))
+        # ---- RIGHT (4 cols): import summary + validation ----
+        column(
+          width = 4,
+          div(
+            class = "bs-card",
+            h4("Import summary"),
+            uiOutput("upload_summary")
+          )
+        )
       ),
       br(),
       div(
         style = "display: flex; justify-content: space-between; padding: 15px;",
         actionButton("back_to_layout", "\u2190 Back: Plate Layout",
-                    class = "btn btn-default btn-lg"),
+                     class = "btn-default btn-lg"),
         actionButton("next_to_analysis", "Next: Analysis Settings \u2192",
-                    class = "btn btn-primary btn-lg")
+                     class = "btn-primary btn-lg")
       )
     ),
+
 
     # ======================================================================
     # TAB 4: Analysis Settings

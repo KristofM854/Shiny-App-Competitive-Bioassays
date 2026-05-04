@@ -91,6 +91,50 @@ server_layout <- function(input, output, session, shared) {
     showNotification(paste("All dilutions set to", val), type = "message", duration = 2)
   })
 
+  # GUI refresh v2 §4 (Q2 = d) — bulk-action observers for the
+  # other three layers. Set every well in the matrix to the chosen
+  # value (Type / ID prefix / Rep group code). All three follow the
+  # apply_uniform_dilution pattern: replace the underlying reactive
+  # matrix in one shot, push a layout-history entry, notify.
+  observeEvent(input$apply_uniform_type, {
+    val <- input$bulk_type %||% "Sample"
+    req(nzchar(val))
+    new_type <- matrix(val, nrow = PLATE_NROW, ncol = PLATE_NCOL)
+    rownames(new_type) <- ROW_NAMES
+    colnames(new_type) <- COL_NAMES
+    shared$matrix_type(as.data.frame(new_type, stringsAsFactors = FALSE))
+    history$push(shared)
+    showNotification(sprintf("All wells set to '%s'.", val),
+                     type = "message", duration = 2)
+  })
+
+  observeEvent(input$apply_uniform_id, {
+    prefix <- input$bulk_id_prefix %||% ""
+    req(nzchar(prefix))
+    # Generate <prefix>1 .. <prefix>N row-major across the 8x12 plate.
+    new_id <- matrix("", nrow = PLATE_NROW, ncol = PLATE_NCOL)
+    n <- PLATE_NROW * PLATE_NCOL
+    new_id[seq_len(n)] <- paste0(prefix, seq_len(n))
+    rownames(new_id) <- ROW_NAMES
+    colnames(new_id) <- COL_NAMES
+    shared$matrix_id(as.data.frame(new_id, stringsAsFactors = FALSE))
+    history$push(shared)
+    showNotification(sprintf("Sample IDs set to %s1 .. %s%d.", prefix, prefix, n),
+                     type = "message", duration = 2)
+  })
+
+  observeEvent(input$apply_uniform_rep, {
+    grp <- input$bulk_rep_group %||% ""
+    req(nzchar(grp))
+    new_rep <- matrix(grp, nrow = PLATE_NROW, ncol = PLATE_NCOL)
+    rownames(new_rep) <- ROW_NAMES
+    colnames(new_rep) <- COL_NAMES
+    shared$matrix_replicate(as.data.frame(new_rep, stringsAsFactors = FALSE))
+    history$push(shared)
+    showNotification(sprintf("All wells assigned to replicate group '%s'.", grp),
+                     type = "message", duration = 2)
+  })
+
   # --------------------------------------------------------------------------
   # Auto-fill ID Matrix from Type Matrix
   # --------------------------------------------------------------------------
@@ -150,6 +194,11 @@ server_layout <- function(input, output, session, shared) {
       c("Standard", "Sample", "QC", "Blank", "Other")
     }
 
+    # GUI refresh v2 §4.2 — paint CSS classes on each <td> instead
+    # of inline backgroundColor. The cell-* classes live in
+    # www/style.css and use Okabe-Ito tinted backgrounds + matching
+    # text colors (CB-safe). Bright green / blue go away because
+    # green = PASS only in the new design system.
     rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
                   height = 250, stretchH = "all", overflow = "hidden") %>%
       hot_col(col = 1:12, type = "dropdown",
@@ -157,17 +206,16 @@ server_layout <- function(input, output, session, shared) {
       hot_col(col = 1:12, renderer = "
         function(instance, td, row, col, prop, value, cellProperties) {
           Handsontable.renderers.TextRenderer.apply(this, arguments);
-          var colors = {
-            'Standard': '#90EE90',
-            'QC': '#ADD8E6',
-            'Blank': '#FFE4E1',
-            'NSB': '#FFDAB9',
-            'B0': '#F0E68C',
-            'TotalActivity': '#DDA0DD',
-            'Sample': '#E6E6FA',
-            'Other': '#FFD700'
-          };
-          td.style.backgroundColor = colors[value] || '#FFFFFF';
+          td.classList.remove('cell-standard','cell-sample','cell-blank','cell-nsb','cell-b0','cell-qc','cell-other','cell-ta');
+          td.style.backgroundColor = '';
+          if      (value === 'Standard')      td.classList.add('cell-standard');
+          else if (value === 'Sample')        td.classList.add('cell-sample');
+          else if (value === 'Blank')         td.classList.add('cell-blank');
+          else if (value === 'NSB')           td.classList.add('cell-nsb');
+          else if (value === 'B0')            td.classList.add('cell-b0');
+          else if (value === 'QC')            td.classList.add('cell-qc');
+          else if (value === 'TotalActivity') td.classList.add('cell-ta');
+          else if (value === 'Other')         td.classList.add('cell-other');
         }")
   })
 

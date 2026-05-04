@@ -462,6 +462,13 @@ h5 { font-size: 12.5px; font-weight: 600; color: var(--c-ink-2); }
 .handsontable td.cell-blank    { background: var(--c-surface-2) !important;    color: var(--c-ink-3) !important; }
 .handsontable td.cell-nsb      { background: rgba(204,121,167,0.12) !important; color: #8a4a6e !important; }
 .handsontable td.cell-b0       { background: rgba(230,159,0,0.12) !important;   color: #8a5e00 !important; }
+/* Extra type tokens not in the v2 spec but used by the existing
+   renderer (RBA "QC", "TotalActivity", "Other"). Quiet neutrals so
+   they pick up the design system without competing with the five
+   primary roles. */
+.handsontable td.cell-qc       { background: rgba(86,180,233,0.10) !important;  color: #2d6f93 !important; }
+.handsontable td.cell-ta       { background: rgba(86,180,233,0.16) !important;  color: #2d6f93 !important; }
+.handsontable td.cell-other    { background: var(--c-surface-2) !important;     color: var(--c-ink-3) !important; }
 
 /* ============================================
    §5 — Pre-flight check panel
