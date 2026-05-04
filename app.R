@@ -144,6 +144,13 @@ ui <- fluidPage(
   introjsUI(),
   shinyFeedback::useShinyFeedback(),
   tags$head(
+    # GUI refresh: IBM Plex font stack (Sans for body / labels / buttons,
+    # Mono for numbers / hex / file names, Serif for the report title only).
+    tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
+    tags$link(rel = "preconnect", href = "https://fonts.gstatic.com",
+              crossorigin = NA),
+    tags$link(rel = "stylesheet",
+              href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
   ),
 
