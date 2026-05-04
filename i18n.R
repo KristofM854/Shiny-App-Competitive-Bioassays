@@ -64,6 +64,15 @@ get_translations <- function() {
       preset_rba_stx_btn = "RBA Saxitoxin",
       preset_elisa_cortisol_btn = "ELISA Cortisol",
       preset_elisa_custom_btn = "ELISA Custom",
+      # Quick Start tile inner text (v3 §3 — data-i18n targets, no HTML replaced)
+      qs_tile_rba_title    = "RBA · Saxitoxin",
+      qs_tile_rba_sub      = "Receptor binding assay · 8 standards · triplicate",
+      qs_tile_elisa_co_title = "ELISA · Cortisol",
+      qs_tile_elisa_co_sub   = "Competitive ELISA · 7 standards · duplicate",
+      qs_tile_elisa_cu_title = "ELISA · Custom",
+      qs_tile_elisa_cu_sub   = "Blank ELISA template · configure from scratch",
+      qs_tile_demo_meta    = "Demo data included",
+      qs_tile_no_demo_meta = "No demo data",
 
       # Custom standard/analyte names (Tab 1)
       custom_standard_name_label = "Custom standard name:",
@@ -593,6 +602,15 @@ get_translations <- function() {
       preset_rba_stx_btn = "RBA Saxitoxina",
       preset_elisa_cortisol_btn = "ELISA Cortisol",
       preset_elisa_custom_btn = "ELISA Personalizado",
+      # Texto interior de las fichas Inicio Rápido (v3 §3)
+      qs_tile_rba_title    = "RBA · Saxitoxina",
+      qs_tile_rba_sub      = "Ensayo de unión a receptor · 8 estándares · triplicado",
+      qs_tile_elisa_co_title = "ELISA · Cortisol",
+      qs_tile_elisa_co_sub   = "ELISA competitivo · 7 estándares · duplicado",
+      qs_tile_elisa_cu_title = "ELISA · Personalizado",
+      qs_tile_elisa_cu_sub   = "Plantilla ELISA en blanco · configurar desde cero",
+      qs_tile_demo_meta    = "Datos de demostración incluidos",
+      qs_tile_no_demo_meta = "Sin datos de demostración",
 
       # Nombres personalizados de est\u00E1ndar/analito (Pesta\u00F1a 1)
       custom_standard_name_label = "Nombre personalizado del est\u00E1ndar:",
