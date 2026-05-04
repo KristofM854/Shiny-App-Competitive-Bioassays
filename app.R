@@ -154,42 +154,53 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
   ),
 
-  # GUI refresh §2.1: horizontal top bar replaces the previous title +
-  # language/tour div. Left = brand monogram + wordmark + version pill;
-  # right = Guided tour button + Docs (GitHub README) + divider + language
-  # selector. Existing widget IDs preserved (#start_tour, #app_language)
-  # so the existing observers keep working unchanged.
+  # GUI refresh v2 §2.2 — top bar (verbatim from spec). Left = navy
+  # monogram tile + "Bioassay Suite" wordmark + v0.9.0 mono pill;
+  # right = quiet "Guided tour" + Docs link + divider + language
+  # selectInput. Class structure matches v2's CSS (.brand .mono-tile,
+  # .brand .wordmark, .brand .version, .actions .quiet-btn,
+  # .actions .divider). Existing widget IDs preserved
+  # (#start_tour for the introjs observer; #app_language for i18n).
   div(
     class = "bs-topbar",
     div(
-      class = "bs-brand",
-      div(class = "mark", "B"),
-      div(class = "name",
-          "Bioassay Suite",
-          tags$span(class = "v", "v0.9.0"))
+      class = "brand",
+      div(class = "mono-tile", "B"),
+      span(class = "wordmark", "Bioassay Suite"),
+      span(class = "version", "v0.9.0")
     ),
     div(
-      class = "bs-topbar-tools",
-      style = "display: flex; align-items: center; gap: 8px;",
-      actionButton("start_tour", "\U0001F680 Guided tour",
-                   class = "btn btn-default btn-sm"),
-      tags$a("\U0001F4D6 Docs",
-             href = "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays",
+      class = "actions",
+      actionButton("start_tour", "Guided tour",
+                   class = "quiet-btn", icon = NULL),
+      tags$a(href = "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays",
              target = "_blank", rel = "noopener noreferrer",
-             class = "btn btn-default btn-sm",
-             style = "text-decoration: none;"),
-      div(style = "width: 1px; height: 20px; background: var(--c-line); margin: 0 6px;"),
-      div(
-        id = "language_toggle_section",
-        style = "display: flex; align-items: center; gap: 6px;",
-        tags$span("\U0001F310", style = "font-size: 14px; color: var(--c-ink-3);"),
-        selectInput("app_language", NULL,
-                    choices = c("English" = "en", "Español" = "es"),
-                    selected = "en",
-                    width = "120px")
-      )
+             class = "quiet-btn", "Docs"),
+      div(class = "divider"),
+      selectInput("app_language", NULL,
+                  choices = c("English" = "en", "Español" = "es"),
+                  selected = "en",
+                  width = "120px")
     )
   ),
+
+  # GUI refresh v2 §2.3 — data-step attribute injection. Bootstrap's
+  # tabsetPanel doesn't write data-step on its <li> children, but the
+  # numbered-stepper CSS reads from it via attr(data-step). Stamp the
+  # attribute on every nav-pills <a> on first paint and on every tab
+  # change.
+  tags$script(HTML("
+$(function() {
+  function stamp() {
+    $('.nav-pills > li').each(function(i) {
+      var n = (i + 1).toString().padStart(2, '0');
+      $(this).children('a').attr('data-step', n);
+    });
+  }
+  stamp();
+  $(document).on('shown.bs.tab', stamp);
+});
+")),
 
   # ==========================================================================
   # WIZARD-STYLE TABBED INTERFACE
@@ -202,7 +213,7 @@ ui <- fluidPage(
     # TAB 1: Assay Configuration
     # ======================================================================
     tabPanel(
-      HTML('<span class="num">01</span><span class="label">Configuration</span>'),
+      "Configuration",
       value = "tab_config",
       br(),
       div(
@@ -211,67 +222,68 @@ ui <- fluidPage(
                     class = "btn btn-primary btn-lg")
       ),
 
-      # GUI refresh §3.1: Quick Start collapses 2x3 button grid into a
-      # single card with three preset tiles. Click loads demo data (RBA
-      # Saxitoxin / ELISA Cortisol) or blank template (ELISA Custom).
-      # The "Configure manually without demo data" paths for STX / Cortisol
-      # are kept but moved into a <details> "More options" disclosure
-      # (per Q1 = (b)). Existing observer IDs (qs_rba_stx_demo /
-      # qs_elisa_cortisol_demo / qs_rba_stx_manual / qs_elisa_cortisol_manual
-      # / qs_elisa_custom_manual) all preserved so server_config.R is
-      # unchanged.
+      # GUI refresh v2 §3.1 — Quick Start as 3 preset tiles built with
+      # actionLink (not actionButton, so the .preset-tile flex layout
+      # paints correctly without Bootstrap's button rules fighting it).
+      # Each tile = .rail (4 px coloured rail) + .body (title + sub +
+      # meta). Manual-configure fallbacks for STX / Cortisol live in a
+      # <details> disclosure below (per Q1 = b). Existing observer IDs
+      # (qs_rba_stx_demo / qs_elisa_cortisol_demo / qs_rba_stx_manual /
+      # qs_elisa_cortisol_manual / qs_elisa_custom_manual) preserved.
       div(
         id = "quickstart_section",
         class = "bs-card",
-        style = "padding: 20px; margin-bottom: 24px;",
-        uiOutput("quickstart_heading_ui"),
-
-        # Three preset tiles (stacked, full width)
+        h3("Quick Start"),
+        p(class = "bs-card-sub",
+          "Choose a preset to auto-configure the assay type, plate layout, ",
+          "and standard concentrations."),
         div(
-          class = "row-gap-3",
-          style = "margin-top: 16px;",
-          actionButton("qs_rba_stx_demo",
-                       label = HTML(paste0(
-                         '<div class="rail rail-blue"></div>',
-                         '<div class="body">',
-                         '<div class="title">RBA · Saxitoxin</div>',
-                         '<div class="sub">8 standards, triplicate · demo data included</div>',
-                         '</div>')),
-                       class = "preset-tile"),
-          actionButton("qs_elisa_cortisol_demo",
-                       label = HTML(paste0(
-                         '<div class="rail rail-green"></div>',
-                         '<div class="body">',
-                         '<div class="title">ELISA · Cortisol</div>',
-                         '<div class="sub">Cayman 96-well kit · demo data included</div>',
-                         '</div>')),
-                       class = "preset-tile"),
-          actionButton("qs_elisa_custom_manual",
-                       label = HTML(paste0(
-                         '<div class="rail rail-purple"></div>',
-                         '<div class="body">',
-                         '<div class="title">ELISA · Custom</div>',
-                         '<div class="sub">Blank template — configure your own assay</div>',
-                         '</div>')),
-                       class = "preset-tile")
-        ),
-
-        # More options disclosure: configure-manually fallbacks for STX
-        # and Cortisol (no demo data load; jump straight to plate layout).
-        tags$details(
-          style = "margin-top: 16px;",
-          tags$summary(
-            style = "cursor: pointer; font-size: var(--t-small); color: var(--c-ink-3);",
-            uiOutput("quickstart_more_options_summary_ui", inline = TRUE)
+          class = "bs-quickstart",
+          actionLink(
+            "qs_rba_stx_demo",
+            class = "preset-tile",
+            label = tagList(
+              div(class = "rail rail-blue"),
+              div(class = "body",
+                  div(class = "title", "RBA · Saxitoxin"),
+                  div(class = "sub", "Receptor binding assay · 8 standards · triplicate"),
+                  div(class = "meta", "Demo data included"))
+            )
           ),
+          actionLink(
+            "qs_elisa_cortisol_demo",
+            class = "preset-tile",
+            label = tagList(
+              div(class = "rail rail-green"),
+              div(class = "body",
+                  div(class = "title", "ELISA · Cortisol"),
+                  div(class = "sub", "Competitive ELISA · 7 standards · duplicate"),
+                  div(class = "meta", "Demo data included"))
+            )
+          ),
+          actionLink(
+            "qs_elisa_custom_manual",
+            class = "preset-tile",
+            label = tagList(
+              div(class = "rail rail-purple"),
+              div(class = "body",
+                  div(class = "title", "ELISA · Custom"),
+                  div(class = "sub", "Blank ELISA template · configure from scratch"),
+                  div(class = "meta", "No demo data"))
+            )
+          )
+        ),
+        tags$details(
+          style = "margin-top: 14px;",
+          tags$summary("More options — configure manually without demo data"),
           div(
-            style = "margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;",
+            style = "padding-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;",
             actionButton("qs_rba_stx_manual",
-                         label = HTML('<span style="color: var(--oi-blue);">●</span> RBA · Saxitoxin (configure manually, no demo data)'),
-                         class = "btn btn-default btn-sm"),
+                         "RBA Saxitoxin — manual",
+                         class = "btn-default"),
             actionButton("qs_elisa_cortisol_manual",
-                         label = HTML('<span style="color: var(--oi-bgreen);">●</span> ELISA · Cortisol (configure manually, no demo data)'),
-                         class = "btn btn-default btn-sm")
+                         "ELISA Cortisol — manual",
+                         class = "btn-default")
           )
         )
       ),
@@ -396,7 +408,7 @@ ui <- fluidPage(
     # TAB 2: Plate Layout
     # ======================================================================
     tabPanel(
-      HTML('<span class="num">02</span><span class="label">Plate Layout</span>'),
+      "Plate Layout",
       value = "tab_layout",
       br(),
 
@@ -618,7 +630,7 @@ ui <- fluidPage(
     # TAB 3: Upload & Preview
     # ======================================================================
     tabPanel(
-      HTML('<span class="num">03</span><span class="label">Upload &amp; Preview</span>'),
+      "Upload & Preview",
       value = "tab_upload",
       br(),
 
@@ -702,7 +714,7 @@ ui <- fluidPage(
     # TAB 4: Analysis Settings
     # ======================================================================
     tabPanel(
-      HTML('<span class="num">04</span><span class="label">Analysis Settings</span>'),
+      "Analysis Settings",
       value = "tab_analysis",
       br(),
       div(
@@ -792,7 +804,7 @@ ui <- fluidPage(
     # TAB 5: Generate Report
     # ======================================================================
     tabPanel(
-      HTML('<span class="num">05</span><span class="label">Generate Report</span>'),
+      "Generate Report",
       value = "tab_report",
       br(),
       div(
