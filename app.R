@@ -690,7 +690,8 @@ ui <- fluidPage(
 
       div(
         id = "analysis_settings_section",
-        style = "max-width: 700px;",
+        class = "bs-card",
+        style = "max-width: 880px; padding: 20px 24px;",
         uiOutput("analysis_settings_heading_ui"),
 
         # Primary setting (always visible)
@@ -702,13 +703,12 @@ ui <- fluidPage(
                    selected = "none"),
         uiOutput("regression_weight_help_ui"),
 
-        # Advanced analysis options — open by default for visibility
+        # GUI refresh §5.2: replaces the previous yellow tinted div
+        # (#FFF8E1 + #FFA000 left-border) with a quiet hairline divider
+        # row pattern. Visual hierarchy alone separates the advanced
+        # options from the primary control above.
         div(
-          style = paste0(
-            "margin-top: 18px; padding: 14px 16px; background: #FFF8E1; ",
-            "border-radius: 6px; border-left: 4px solid #FFA000; ",
-            "box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
-          ),
+          style = "margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--c-line);",
           uiOutput("advanced_options_heading_ui"),
           uiOutput("advanced_options_intro_ui"),
 
