@@ -627,15 +627,15 @@ Rscript tests/testthat/diff_golden_artifacts.R \
 
 ---
 
-### F0a. Multi-plate runs drop sidecars for non-primary plates
+### F0a. Multi-plate runs drop sidecars for non-primary plates — *landed*
 
-**Scope:** Investigate why a multi-plate run (the multi-wavelength template used as a multi-plate analyser, with `wavelength_manifest.json = ["Plate 1", "Plate 2", "Plate 3"]`) saves `model_stats.json` and `unknown_results*.csv` only under `Plate 1/`. `Plate 2/` and `Plate 3/` end up with the configs but no fit results and no per-replicate quantification CSVs.
+**Root cause:** `preprocess_template_chunks()` in `multiwavelength_analysis_template.Rmd` rewrites chunk labels to `<wlPrefix>-<label>` so the unified template can be invoked once per plate via `knitr::knit_child()` without colliding labels. The regex matched only `^```\{r\s+...` — it hard-coded the `r` engine. The unified template also has a `^```\{css details-style, ...}` chunk, which the regex skipped, so `details-style` kept its original label and on the second per-plate render knitr aborted with `Duplicate chunk label 'details-style'`. The render error was caught by the surrounding `tryCatch` so Plate 2/3 silently produced no `model_stats.json` / `unknown_results*.csv` while Plate 1 (the first child render, which never collided) saved cleanly.
 
-**Observed:** zip baseline `2026-04-30_03.zip` (cortisol ELISA, 3 plates). Plate 1 has the full sidecar set; Plates 2/3 only have `analysis_config.json`, `assay_config.json`, `long_data_output.csv`, `notes.json`, `qc_params.json`, `sample_processing_config.json`.
+**Fix:** generalise the regex to match any engine (`[a-zA-Z0-9_]+`), capture the engine + label, and use a `fixed=TRUE` substring substitution so any chunk header (r / css / python / sql / …) gets the per-plate prefix on subsequent renders.
 
-**Likely cause:** the per-plate render call inside `multiwavelength_analysis_template.Rmd` either runs the per-plate save step only for the primary plate, or the secondary-plate fits fail silently and skip the artifact write. Needs reproduction + a look at whether `save_analysis_artifacts()` runs per plate or only once.
+**Verified:** synthetic test against an Rmd containing `{r setup, ...}`, `{css details-style, ...}`, and `{r model-fitting, ...}` — all three labels now get the `wlPlate1-` prefix. Multi-wave template purls cleanly.
 
-**Status:** Triage after M1.1–M1.4 ship. Probably small. Not a v1.0 ship-blocker but the multi-plate workflow is misleading without the per-plate sidecars.
+**Status:** done in commit on branch claude/review-implementation-guide-Xm8xG. End-to-end verification (re-render zip 03's cortisol multi-plate fixture and confirm Plate 2/3 now save `model_stats.json`) requires running the app locally — Kristof to verify.
 
 ---
 
