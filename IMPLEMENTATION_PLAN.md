@@ -568,7 +568,16 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [x] **M1.5 Extract `plate-positional-qc` chunk.** Function: `assess_plate_positional(data_long)` returning the row stats, column stats, and flag lists. *(landed: `reports/analysis_pipeline.R`; covered by `tests/testthat/test-analysis-pipeline.R`)*
 
-- [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`. *(partial: `render_exclusion_audit_section()` and `render_tissue_normalization_section()` landed; **executive summary and QC traffic light still pending** — defer until B6 golden test can render end-to-end since both pull dozens of state vars from the Rmd setup env and a misroute would not be caught by a before/after report diff that includes the M1.6 work in both renders)*
+- [x] **M1.6 Extract rendering helpers.** Five `render_*` helpers now live in `reports/report_sections.R`:
+  * `render_exclusion_audit_section()`
+  * `render_tissue_normalization_section()`
+  * `render_pre_fit_executive_summary()`
+  * `render_overall_status_box()`
+  * `render_overall_accuracy()`
+  * `render_high_variability_info()`
+  * `render_qc_traffic_light_section()`
+
+  Each chunk in `unified_analysis_template.Rmd` is now a thin wrapper that calls the helper with explicit args (no implicit chunk-env lookups). Purled Rmd dropped from 1,574 → 1,402 lines.
 
 - [x] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
 
