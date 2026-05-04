@@ -203,20 +203,32 @@ server_layout <- function(input, output, session, shared) {
                   height = 250, stretchH = "all", overflow = "hidden") %>%
       hot_col(col = 1:12, type = "dropdown",
               source = type_choices) %>%
-      hot_col(col = 1:12, renderer = "
-        function(instance, td, row, col, prop, value, cellProperties) {
-          Handsontable.renderers.TextRenderer.apply(this, arguments);
-          td.classList.remove('cell-standard','cell-sample','cell-blank','cell-nsb','cell-b0','cell-qc','cell-other','cell-ta');
-          td.style.backgroundColor = '';
-          if      (value === 'Standard')      td.classList.add('cell-standard');
-          else if (value === 'Sample')        td.classList.add('cell-sample');
-          else if (value === 'Blank')         td.classList.add('cell-blank');
-          else if (value === 'NSB')           td.classList.add('cell-nsb');
-          else if (value === 'B0')            td.classList.add('cell-b0');
-          else if (value === 'QC')            td.classList.add('cell-qc');
-          else if (value === 'TotalActivity') td.classList.add('cell-ta');
-          else if (value === 'Other')         td.classList.add('cell-other');
-        }")
+      hot_cols(renderer = "
+  function(instance, td, row, col, prop, value, cellProperties) {
+    Handsontable.renderers.TextRenderer.apply(this, arguments);
+
+    // Strip any sample-type class from a previous render
+    td.classList.remove(
+      'cell-standard', 'cell-sample', 'cell-blank',
+      'cell-nsb', 'cell-b0', 'cell-qc', 'cell-ta', 'cell-other'
+    );
+    // Clear any legacy inline background that the v2 renderer may
+    // have written before the design system landed.
+    td.style.backgroundColor = '';
+    td.style.color = '';
+
+    // Add the class that matches the cell's sample-type value.
+    // The CSS in www/style.css paints the actual colours.
+    if (value === 'Standard')       td.classList.add('cell-standard');
+    else if (value === 'Sample')    td.classList.add('cell-sample');
+    else if (value === 'Blank')     td.classList.add('cell-blank');
+    else if (value === 'NSB')       td.classList.add('cell-nsb');
+    else if (value === 'B0')        td.classList.add('cell-b0');
+    else if (value === 'QC')        td.classList.add('cell-qc');
+    else if (value === 'TotalActivity') td.classList.add('cell-ta');
+    else if (value && value.length) td.classList.add('cell-other');
+  }
+")
   })
 
   output$matrix_id <- renderRHandsontable({

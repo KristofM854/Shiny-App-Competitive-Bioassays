@@ -154,13 +154,6 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
   ),
 
-  # GUI refresh v2 §2.2 — top bar (verbatim from spec). Left = navy
-  # monogram tile + "Bioassay Suite" wordmark + v0.9.0 mono pill;
-  # right = quiet "Guided tour" + Docs link + divider + language
-  # selectInput. Class structure matches v2's CSS (.brand .mono-tile,
-  # .brand .wordmark, .brand .version, .actions .quiet-btn,
-  # .actions .divider). Existing widget IDs preserved
-  # (#start_tour for the introjs observer; #app_language for i18n).
   div(
     class = "bs-topbar",
     div(
@@ -171,34 +164,66 @@ ui <- fluidPage(
     ),
     div(
       class = "actions",
-      actionButton("start_tour", "Guided tour",
-                   class = "quiet-btn", icon = NULL),
-      tags$a(href = "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays",
-             target = "_blank", rel = "noopener noreferrer",
-             class = "quiet-btn", "Docs"),
+      # Hand-rolled <button> so we can control the class list precisely.
+      # Keeps id="start_tour" and the action-button class so the existing
+      # observeEvent(input$start_tour, ...) handler still fires.
+      tags$button(
+        id = "start_tour",
+        type = "button",
+        class = "action-button bs-quiet-btn",
+        "Guided tour"
+      ),
+      tags$a(
+        href = "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays",
+        target = "_blank",
+        rel = "noopener noreferrer",
+        class = "bs-quiet-btn",
+        "Docs"
+      ),
       div(class = "divider"),
-      selectInput("app_language", NULL,
-                  choices = c("English" = "en", "Español" = "es"),
-                  selected = "en",
-                  width = "120px")
+      # Wrap selectInput in a span we can target. The .bs-lang-select
+      # class lets the CSS un-block-ify Shiny's .shiny-input-container
+      # without affecting any other selectInput in the app.
+      div(
+        class = "bs-lang-select",
+        selectInput("app_language", NULL,
+                    choices = c("English" = "en", "Español" = "es"),
+                    selected = "en",
+                    width = "110px")
+      )
     )
   ),
 
-  # GUI refresh v2 §2.3 — data-step attribute injection. Bootstrap's
-  # tabsetPanel doesn't write data-step on its <li> children, but the
-  # numbered-stepper CSS reads from it via attr(data-step). Stamp the
-  # attribute on every nav-pills <a> on first paint and on every tab
-  # change.
   tags$script(HTML("
 $(function() {
-  function stamp() {
+  // Stamp data-step on each pill <a> for accessibility (screen readers
+  // can announce 'Step 02') and for testing. The CSS counter is the
+  // visual source of truth, so this script can't visually break the
+  // stepper anymore.
+  function stampSteps() {
     $('.nav-pills > li').each(function(i) {
       var n = (i + 1).toString().padStart(2, '0');
       $(this).children('a').attr('data-step', n);
     });
   }
-  stamp();
-  $(document).on('shown.bs.tab', stamp);
+  stampSteps();
+
+  // Mark steps as done when the user advances past them.
+  // Listen on the document so the handler survives Shiny re-renders.
+  $(document).on('shown.bs.tab', '.nav-pills > li > a', function(e) {
+    stampSteps();
+    var $items = $('.nav-pills > li');
+    var activeIdx = $items.index($(this).closest('li'));
+    $items.each(function(i) {
+      $(this).toggleClass('is-done', i < activeIdx);
+      $(this).toggleClass('is-current', i === activeIdx);
+    });
+  });
+
+  // Re-stamp after any Shiny output finishes rendering, in case the
+  // tabset got rebuilt (defensive — the CSS counter handles the
+  // visual side regardless).
+  $(document).on('shiny:value', function() { stampSteps(); });
 });
 ")),
 
@@ -222,14 +247,10 @@ $(function() {
                     class = "btn btn-primary btn-lg")
       ),
 
-      # GUI refresh v2 §3.1 — Quick Start as 3 preset tiles built with
-      # actionLink (not actionButton, so the .preset-tile flex layout
-      # paints correctly without Bootstrap's button rules fighting it).
-      # Each tile = .rail (4 px coloured rail) + .body (title + sub +
-      # meta). Manual-configure fallbacks for STX / Cortisol live in a
-      # <details> disclosure below (per Q1 = b). Existing observer IDs
-      # (qs_rba_stx_demo / qs_elisa_cortisol_demo / qs_rba_stx_manual /
-      # qs_elisa_cortisol_manual / qs_elisa_custom_manual) preserved.
+      # GUI refresh v3 §3 — Quick Start as three hand-rolled <a> tiles.
+      # Hand-rolled (not actionLink) so we control the class list and
+      # the inner DOM exactly. Keeps the action-button class + id so
+      # observeEvent(input$qs_*, ...) handlers still fire.
       div(
         id = "quickstart_section",
         class = "bs-card",
@@ -237,44 +258,60 @@ $(function() {
         p(class = "bs-card-sub",
           "Choose a preset to auto-configure the assay type, plate layout, ",
           "and standard concentrations."),
+
         div(
           class = "bs-quickstart",
-          actionLink(
-            "qs_rba_stx_demo",
-            class = "preset-tile",
-            label = tagList(
-              div(class = "rail rail-blue"),
-              div(class = "body",
-                  div(class = "title", "RBA · Saxitoxin"),
-                  div(class = "sub", "Receptor binding assay · 8 standards · triplicate"),
-                  div(class = "meta", "Demo data included"))
+
+          tags$a(
+            id = "qs_rba_stx_demo",
+            href = "#",
+            class = "action-button preset-tile",
+            onclick = "return false;",
+            div(class = "rail rail-blue"),
+            div(
+              class = "body",
+              div(class = "title", "RBA · Saxitoxin"),
+              div(class = "sub",
+                  "Receptor binding assay · 8 standards · triplicate"),
+              div(class = "meta", "Demo data included")
             )
           ),
-          actionLink(
-            "qs_elisa_cortisol_demo",
-            class = "preset-tile",
-            label = tagList(
-              div(class = "rail rail-green"),
-              div(class = "body",
-                  div(class = "title", "ELISA · Cortisol"),
-                  div(class = "sub", "Competitive ELISA · 7 standards · duplicate"),
-                  div(class = "meta", "Demo data included"))
+
+          tags$a(
+            id = "qs_elisa_cortisol_demo",
+            href = "#",
+            class = "action-button preset-tile",
+            onclick = "return false;",
+            div(class = "rail rail-green"),
+            div(
+              class = "body",
+              div(class = "title", "ELISA · Cortisol"),
+              div(class = "sub",
+                  "Competitive ELISA · 7 standards · duplicate"),
+              div(class = "meta", "Demo data included")
             )
           ),
-          actionLink(
-            "qs_elisa_custom_manual",
-            class = "preset-tile",
-            label = tagList(
-              div(class = "rail rail-purple"),
-              div(class = "body",
-                  div(class = "title", "ELISA · Custom"),
-                  div(class = "sub", "Blank ELISA template · configure from scratch"),
-                  div(class = "meta", "No demo data"))
+
+          tags$a(
+            id = "qs_elisa_custom_manual",
+            href = "#",
+            class = "action-button preset-tile",
+            onclick = "return false;",
+            div(class = "rail rail-purple"),
+            div(
+              class = "body",
+              div(class = "title", "ELISA · Custom"),
+              div(class = "sub",
+                  "Blank ELISA template · configure from scratch"),
+              div(class = "meta", "No demo data")
             )
           )
         ),
+
+        # Manual-configure fallbacks for STX and Cortisol stay in a
+        # quiet disclosure to avoid cluttering the primary path.
         tags$details(
-          style = "margin-top: 14px;",
+          class = "bs-quickstart-more",
           tags$summary("More options — configure manually without demo data"),
           div(
             style = "padding-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;",
