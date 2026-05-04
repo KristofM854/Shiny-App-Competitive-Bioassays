@@ -227,6 +227,18 @@ $(function() {
 });
 ")),
 
+  # v3 §3 tile i18n — walks [data-i18n] attrs and swaps textContent only,
+  # so the card structure (rail + body) is never touched by the server.
+  tags$script(HTML("
+Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
+  Object.keys(msg).forEach(function(key) {
+    document.querySelectorAll('[data-i18n=\"' + key + '\"]').forEach(function(el) {
+      el.textContent = msg[key];
+    });
+  });
+});
+")),
+
   # ==========================================================================
   # WIZARD-STYLE TABBED INTERFACE
   # ==========================================================================
@@ -270,10 +282,12 @@ $(function() {
             div(class = "rail rail-blue"),
             div(
               class = "body",
-              div(class = "title", "RBA · Saxitoxin"),
-              div(class = "sub",
+              div(class = "title", `data-i18n` = "qs_tile_rba_title",
+                  "RBA · Saxitoxin"),
+              div(class = "sub", `data-i18n` = "qs_tile_rba_sub",
                   "Receptor binding assay · 8 standards · triplicate"),
-              div(class = "meta", "Demo data included")
+              div(class = "meta", `data-i18n` = "qs_tile_demo_meta",
+                  "Demo data included")
             )
           ),
 
@@ -285,10 +299,12 @@ $(function() {
             div(class = "rail rail-green"),
             div(
               class = "body",
-              div(class = "title", "ELISA · Cortisol"),
-              div(class = "sub",
+              div(class = "title", `data-i18n` = "qs_tile_elisa_co_title",
+                  "ELISA · Cortisol"),
+              div(class = "sub", `data-i18n` = "qs_tile_elisa_co_sub",
                   "Competitive ELISA · 7 standards · duplicate"),
-              div(class = "meta", "Demo data included")
+              div(class = "meta", `data-i18n` = "qs_tile_demo_meta",
+                  "Demo data included")
             )
           ),
 
@@ -300,10 +316,12 @@ $(function() {
             div(class = "rail rail-purple"),
             div(
               class = "body",
-              div(class = "title", "ELISA · Custom"),
-              div(class = "sub",
+              div(class = "title", `data-i18n` = "qs_tile_elisa_cu_title",
+                  "ELISA · Custom"),
+              div(class = "sub", `data-i18n` = "qs_tile_elisa_cu_sub",
                   "Blank ELISA template · configure from scratch"),
-              div(class = "meta", "No demo data")
+              div(class = "meta", `data-i18n` = "qs_tile_no_demo_meta",
+                  "No demo data")
             )
           )
         ),
