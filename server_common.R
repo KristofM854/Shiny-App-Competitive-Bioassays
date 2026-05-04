@@ -257,6 +257,26 @@ server_common <- function(input, output, session, shared) {
     updateTabsetPanel(session, "wizard_tabs", selected = "tab_analysis")
   })
 
+  # GUI refresh v2 §2.4 — stepper progress (cosmetic only). Each
+  # tab change recomputes which pills are "done" (i.e. before the
+  # currently active one) and adds the .is-done class so the CSS
+  # paints them with a navy filled circle + check icon. No business
+  # logic; no input rewiring; just visual progress.
+  observe({
+    current <- input$wizard_tabs
+    if (is.null(current)) return()
+    steps <- c("tab_config", "tab_layout", "tab_upload",
+               "tab_analysis", "tab_report")
+    idx <- match(current, steps)
+    if (is.na(idx)) return()
+    shinyjs::runjs(sprintf(
+      paste("$('.nav-pills > li').removeClass('is-done');",
+            "$('.nav-pills > li').slice(0, %d).addClass('is-done');",
+            sep = "\n"),
+      idx - 1
+    ))
+  })
+
   # --------------------------------------------------------------------------
   # Language-reactive Header UIs
   # --------------------------------------------------------------------------
