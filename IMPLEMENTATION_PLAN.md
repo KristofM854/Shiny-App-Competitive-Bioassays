@@ -490,9 +490,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [x] Add i18n keys for the new UI elements and their Spanish translations.
 
-**Sub-tasks (post-split, eventual):**
+**Sub-tasks (post-split):**
 
-- [ ] Create `reports/unified_analysis_template_compact.Rmd` as a thin orchestration file that calls the same functions in `analysis_pipeline.R` and `report_sections.R` but includes only the compact-mode sections. Remove the `compact` param from the detailed template.
+- [x] **Compact entry-point template landed.** `reports/unified_analysis_template_compact.Rmd` is a thin wrapper: its YAML pins `compact: true` in the params block and the body is a single `{r child = "unified_analysis_template.Rmd"}` include. The `eval=!is_compact` gates already in the detailed template suppress the nine full-audit-only chunks (weight-comparison, model-stability-assessment, standard-backcalculation, plate-positional-qc, parallelism-assessment, tissue-normalization-traceability, exclusion-audit). `report_pipeline.R` now selects the compact template directly when rendering the compact variant instead of passing `compact = TRUE` through `params`. The H4 RDS cache lives in `output_dir` and is shared between the two templates so the heavy compute (LL.4 fit + delta-method per-well predictions) still runs only once across both renders. The `compact` param remains on the detailed template's YAML so it still works when rendered directly with `params$compact = FALSE` (the historical path) and so the child include can inherit `compact = TRUE` cleanly via the parent's params object.
 
 **Acceptance:** Every report run produces both a compact and detailed HTML (and DOCX/PDF if those formats were selected). The compact version is 3-5 pages for a typical single-plate RBA run. The detailed version is unchanged from current output. Download button defaults to compact.
 
@@ -568,7 +568,16 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [x] **M1.5 Extract `plate-positional-qc` chunk.** Function: `assess_plate_positional(data_long)` returning the row stats, column stats, and flag lists. *(landed: `reports/analysis_pipeline.R`; covered by `tests/testthat/test-analysis-pipeline.R`)*
 
-- [ ] **M1.6 Extract rendering helpers.** Create `reports/report_sections.R`. Move large cat-heavy rendering blocks (executive summary, QC traffic light, exclusion audit, tissue normalization traceability) into functions that take data frames and produce markdown via `cat()` and `render_table()`. *(partial: `render_exclusion_audit_section()` and `render_tissue_normalization_section()` landed; **executive summary and QC traffic light still pending** — defer until B6 golden test can render end-to-end since both pull dozens of state vars from the Rmd setup env and a misroute would not be caught by a before/after report diff that includes the M1.6 work in both renders)*
+- [x] **M1.6 Extract rendering helpers.** Five `render_*` helpers now live in `reports/report_sections.R`:
+  * `render_exclusion_audit_section()`
+  * `render_tissue_normalization_section()`
+  * `render_pre_fit_executive_summary()`
+  * `render_overall_status_box()`
+  * `render_overall_accuracy()`
+  * `render_high_variability_info()`
+  * `render_qc_traffic_light_section()`
+
+  Each chunk in `unified_analysis_template.Rmd` is now a thin wrapper that calls the helper with explicit args (no implicit chunk-env lookups). Purled Rmd dropped from 1,574 → 1,402 lines.
 
 - [x] **M1.7 Update source chain.** Both new files (`analysis_pipeline.R` and `report_sections.R`) are sourced from the Rmd `setup` chunk alongside `report_constants.R`, `report_functions.R`, and `plot_functions.R`. Update the file-search loop to include them.
 
@@ -604,37 +613,38 @@ The exact expected values need to be captured from one known-good run; include a
 
 ## FUTURE / DEFERRED (not for v1.0)
 
-### F0. Machine-comparable golden-artifacts diff script
+### F0. Machine-comparable golden-artifacts diff script — *landed*
 
-**Scope:** Add a small CLI script `tests/testthat/diff_golden_artifacts.R` that takes two output directories (`before-rba/` vs `after-rba/`, and analogously for ELISA) and prints any numerical drift exceeding a configurable tolerance (default 1e-9) across `model_stats.json`, `unknown_results_summary.csv`, and `replicate_stats.csv`.
+**Scope:** A CLI script `tests/testthat/diff_golden_artifacts.R` that takes two output directories and prints any numerical drift exceeding a configurable tolerance (default 1e-9) across `model_stats.json`, `unknown_results.csv`, `unknown_results_summary.csv`, and `replicate_stats.csv` (recursive, so per-plate subdirs are picked up too). Exit status 1 on any drift, 0 otherwise.
 
-**Rationale:** The B6 golden test only pins R², IC50, and replicate-group count. After M1.1–M1.4 land, we want a tighter ratchet: every numeric field in the JSON/CSV sidecars stays byte-identical to the pre-refactor baseline (modulo float epsilon). A standalone script keeps the comparison out of the regular test loop (no need to redistribute baseline artifacts) but gives a one-shot assertion before merge.
+**Usage:**
 
-**Sketch:**
-
-```r
-# Rscript tests/testthat/diff_golden_artifacts.R before/ after/ [tol]
-diff_golden_artifacts <- function(before, after, tol = 1e-9) {
-  # walk model_stats.json: per-key abs(before - after) <= tol * max(1, abs(before))
-  # walk unknown_results_summary.csv: per-(SampleID,column) numeric diff
-  # walk replicate_stats.csv if present
-  # exit non-zero with a one-line summary if any field exceeds tol
-}
+```bash
+Rscript tests/testthat/diff_golden_artifacts.R \
+    /path/to/before-run /path/to/after-run [tol]
 ```
 
-**Status:** Add when M1.1–M1.4 are scheduled; not needed before then.
+**Verified against the user's archived 2026-04-30 baselines:**
+
+| pair | result |
+|---|---|
+| zip 04 vs 05 (RBA single-plate) | clean, exit 0 |
+| zip 03/Plate 1 vs zip 07/Plate 1 (cortisol multi-plate, primary plate) | clean, exit 0 |
+| synthetic +0.001 drift in r_squared | DRIFT line emitted, exit 1 |
+
+**Status:** done in commit on branch claude/review-implementation-guide-Xm8xG.
 
 ---
 
-### F0a. Multi-plate runs drop sidecars for non-primary plates
+### F0a. Multi-plate runs drop sidecars for non-primary plates — *landed*
 
-**Scope:** Investigate why a multi-plate run (the multi-wavelength template used as a multi-plate analyser, with `wavelength_manifest.json = ["Plate 1", "Plate 2", "Plate 3"]`) saves `model_stats.json` and `unknown_results*.csv` only under `Plate 1/`. `Plate 2/` and `Plate 3/` end up with the configs but no fit results and no per-replicate quantification CSVs.
+**Root cause:** `preprocess_template_chunks()` in `multiwavelength_analysis_template.Rmd` rewrites chunk labels to `<wlPrefix>-<label>` so the unified template can be invoked once per plate via `knitr::knit_child()` without colliding labels. The regex matched only `^```\{r\s+...` — it hard-coded the `r` engine. The unified template also has a `^```\{css details-style, ...}` chunk, which the regex skipped, so `details-style` kept its original label and on the second per-plate render knitr aborted with `Duplicate chunk label 'details-style'`. The render error was caught by the surrounding `tryCatch` so Plate 2/3 silently produced no `model_stats.json` / `unknown_results*.csv` while Plate 1 (the first child render, which never collided) saved cleanly.
 
-**Observed:** zip baseline `2026-04-30_03.zip` (cortisol ELISA, 3 plates). Plate 1 has the full sidecar set; Plates 2/3 only have `analysis_config.json`, `assay_config.json`, `long_data_output.csv`, `notes.json`, `qc_params.json`, `sample_processing_config.json`.
+**Fix:** generalise the regex to match any engine (`[a-zA-Z0-9_]+`), capture the engine + label, and use a `fixed=TRUE` substring substitution so any chunk header (r / css / python / sql / …) gets the per-plate prefix on subsequent renders.
 
-**Likely cause:** the per-plate render call inside `multiwavelength_analysis_template.Rmd` either runs the per-plate save step only for the primary plate, or the secondary-plate fits fail silently and skip the artifact write. Needs reproduction + a look at whether `save_analysis_artifacts()` runs per plate or only once.
+**Verified:** synthetic test against an Rmd containing `{r setup, ...}`, `{css details-style, ...}`, and `{r model-fitting, ...}` — all three labels now get the `wlPlate1-` prefix. Multi-wave template purls cleanly.
 
-**Status:** Triage after M1.1–M1.4 ship. Probably small. Not a v1.0 ship-blocker but the multi-plate workflow is misleading without the per-plate sidecars.
+**Status:** done in commit on branch claude/review-implementation-guide-Xm8xG. End-to-end verification (re-render zip 03's cortisol multi-plate fixture and confirm Plate 2/3 now save `model_stats.json`) requires running the app locally — Kristof to verify.
 
 ---
 

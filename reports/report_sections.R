@@ -178,3 +178,345 @@ render_tissue_normalization_section <- function(is_elisa,
   })
   invisible(NULL)
 }
+
+
+# =============================================================================
+# M1.6 (continued): exec-summary + QC traffic light extraction
+# =============================================================================
+
+# Pre-fit executive summary block (top of the report). Mirrors the body of
+# the `executive-summary` chunk in unified_analysis_template.Rmd.
+#
+# Renders a small pre-fit info box: assay type, analyte, analysis date,
+# standard concentrations count (with high-variability exclusion note), and
+# total sample-well count. The post-fit overall-status box that lives
+# further down in the report is rendered by render_overall_status_box().
+render_pre_fit_executive_summary <- function(assay_config, data_long, cv_limit) {
+  tryCatch({
+    exec_assay_type <- toupper(assay_config$assay_type %||% "Unknown")
+    exec_analyte <- assay_config$analyte %||%
+                    assay_config$toxin_standard_label %||%
+                    "Unknown"
+
+    n_std_concs <- length(unique(
+      data_long$StandardConc[data_long$SampleType == "Standard" &
+                             !is.na(data_long$StandardConc)]
+    ))
+    n_hv <- nrow(identify_high_variability_standards(data_long,
+                                                     cv_limit = cv_limit))
+    std_note <- sprintf("<strong>Standards:</strong> %d concentration levels",
+                        n_std_concs)
+    if (n_hv > 0) {
+      std_note <- paste0(std_note,
+                         sprintf(" (%d excluded for high CV)", n_hv))
+    }
+
+    n_samples <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
+
+    lines <- c(
+      '<strong style="font-size: 1.1em;">Executive Summary</strong><br><br>',
+      sprintf("<strong>Assay:</strong> %s &mdash; %s<br>",
+              exec_assay_type, exec_analyte),
+      sprintf("<strong>Analysis date:</strong> %s<br>", Sys.Date()),
+      paste0(std_note, "<br>"),
+      sprintf("<strong>Sample wells:</strong> %d<br>", n_samples),
+      '<em>Model results and overall status appear after curve fitting below.</em>'
+    )
+
+    emit_styled_block(
+      lines,
+      html_style = paste0("border: 2px solid #2196F3; padding: 15px; ",
+                          "border-radius: 8px; background: #F5F9FF; ",
+                          "margin: 10px 0 20px 0;")
+    )
+  }, error = function(e) {
+    cat(sprintf("\n\n*Executive summary could not be generated: %s*\n\n",
+                e$message))
+  })
+  invisible(NULL)
+}
+
+
+# Post-fit overall-status box. Mirrors the body of the `exec-summary-box`
+# chunk in unified_analysis_template.Rmd. Renders the big green/yellow/red
+# pass-fail card with R^2, RMSE, model description, EC20-EC80 quantifiable
+# range, and (for ELISA) control-well summary.
+render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
+                                      assay_config, all_models, primary_key,
+                                      weight_desc, high_var_standards,
+                                      standards_for_model, standards_data,
+                                      ec20, ec80, is_elisa, data_long,
+                                      lang, control_summary = NULL) {
+  if (drc_failed_completely || is.null(R2) || is.na(R2)) {
+    return(invisible(NULL))
+  }
+
+  qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
+
+  exec_warnings <- character(0)
+  if (R2 >= 0.99) {
+    overall_status <- "Pass"
+    status_icon <- "\U0001F7E2"
+  } else if (R2 >= qc_profile$r2_threshold) {
+    overall_status <- "Qualified Pass"
+    status_icon <- "\U0001F7E1"
+  } else {
+    overall_status <- "Review Required"
+    status_icon <- "\U0001F534"
+    exec_warnings <- c(exec_warnings,
+                       sprintf("R² below threshold (%.4f < %.2f)",
+                               R2, qc_profile$r2_threshold))
+  }
+
+  primary_model_entry <- if (!drc_failed_completely) all_models[[primary_key]] else NULL
+  if (!is.null(primary_model_entry$convergence) &&
+      !primary_model_entry$convergence$se_available) {
+    exec_warnings <- c(exec_warnings, "Standard errors could not be computed")
+    if (overall_status == "Pass") {
+      overall_status <- "Qualified Pass"
+      status_icon <- "\U0001F7E1"
+    }
+  }
+  if (!is.null(primary_model_entry$lack_of_fit) &&
+      !is.null(primary_model_entry$lack_of_fit$p_value) &&
+      primary_model_entry$lack_of_fit$p_value < 0.05) {
+    exec_warnings <- c(exec_warnings,
+                       sprintf("Lack-of-fit (p = %.4f)",
+                               primary_model_entry$lack_of_fit$p_value))
+    if (overall_status == "Pass") {
+      overall_status <- "Qualified Pass"
+      status_icon <- "\U0001F7E1"
+    }
+  }
+  if (nrow(high_var_standards) > 0) {
+    exec_warnings <- c(exec_warnings,
+                       sprintf("%d standard level(s) excluded for high CV",
+                               nrow(high_var_standards)))
+  }
+
+  if (is_html_out()) {
+    cat('<div style="background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%); ',
+        'padding: 16px 20px; border-radius: 8px; border-left: 4px solid #4CAF50; ',
+        'margin: 15px 0 25px 0; font-size: 14px;">\n\n')
+  } else {
+    cat("---\n\n")
+  }
+
+  cat(sprintf("**Overall status:** %s %s\n\n", status_icon, overall_status))
+  cat(sprintf("**Assay:** %s — %s | **Model:** %s\n\n",
+              toupper(assay_config$assay_type %||% "Unknown"),
+              assay_config$analyte %||%
+                assay_config$toxin_standard_label %||% "Unknown",
+              weight_desc))
+  cat(sprintf("**Curve fit:** R² = %.4f | RMSE = %.3f\n\n", R2, RMSE))
+
+  cat(sprintf("**Standards:** %d wells used (of %d unique concentrations)",
+              nrow(standards_for_model),
+              length(unique(standards_data$StandardConc))))
+  if (nrow(high_var_standards) > 0) {
+    cat(sprintf(" | %d excluded", nrow(high_var_standards)))
+  }
+  cat("\n\n")
+
+  if (!is.null(ec20) && !is.null(ec80) && !is.na(ec20) && !is.na(ec80)) {
+    conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
+    lloq_fmt <- if (isTRUE(is_elisa)) format(ec20, digits = 4, big.mark = ",")
+                else format(ec20, scientific = TRUE, digits = 3)
+    uloq_fmt <- if (isTRUE(is_elisa)) format(ec80, digits = 4, big.mark = ",")
+                else format(ec80, scientific = TRUE, digits = 3)
+    cat(sprintf("**Quantifiable range:** LLOQ = %s %s | ULOQ = %s %s\n\n",
+                lloq_fmt, conc_unit, uloq_fmt, conc_unit))
+  }
+
+  n_sample_wells <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
+  cat(sprintf("**Sample wells:** %d\n\n", n_sample_wells))
+
+  if (isTRUE(is_elisa) && !is.null(control_summary)) {
+    cat(sprintf("**Controls:** Blank=%.3f | NSB=%.3f | B0=%.3f | Hierarchy: %s\n\n",
+                as.numeric(control_summary$blank_avg),
+                as.numeric(control_summary$nsb_avg),
+                as.numeric(control_summary$b0_avg),
+                if (control_summary$hierarchy_valid) "Valid" else "**INVALID**"))
+  }
+
+  if (length(exec_warnings) > 0) {
+    cat(sprintf("**Top warnings:** %s\n\n",
+                paste(exec_warnings, collapse = "; ")))
+  }
+
+  if (is_html_out()) {
+    cat('</div>\n\n')
+  } else {
+    cat("---\n\n")
+  }
+
+  invisible(NULL)
+}
+
+
+# One-line overall accuracy summary appended after the status box. Mirrors
+# the body of the `exec-summary-accuracy` chunk in
+# unified_analysis_template.Rmd. Quietly does nothing if recovery_summary
+# was not produced (e.g. compact mode without standard back-calculation).
+render_overall_accuracy <- function(recovery_summary) {
+  if (is.null(recovery_summary) || !is.data.frame(recovery_summary) ||
+      nrow(recovery_summary) == 0) {
+    return(invisible(NULL))
+  }
+  mean_recovery <- mean(recovery_summary$mean_recovery, na.rm = TRUE)
+  sd_recovery   <- sd(recovery_summary$mean_recovery,   na.rm = TRUE)
+  n_levels      <- sum(!is.na(recovery_summary$mean_recovery))
+  cat(sprintf("**Overall accuracy:** Mean recovery %.1f%% ± %.1f%% across %d standard levels\n\n",
+              mean_recovery, sd_recovery, n_levels))
+  invisible(NULL)
+}
+
+
+# Bullet list of high-variability standard concentrations (CV > limit).
+# Mirrors the body of the `variability-info` chunk in
+# unified_analysis_template.Rmd. Falls back to an "all standards
+# acceptable" line when the input is empty.
+render_high_variability_info <- function(high_var_standards, is_elisa,
+                                         assay_config, lang) {
+  if (!is.null(high_var_standards) &&
+      is.data.frame(high_var_standards) &&
+      nrow(high_var_standards) > 0) {
+    cat("**", tr("high_var_standards", lang), "**\n\n", sep = "")
+    for (i in seq_len(nrow(high_var_standards))) {
+      if (isTRUE(is_elisa)) {
+        cat(sprintf("- Concentration %.1f %s: %.1f%% CV\n",
+                    high_var_standards$StandardConc[i],
+                    assay_config$units %||% "pg/mL",
+                    high_var_standards$cv[i]))
+      } else {
+        cat(sprintf("- Concentration %.2e mol/L: %.1f%% CV\n",
+                    high_var_standards$StandardConc[i],
+                    high_var_standards$cv[i]))
+      }
+    }
+    cat("\n")
+  } else {
+    cat(tr("all_std_acceptable", lang), "\n\n")
+  }
+  invisible(NULL)
+}
+
+
+# QC traffic-light card (R^2 / Hill / max CV / mean recovery, each with a
+# green/amber/red emoji). Mirrors the body of the `qc-traffic-light` chunk
+# in unified_analysis_template.Rmd. Wraps the whole block in tryCatch so a
+# malformed model_fit (e.g. interpolation fallback with no coef()) cannot
+# crash the report; instead a one-line "QC summary could not be generated"
+# message is emitted.
+render_qc_traffic_light_section <- function(model_fit, standards_for_model,
+                                            response_var, replicate_stats,
+                                            R2, weight_desc, assay_config,
+                                            lang) {
+  section_start("Click to expand QC traffic light summary")
+  tryCatch({
+    coefs <- coef(model_fit)
+    hill_slope <- abs(coefs[1])
+
+    std_backcalc <- tryCatch({
+      pred_conc <- predict(model_fit,
+                           newdata = data.frame(concentration = standards_for_model$concentration),
+                           type = "response")
+      data.frame(
+        nominal            = standards_for_model$concentration,
+        predicted_response = pred_conc,
+        observed_response  = standards_for_model[[response_var]]
+      )
+    }, error = function(e) NULL)
+
+    mean_recovery <- NA_real_
+    if (!is.null(std_backcalc)) {
+      backcalc_conc <- tryCatch({
+        sapply(std_backcalc$observed_response, function(resp) {
+          tryCatch({
+            ed <- ED(model_fit, respLev = resp, type = "absolute",
+                     display = FALSE)
+            as.numeric(ed[1, 1])
+          }, error = function(e) NA_real_)
+        })
+      }, error = function(e) rep(NA_real_, nrow(std_backcalc)))
+
+      recovery_pct <- (backcalc_conc / std_backcalc$nominal) * 100
+      recovery_pct <- recovery_pct[is.finite(recovery_pct) &
+                                     recovery_pct > 0 &
+                                     recovery_pct < 500]
+      if (length(recovery_pct) > 0) mean_recovery <- mean(recovery_pct, na.rm = TRUE)
+    }
+
+    max_cv <- if (!is.null(replicate_stats) &&
+                  is.data.frame(replicate_stats) &&
+                  nrow(replicate_stats) > 0 &&
+                  "cv_percent" %in% names(replicate_stats)) {
+      max(replicate_stats$cv_percent, na.rm = TRUE)
+    } else NA_real_
+
+    tl_qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
+    tl_hill_range <- sort(abs(tl_qc_profile$hill_slope_range))
+    tl_recovery   <- tl_qc_profile$recovery_range
+
+    qc_items <- list(
+      list(metric = tr("qc_r2", lang), value = round(R2, 4),
+           status = if (R2 >= 0.99) "green"
+                    else if (R2 >= tl_qc_profile$r2_threshold) "amber"
+                    else "red"),
+      list(metric = tr("qc_hill", lang), value = round(hill_slope, 3),
+           status = if (hill_slope >= tl_hill_range[1] &&
+                        hill_slope <= tl_hill_range[2]) "green"
+                    else if (hill_slope >= tl_hill_range[1] * 0.6 &&
+                             hill_slope <= tl_hill_range[2] * 1.3) "amber"
+                    else "red")
+    )
+    if (!is.na(max_cv) && is.finite(max_cv)) {
+      qc_items[[length(qc_items) + 1]] <- list(
+        metric = tr("qc_max_cv", lang),
+        value = paste0(round(max_cv, 1), "%"),
+        status = if (max_cv <= tl_qc_profile$cv_limit) "green"
+                 else if (max_cv <= tl_qc_profile$cv_limit * 2) "amber"
+                 else "red"
+      )
+    }
+    if (!is.na(mean_recovery) && is.finite(mean_recovery)) {
+      rec_tight_lo <- tl_recovery[1] + (100 - tl_recovery[1]) * 0.5
+      rec_tight_hi <- tl_recovery[2] - (tl_recovery[2] - 100) * 0.5
+      qc_items[[length(qc_items) + 1]] <- list(
+        metric = tr("qc_recovery", lang),
+        value = paste0(round(mean_recovery, 1), "%"),
+        status = if (mean_recovery >= rec_tight_lo &&
+                     mean_recovery <= rec_tight_hi) "green"
+                 else if (mean_recovery >= tl_recovery[1] &&
+                          mean_recovery <= tl_recovery[2]) "amber"
+                 else "red"
+      )
+    }
+
+    status_icon <- function(s) switch(s, green = "\U0001F7E2",
+                                      amber = "\U0001F7E1",
+                                      red = "\U0001F534", "❓")
+    status_label <- function(s) switch(s, green = tr("qc_green", lang),
+                                       amber = tr("qc_amber", lang),
+                                       red = tr("qc_red", lang), "?")
+
+    qc_df <- data.frame(
+      Metric = sapply(qc_items, function(x) x$metric),
+      Value  = sapply(qc_items, function(x) as.character(x$value)),
+      Status = sapply(qc_items,
+                      function(x) paste(status_icon(x$status),
+                                        status_label(x$status))),
+      stringsAsFactors = FALSE
+    )
+    names(qc_df) <- c(tr("qc_metric", lang), tr("qc_value", lang),
+                      tr("qc_status", lang))
+
+    emit_heading(tr("qc_card_title", lang), 4)
+    cat(sprintf("*%s: %s*\n\n", "Regression", weight_desc))
+    render_table(qc_df, caption = tr("qc_card_title", lang))
+  }, error = function(e) {
+    cat("\n\n*QC summary could not be generated.*\n\n")
+  })
+  section_end()
+  invisible(NULL)
+}
