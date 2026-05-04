@@ -642,3 +642,264 @@ table.bs-report td.num { text-align: right; }
   .nav-pills > li:not(:last-child)::after { display: none; }
   .bs-std-grid                        { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================
+   v3 §1 — Top bar fixes (high-specificity)
+   Defeats Bootstrap .btn-default + .form-group block layout.
+   ============================================ */
+
+/* Force the topbar row to stay on one line, regardless of what
+   Shiny inserts inside .actions. */
+.bs-topbar {
+  flex-wrap: nowrap;
+  min-height: 56px;
+  gap: 24px;
+}
+.bs-topbar .brand,
+.bs-topbar .actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* Quiet text-button (used for "Guided tour" + "Docs"). High specificity
+   beats .btn.btn-default.action-button without needing !important on
+   every property. */
+.bs-topbar .actions .bs-quiet-btn,
+.bs-topbar .actions a.bs-quiet-btn,
+.bs-topbar .actions button.bs-quiet-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-1);
+  font-family: var(--ff-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-ink-3);
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 120ms, color 120ms;
+}
+.bs-topbar .actions .bs-quiet-btn:hover,
+.bs-topbar .actions a.bs-quiet-btn:hover,
+.bs-topbar .actions button.bs-quiet-btn:hover {
+  background: var(--c-surface-2);
+  color: var(--c-ink);
+  text-decoration: none;
+}
+.bs-topbar .actions .bs-quiet-btn:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* Un-block-ify Shiny's selectInput wrapper inside the topbar.
+   .shiny-input-container is normally display:block + width:100%. */
+.bs-topbar .actions .bs-lang-select {
+  display: inline-flex;
+  align-items: center;
+}
+.bs-topbar .actions .bs-lang-select .form-group,
+.bs-topbar .actions .bs-lang-select .shiny-input-container {
+  margin: 0;
+  padding: 0;
+  width: auto !important;
+  display: inline-flex;
+  align-items: center;
+}
+.bs-topbar .actions .bs-lang-select .control-label {
+  display: none;
+}
+.bs-topbar .actions .bs-lang-select .selectize-control {
+  width: 110px !important;
+  min-width: 110px;
+  margin: 0;
+}
+.bs-topbar .actions .bs-lang-select .selectize-input {
+  height: 28px;
+  min-height: 28px;
+  padding: 4px 24px 4px 10px;
+  font-family: var(--ff-sans);
+  font-size: 12px;
+  line-height: 1.2;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-1);
+  box-shadow: none;
+}
+
+/* ============================================
+   v3 §2 — Wizard stepper resilience
+   CSS-counter fallback: numbers paint even if data-step isn't stamped.
+   Connector visible across all viewport widths.
+   ============================================ */
+
+/* Reset the nav as a counter container. */
+.nav-pills {
+  counter-reset: bs-step;
+}
+
+/* Ensure every <li> increments the counter. */
+.nav-pills > li {
+  counter-increment: bs-step;
+}
+
+/* Numbered chip — uses CSS counter as the SOURCE OF TRUTH.
+   data-step is a layered enhancement (JS-stamped) used only by
+   .is-done state to swap the number for a checkmark. */
+.nav-pills > li > a::before {
+  content: counter(bs-step, decimal-leading-zero);  /* "01", "02", ... */
+  font-family: var(--ff-mono);
+  font-weight: 500;
+  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--c-ink-3);
+  flex-shrink: 0;
+  margin-right: 10px;
+  transition: background 120ms, color 120ms;
+}
+
+/* Active state — strong navy chip. Selector chain matches Shiny's
+   actual emitted DOM (some Bootstrap 3 builds put .active on the <li>,
+   others on the <a>). Cover both. */
+.nav-pills > li.active > a::before,
+.nav-pills > li > a.active::before {
+  background: var(--c-accent);
+  color: #fff;
+}
+
+/* Done state — checkmark instead of number. JS adds `.is-done` to <li>
+   when the user advances past it. Keep this rule LAST so it wins. */
+.nav-pills > li.is-done > a::before {
+  content: "✓";
+  font-family: var(--ff-sans);
+  font-weight: 600;
+  background: var(--c-accent);
+  color: #fff;
+}
+
+/* Progress connector — short hairline between adjacent pills.
+   Fixed width so it doesn't stretch absurdly on wide screens. */
+.nav-pills > li:not(:last-child) {
+  margin-right: 36px;
+}
+.nav-pills > li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -28px;            /* sit in the gap created by margin-right */
+  width: 20px;
+  height: 1px;
+  background: var(--c-line);
+  pointer-events: none;
+}
+.nav-pills > li.is-done:not(:last-child)::after {
+  background: var(--c-accent);
+}
+
+/* Make sure the pill <a> can host the inline-grid ::before chip
+   without breaking flex alignment. */
+.nav-pills > li > a {
+  display: inline-flex !important;
+  align-items: center;
+}
+
+/* ============================================
+   v3 §3 — Quick Start tile fixes (high-specificity)
+   ============================================ */
+.bs-quickstart a.preset-tile,
+.bs-quickstart .preset-tile {
+  display: flex !important;
+  align-items: stretch;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none !important;
+  color: var(--c-ink) !important;
+  transition: border-color 120ms, box-shadow 120ms, transform 120ms;
+  /* Reset anchor defaults that try to leak through */
+  font-weight: inherit;
+  line-height: inherit;
+}
+.bs-quickstart a.preset-tile:hover,
+.bs-quickstart a.preset-tile:focus-visible {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+  text-decoration: none !important;
+  outline: 0;
+}
+.bs-quickstart a.preset-tile:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+}
+.bs-quickstart a.preset-tile:active {
+  transform: translateY(1px);
+}
+.bs-quickstart .preset-tile .rail {
+  width: 4px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.bs-quickstart .preset-tile .rail-blue   { background: var(--c-info); }
+.bs-quickstart .preset-tile .rail-green  { background: var(--c-pass); }
+.bs-quickstart .preset-tile .rail-purple { background: #cc79a7; }
+.bs-quickstart .preset-tile .body {
+  padding: 14px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bs-quickstart .preset-tile .title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.bs-quickstart .preset-tile .sub {
+  font-size: 11.5px;
+  color: var(--c-ink-3);
+  line-height: 1.45;
+}
+.bs-quickstart .preset-tile .meta {
+  margin-top: 4px;
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  color: var(--c-ink-4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* The "More options" disclosure */
+.bs-quickstart-more {
+  margin-top: 14px;
+  font-size: 12px;
+}
+.bs-quickstart-more > summary {
+  cursor: pointer;
+  color: var(--c-ink-3);
+  padding: 4px 0;
+  list-style: none;
+}
+.bs-quickstart-more > summary::-webkit-details-marker { display: none; }
+.bs-quickstart-more > summary::before {
+  content: "▸ ";
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 120ms;
+}
+.bs-quickstart-more[open] > summary::before {
+  transform: rotate(90deg);
+}
+.bs-quickstart-more > summary:hover {
+  color: var(--c-ink);
+}
