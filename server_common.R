@@ -287,13 +287,22 @@ server_common <- function(input, output, session, shared) {
     lang <- input$app_language %||% "en"
     tagList(
       h4(style = "margin-top: 0;", tr("quickstart_title", lang)),
-      p(tr("quickstart_desc", lang))
+      p(class = "muted", style = "font-size: var(--t-small);",
+        tr("quickstart_desc", lang))
     )
+  })
+
+  # GUI refresh §3.1: <details> "More options" disclosure summary text
+  # for the manual-configure fallbacks. Translation key falls back to a
+  # sensible English literal if the key is not yet present in i18n.R.
+  output$quickstart_more_options_summary_ui <- renderUI({
+    lang <- input$app_language %||% "en"
+    HTML(tr("quickstart_more_options", lang))
   })
 
   output$quickstart_manual_note_ui <- renderUI({
     lang <- input$app_language %||% "en"
-    tags$small(style = "color: #666;", tr("quickstart_or_manual", lang))
+    tags$small(style = "color: var(--c-ink-3);", tr("quickstart_or_manual", lang))
   })
 
   # H1: row headers for the 2x3 Quick Start grid

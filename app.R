@@ -144,28 +144,50 @@ ui <- fluidPage(
   introjsUI(),
   shinyFeedback::useShinyFeedback(),
   tags$head(
+    # GUI refresh: IBM Plex font stack (Sans for body / labels / buttons,
+    # Mono for numbers / hex / file names, Serif for the report title only).
+    tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
+    tags$link(rel = "preconnect", href = "https://fonts.gstatic.com",
+              crossorigin = NA),
+    tags$link(rel = "stylesheet",
+              href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
   ),
 
-  uiOutput("app_title_ui"),
-  br(),
-
-  # ------------------------------
-  # Language Toggle & Guided Tour
-  # ------------------------------
+  # GUI refresh §2.1: horizontal top bar replaces the previous title +
+  # language/tour div. Left = brand monogram + wordmark + version pill;
+  # right = Guided tour button + Docs (GitHub README) + divider + language
+  # selector. Existing widget IDs preserved (#start_tour, #app_language)
+  # so the existing observers keep working unchanged.
   div(
-    style = "display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 20px; align-items: center;",
-    actionButton("start_tour", "\U0001F680 Start Guided Tour",
-                class = "btn btn-lg btn-info",
-                style = "font-size: 18px; padding: 15px 30px;"),
+    class = "bs-topbar",
     div(
-      id = "language_toggle_section",
+      class = "bs-brand",
+      div(class = "mark", "B"),
+      div(class = "name",
+          "Bioassay Suite",
+          tags$span(class = "v", "v0.9.0"))
+    ),
+    div(
+      class = "bs-topbar-tools",
       style = "display: flex; align-items: center; gap: 8px;",
-      tags$span("\U0001F310", style = "font-size: 20px;"),
-      selectInput("app_language", NULL,
-                  choices = c("English" = "en", "Español" = "es"),
-                  selected = "en",
-                  width = "130px")
+      actionButton("start_tour", "\U0001F680 Guided tour",
+                   class = "btn btn-default btn-sm"),
+      tags$a("\U0001F4D6 Docs",
+             href = "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "btn btn-default btn-sm",
+             style = "text-decoration: none;"),
+      div(style = "width: 1px; height: 20px; background: var(--c-line); margin: 0 6px;"),
+      div(
+        id = "language_toggle_section",
+        style = "display: flex; align-items: center; gap: 6px;",
+        tags$span("\U0001F310", style = "font-size: 14px; color: var(--c-ink-3);"),
+        selectInput("app_language", NULL,
+                    choices = c("English" = "en", "Español" = "es"),
+                    selected = "en",
+                    width = "120px")
+      )
     )
   ),
 
@@ -180,7 +202,7 @@ ui <- fluidPage(
     # TAB 1: Assay Configuration
     # ======================================================================
     tabPanel(
-      "1. Configuration",
+      HTML('<span class="num">01</span><span class="label">Configuration</span>'),
       value = "tab_config",
       br(),
       div(
@@ -189,57 +211,69 @@ ui <- fluidPage(
                     class = "btn btn-primary btn-lg")
       ),
 
-      # Quick Start panel (2x3 grid: row = Instant demo / Configure manually,
-      # column = preset). ELISA Custom has no "Instant demo" variant.
+      # GUI refresh §3.1: Quick Start collapses 2x3 button grid into a
+      # single card with three preset tiles. Click loads demo data (RBA
+      # Saxitoxin / ELISA Cortisol) or blank template (ELISA Custom).
+      # The "Configure manually without demo data" paths for STX / Cortisol
+      # are kept but moved into a <details> "More options" disclosure
+      # (per Q1 = (b)). Existing observer IDs (qs_rba_stx_demo /
+      # qs_elisa_cortisol_demo / qs_rba_stx_manual / qs_elisa_cortisol_manual
+      # / qs_elisa_custom_manual) all preserved so server_config.R is
+      # unchanged.
       div(
         id = "quickstart_section",
-        style = "background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px;",
+        class = "bs-card",
+        style = "padding: 20px; margin-bottom: 24px;",
         uiOutput("quickstart_heading_ui"),
 
-        # Row 1 — Instant demo
-        uiOutput("quickstart_demo_row_label_ui"),
-        fluidRow(
-          column(4,
-            actionButton("qs_rba_stx_demo",
-                        label = tagList(icon("flask"), " RBA Saxitoxin"),
-                        class = "btn btn-lg btn-primary",
-                        style = "width: 100%; margin-bottom: 8px;")
-          ),
-          column(4,
-            actionButton("qs_elisa_cortisol_demo",
-                        label = tagList(icon("vial"), " ELISA Cortisol"),
-                        class = "btn btn-lg btn-success",
-                        style = "width: 100%; margin-bottom: 8px;")
-          ),
-          column(4,
-            uiOutput("quickstart_no_demo_slot_ui")
-          )
+        # Three preset tiles (stacked, full width)
+        div(
+          class = "row-gap-3",
+          style = "margin-top: 16px;",
+          actionButton("qs_rba_stx_demo",
+                       label = HTML(paste0(
+                         '<div class="rail rail-blue"></div>',
+                         '<div class="body">',
+                         '<div class="title">RBA · Saxitoxin</div>',
+                         '<div class="sub">8 standards, triplicate · demo data included</div>',
+                         '</div>')),
+                       class = "preset-tile"),
+          actionButton("qs_elisa_cortisol_demo",
+                       label = HTML(paste0(
+                         '<div class="rail rail-green"></div>',
+                         '<div class="body">',
+                         '<div class="title">ELISA · Cortisol</div>',
+                         '<div class="sub">Cayman 96-well kit · demo data included</div>',
+                         '</div>')),
+                       class = "preset-tile"),
+          actionButton("qs_elisa_custom_manual",
+                       label = HTML(paste0(
+                         '<div class="rail rail-purple"></div>',
+                         '<div class="body">',
+                         '<div class="title">ELISA · Custom</div>',
+                         '<div class="sub">Blank template — configure your own assay</div>',
+                         '</div>')),
+                       class = "preset-tile")
         ),
 
-        # Row 2 — Configure manually
-        uiOutput("quickstart_manual_row_label_ui"),
-        fluidRow(
-          column(4,
+        # More options disclosure: configure-manually fallbacks for STX
+        # and Cortisol (no demo data load; jump straight to plate layout).
+        tags$details(
+          style = "margin-top: 16px;",
+          tags$summary(
+            style = "cursor: pointer; font-size: var(--t-small); color: var(--c-ink-3);",
+            uiOutput("quickstart_more_options_summary_ui", inline = TRUE)
+          ),
+          div(
+            style = "margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;",
             actionButton("qs_rba_stx_manual",
-                        label = tagList(icon("flask"), " RBA Saxitoxin"),
-                        class = "btn btn-lg btn-default",
-                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #1976D2; color: #1976D2;")
-          ),
-          column(4,
+                         label = HTML('<span style="color: var(--oi-blue);">●</span> RBA · Saxitoxin (configure manually, no demo data)'),
+                         class = "btn btn-default btn-sm"),
             actionButton("qs_elisa_cortisol_manual",
-                        label = tagList(icon("vial"), " ELISA Cortisol"),
-                        class = "btn btn-lg btn-default",
-                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #388E3C; color: #388E3C;")
-          ),
-          column(4,
-            actionButton("qs_elisa_custom_manual",
-                        label = tagList(icon("cog"), " ELISA Custom"),
-                        class = "btn btn-lg btn-default",
-                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #9C27B0; color: #9C27B0;")
+                         label = HTML('<span style="color: var(--oi-bgreen);">●</span> ELISA · Cortisol (configure manually, no demo data)'),
+                         class = "btn btn-default btn-sm")
           )
-        ),
-
-        uiOutput("quickstart_manual_note_ui")
+        )
       ),
 
       introBox(
@@ -251,8 +285,11 @@ ui <- fluidPage(
             column(
               width = 6,
 
-              wellPanel(
-                style = "background-color: #E3F2FD; border-left: 4px solid #2196F3;",
+              # GUI refresh §3.2: drop the blue tinted wellPanel background;
+              # rely on the bs-card surface + hairline only.
+              div(
+                class = "bs-card",
+                style = "padding: 16px 18px; margin-bottom: 16px;",
                 uiOutput("select_assay_type_heading_ui"),
                 selectInput(
                   "assay_type",
@@ -359,7 +396,7 @@ ui <- fluidPage(
     # TAB 2: Plate Layout
     # ======================================================================
     tabPanel(
-      "2. Plate Layout",
+      HTML('<span class="num">02</span><span class="label">Plate Layout</span>'),
       value = "tab_layout",
       br(),
 
@@ -417,31 +454,63 @@ ui <- fluidPage(
         ),
         br(),
 
-        # ---- MATRIX PAIRS (CSS Grid) ----
+        # GUI refresh §4: layer switcher. The four matrices stay in the
+        # data model; only one renders at a time, driven by
+        # input.active_layer. The matrix_*_section divs themselves are
+        # unchanged so their existing reactives, observers, and shared$
+        # state continue to work — switching layers is purely visibility.
         div(
-          class = "matrix-pairs",
+          id = "layer_switcher_section",
+          radioButtons("active_layer", NULL,
+                       choices = c("Sample Type" = "type",
+                                   "Sample ID"   = "id",
+                                   "Dilution"    = "dilution",
+                                   "Replicates"  = "rep"),
+                       selected = "type",
+                       inline = TRUE)
+        ),
 
-          # === Pair 1: Sample Type | Sample ID ===
-          tags$section(
-            class = "matrix-pair",
+        div(
+          id = "matrix_viewport",
+          class = "bs-card",
+          style = "padding: 16px 18px;",
 
-            # Left: Sample Type
+          # Sample Type layer
+          conditionalPanel(
+            condition = "input.active_layer == 'type'",
             div(
-              id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
+              id = "matrix_type_section", role = "grid",
+              `aria-label` = "Sample type matrix: 8 rows by 12 columns",
               uiOutput("sample_type_heading_ui"),
               actionButton("reset_type", "Reset", class = "btn btn-xs"),
-
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
                 uiOutput("elisa_controls_banner_ui")
               ),
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"),
+                                           type = 6, color = "#1f3a5f")
+            )
+          ),
 
-              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
-            ),
-
-            # Right: Sample ID
+          # Sample ID layer
+          conditionalPanel(
+            condition = "input.active_layer == 'id'",
             div(
-              id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
+              id = "matrix_id_section", role = "grid",
+              `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
+              uiOutput("sample_id_heading_ui"),
+              actionButton("reset_id", "Reset", class = "btn btn-xs"),
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"),
+                                           type = 6, color = "#1f3a5f")
+            )
+          ),
+
+          # Dilution layer
+          conditionalPanel(
+            condition = "input.active_layer == 'dilution'",
+            div(
+              id = "matrix_dilution_section", role = "grid",
+              `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
               uiOutput("dilution_matrix_header"),
               div(
@@ -464,32 +533,25 @@ ui <- fluidPage(
                 div(`aria-live` = "polite", uiOutput("dilution_gt1_warning")),
                 actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
                 div(class = "matrix-table-anchor",
-                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"), type = 6, color = "#1976D2")),
+                    shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"),
+                                                 type = 6, color = "#1f3a5f")),
                 uiOutput("dilution_matrix_help")
               )
             )
           ),
 
-          # === Pair 2: Dilution Factors | Replicate Groups ===
-          tags$section(
-            class = "matrix-pair",
-
-            # Left: Dilution Factors
+          # Replicates layer
+          conditionalPanel(
+            condition = "input.active_layer == 'rep'",
             div(
-              id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
-              uiOutput("sample_id_heading_ui"),
-              actionButton("reset_id", "Reset", class = "btn btn-xs"),
-              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
-            ),
-
-            # Right: Replicate Groups
-            div(
-              id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
+              id = "matrix_replicate_section", role = "grid",
+              `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
               uiOutput("replicate_heading_ui"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               div(class = "matrix-table-anchor",
-                shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"), type = 6, color = "#1976D2"))
+                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"),
+                                               type = 6, color = "#1f3a5f"))
             )
           )
         ),
@@ -556,7 +618,7 @@ ui <- fluidPage(
     # TAB 3: Upload & Preview
     # ======================================================================
     tabPanel(
-      "3. Upload & Preview",
+      HTML('<span class="num">03</span><span class="label">Upload &amp; Preview</span>'),
       value = "tab_upload",
       br(),
 
@@ -590,8 +652,11 @@ ui <- fluidPage(
         conditionalPanel(
           condition = "input.import_method == 'visual'",
           div(
+            # GUI refresh §5.1: replace blue dashed border with the
+            # standard bs-card surface + accent-soft tint.
             id = "visual_selector_section",
-            style = "border: 2px dashed #2196F3; padding: 15px; margin: 10px 0; border-radius: 8px;",
+            class = "bs-card",
+            style = "padding: 16px; margin: 12px 0; background: var(--c-accent-soft); border-color: var(--c-line);",
             uiOutput("visual_selector_heading_ui"),
             uiOutput("visual_selector_intro_ui"),
             uiOutput("visual_file_preview"),
@@ -637,7 +702,7 @@ ui <- fluidPage(
     # TAB 4: Analysis Settings
     # ======================================================================
     tabPanel(
-      "4. Analysis Settings",
+      HTML('<span class="num">04</span><span class="label">Analysis Settings</span>'),
       value = "tab_analysis",
       br(),
       div(
@@ -650,7 +715,8 @@ ui <- fluidPage(
 
       div(
         id = "analysis_settings_section",
-        style = "max-width: 700px;",
+        class = "bs-card",
+        style = "max-width: 880px; padding: 20px 24px;",
         uiOutput("analysis_settings_heading_ui"),
 
         # Primary setting (always visible)
@@ -662,13 +728,12 @@ ui <- fluidPage(
                    selected = "none"),
         uiOutput("regression_weight_help_ui"),
 
-        # Advanced analysis options — open by default for visibility
+        # GUI refresh §5.2: replaces the previous yellow tinted div
+        # (#FFF8E1 + #FFA000 left-border) with a quiet hairline divider
+        # row pattern. Visual hierarchy alone separates the advanced
+        # options from the primary control above.
         div(
-          style = paste0(
-            "margin-top: 18px; padding: 14px 16px; background: #FFF8E1; ",
-            "border-radius: 6px; border-left: 4px solid #FFA000; ",
-            "box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
-          ),
+          style = "margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--c-line);",
           uiOutput("advanced_options_heading_ui"),
           uiOutput("advanced_options_intro_ui"),
 
@@ -727,7 +792,7 @@ ui <- fluidPage(
     # TAB 5: Generate Report
     # ======================================================================
     tabPanel(
-      "5. Generate Report",
+      HTML('<span class="num">05</span><span class="label">Generate Report</span>'),
       value = "tab_report",
       br(),
       div(
@@ -738,18 +803,26 @@ ui <- fluidPage(
 
       fluidRow(
         column(8,
-          # Report generation
+          # GUI refresh \u00a75.3: convert_section becomes a bs-card. Format /
+          # language checkbox groups receive `format-tiles` /
+          # `lang-tiles` class hooks so the CSS in www/style.css can
+          # style them as tiles without re-architecting the inputs.
           div(
             id = "convert_section",
+            class = "bs-card",
+            style = "padding: 20px 24px;",
             uiOutput("report_output_heading_ui"),
-            checkboxGroupInput("export_formats", "Report formats:",
-                              choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
-                              selected = "html"),
+            div(class = "format-tiles",
+                checkboxGroupInput("export_formats", "Report formats:",
+                                  choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
+                                  selected = "html",
+                                  inline = TRUE)),
             uiOutput("report_formats_help_ui"),
-            checkboxGroupInput("report_languages", "Report language(s):",
-                              choices = c("English" = "en", "Espa\u00f1ol" = "es"),
-                              selected = "en",
-                              inline = TRUE),
+            div(class = "lang-tiles",
+                checkboxGroupInput("report_languages", "Report language(s):",
+                                  choices = c("English" = "en", "Espa\u00f1ol" = "es"),
+                                  selected = "en",
+                                  inline = TRUE)),
             uiOutput("report_languages_help_ui"),
             checkboxInput("generate_compact",
                           "Generate compact report",
@@ -757,12 +830,14 @@ ui <- fluidPage(
             br(),
             uiOutput("report_variants_explainer_ui"),
             br(),
+            # btn-primary now maps to navy via the design tokens; drop
+            # the heavy inline overrides (font-weight 700, 12 px radius)
+            # and let the design system drive the look.
             actionButton("convert",
                         label = tagList(icon("file-arrow-down"),
                                        "Generate Report"),
                         class = "btn btn-primary btn-lg",
-                        style = "width: 100%; font-size: 20px; font-weight: 700;
-                                padding: 14px; border-radius: 12px;"),
+                        style = "width: 100%;"),
             br(), br(),
             uiOutput("download_report_ui"),
             uiOutput("download_report_full_ui")
@@ -783,10 +858,15 @@ ui <- fluidPage(
       ),
       br(),
 
-      # Pre-Flight Check panel (full-width below the two columns)
+      # GUI refresh §5.3: pre-flight panel as a quiet bs-card with an
+      # info-soft accent rail instead of the warning-yellow tinted
+      # wellPanel. Status of individual checks (pass / warn / fail) is
+      # already encoded by the renderer's chip-glyphs.
       div(
         id = "preflight_section",
-        style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
+        class = "bs-card",
+        style = paste0("padding: 16px 18px; margin-bottom: 16px; ",
+                       "border-left: 4px solid var(--c-info);"),
         uiOutput("preflight_heading_ui"),
         div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
