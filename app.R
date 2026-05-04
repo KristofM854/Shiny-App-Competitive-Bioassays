@@ -211,57 +211,69 @@ ui <- fluidPage(
                     class = "btn btn-primary btn-lg")
       ),
 
-      # Quick Start panel (2x3 grid: row = Instant demo / Configure manually,
-      # column = preset). ELISA Custom has no "Instant demo" variant.
+      # GUI refresh §3.1: Quick Start collapses 2x3 button grid into a
+      # single card with three preset tiles. Click loads demo data (RBA
+      # Saxitoxin / ELISA Cortisol) or blank template (ELISA Custom).
+      # The "Configure manually without demo data" paths for STX / Cortisol
+      # are kept but moved into a <details> "More options" disclosure
+      # (per Q1 = (b)). Existing observer IDs (qs_rba_stx_demo /
+      # qs_elisa_cortisol_demo / qs_rba_stx_manual / qs_elisa_cortisol_manual
+      # / qs_elisa_custom_manual) all preserved so server_config.R is
+      # unchanged.
       div(
         id = "quickstart_section",
-        style = "background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px;",
+        class = "bs-card",
+        style = "padding: 20px; margin-bottom: 24px;",
         uiOutput("quickstart_heading_ui"),
 
-        # Row 1 — Instant demo
-        uiOutput("quickstart_demo_row_label_ui"),
-        fluidRow(
-          column(4,
-            actionButton("qs_rba_stx_demo",
-                        label = tagList(icon("flask"), " RBA Saxitoxin"),
-                        class = "btn btn-lg btn-primary",
-                        style = "width: 100%; margin-bottom: 8px;")
-          ),
-          column(4,
-            actionButton("qs_elisa_cortisol_demo",
-                        label = tagList(icon("vial"), " ELISA Cortisol"),
-                        class = "btn btn-lg btn-success",
-                        style = "width: 100%; margin-bottom: 8px;")
-          ),
-          column(4,
-            uiOutput("quickstart_no_demo_slot_ui")
-          )
+        # Three preset tiles (stacked, full width)
+        div(
+          class = "row-gap-3",
+          style = "margin-top: 16px;",
+          actionButton("qs_rba_stx_demo",
+                       label = HTML(paste0(
+                         '<div class="rail rail-blue"></div>',
+                         '<div class="body">',
+                         '<div class="title">RBA · Saxitoxin</div>',
+                         '<div class="sub">8 standards, triplicate · demo data included</div>',
+                         '</div>')),
+                       class = "preset-tile"),
+          actionButton("qs_elisa_cortisol_demo",
+                       label = HTML(paste0(
+                         '<div class="rail rail-green"></div>',
+                         '<div class="body">',
+                         '<div class="title">ELISA · Cortisol</div>',
+                         '<div class="sub">Cayman 96-well kit · demo data included</div>',
+                         '</div>')),
+                       class = "preset-tile"),
+          actionButton("qs_elisa_custom_manual",
+                       label = HTML(paste0(
+                         '<div class="rail rail-purple"></div>',
+                         '<div class="body">',
+                         '<div class="title">ELISA · Custom</div>',
+                         '<div class="sub">Blank template — configure your own assay</div>',
+                         '</div>')),
+                       class = "preset-tile")
         ),
 
-        # Row 2 — Configure manually
-        uiOutput("quickstart_manual_row_label_ui"),
-        fluidRow(
-          column(4,
+        # More options disclosure: configure-manually fallbacks for STX
+        # and Cortisol (no demo data load; jump straight to plate layout).
+        tags$details(
+          style = "margin-top: 16px;",
+          tags$summary(
+            style = "cursor: pointer; font-size: var(--t-small); color: var(--c-ink-3);",
+            uiOutput("quickstart_more_options_summary_ui", inline = TRUE)
+          ),
+          div(
+            style = "margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;",
             actionButton("qs_rba_stx_manual",
-                        label = tagList(icon("flask"), " RBA Saxitoxin"),
-                        class = "btn btn-lg btn-default",
-                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #1976D2; color: #1976D2;")
-          ),
-          column(4,
+                         label = HTML('<span style="color: var(--oi-blue);">●</span> RBA · Saxitoxin (configure manually, no demo data)'),
+                         class = "btn btn-default btn-sm"),
             actionButton("qs_elisa_cortisol_manual",
-                        label = tagList(icon("vial"), " ELISA Cortisol"),
-                        class = "btn btn-lg btn-default",
-                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #388E3C; color: #388E3C;")
-          ),
-          column(4,
-            actionButton("qs_elisa_custom_manual",
-                        label = tagList(icon("cog"), " ELISA Custom"),
-                        class = "btn btn-lg btn-default",
-                        style = "width: 100%; margin-bottom: 8px; border: 2px solid #9C27B0; color: #9C27B0;")
+                         label = HTML('<span style="color: var(--oi-bgreen);">●</span> ELISA · Cortisol (configure manually, no demo data)'),
+                         class = "btn btn-default btn-sm")
           )
-        ),
-
-        uiOutput("quickstart_manual_note_ui")
+        )
       ),
 
       introBox(
@@ -273,8 +285,11 @@ ui <- fluidPage(
             column(
               width = 6,
 
-              wellPanel(
-                style = "background-color: #E3F2FD; border-left: 4px solid #2196F3;",
+              # GUI refresh §3.2: drop the blue tinted wellPanel background;
+              # rely on the bs-card surface + hairline only.
+              div(
+                class = "bs-card",
+                style = "padding: 16px 18px; margin-bottom: 16px;",
                 uiOutput("select_assay_type_heading_ui"),
                 selectInput(
                   "assay_type",
