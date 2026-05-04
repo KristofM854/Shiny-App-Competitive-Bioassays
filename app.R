@@ -778,18 +778,26 @@ ui <- fluidPage(
 
       fluidRow(
         column(8,
-          # Report generation
+          # GUI refresh \u00a75.3: convert_section becomes a bs-card. Format /
+          # language checkbox groups receive `format-tiles` /
+          # `lang-tiles` class hooks so the CSS in www/style.css can
+          # style them as tiles without re-architecting the inputs.
           div(
             id = "convert_section",
+            class = "bs-card",
+            style = "padding: 20px 24px;",
             uiOutput("report_output_heading_ui"),
-            checkboxGroupInput("export_formats", "Report formats:",
-                              choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
-                              selected = "html"),
+            div(class = "format-tiles",
+                checkboxGroupInput("export_formats", "Report formats:",
+                                  choices = c("HTML" = "html", "Word (DOCX)" = "docx", "PDF" = "pdf"),
+                                  selected = "html",
+                                  inline = TRUE)),
             uiOutput("report_formats_help_ui"),
-            checkboxGroupInput("report_languages", "Report language(s):",
-                              choices = c("English" = "en", "Espa\u00f1ol" = "es"),
-                              selected = "en",
-                              inline = TRUE),
+            div(class = "lang-tiles",
+                checkboxGroupInput("report_languages", "Report language(s):",
+                                  choices = c("English" = "en", "Espa\u00f1ol" = "es"),
+                                  selected = "en",
+                                  inline = TRUE)),
             uiOutput("report_languages_help_ui"),
             checkboxInput("generate_compact",
                           "Generate compact report",
@@ -797,12 +805,14 @@ ui <- fluidPage(
             br(),
             uiOutput("report_variants_explainer_ui"),
             br(),
+            # btn-primary now maps to navy via the design tokens; drop
+            # the heavy inline overrides (font-weight 700, 12 px radius)
+            # and let the design system drive the look.
             actionButton("convert",
                         label = tagList(icon("file-arrow-down"),
                                        "Generate Report"),
                         class = "btn btn-primary btn-lg",
-                        style = "width: 100%; font-size: 20px; font-weight: 700;
-                                padding: 14px; border-radius: 12px;"),
+                        style = "width: 100%;"),
             br(), br(),
             uiOutput("download_report_ui"),
             uiOutput("download_report_full_ui")
@@ -823,10 +833,15 @@ ui <- fluidPage(
       ),
       br(),
 
-      # Pre-Flight Check panel (full-width below the two columns)
+      # GUI refresh §5.3: pre-flight panel as a quiet bs-card with an
+      # info-soft accent rail instead of the warning-yellow tinted
+      # wellPanel. Status of individual checks (pass / warn / fail) is
+      # already encoded by the renderer's chip-glyphs.
       div(
         id = "preflight_section",
-        style = "background-color: #FFF8E1; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC107; margin-bottom: 15px;",
+        class = "bs-card",
+        style = paste0("padding: 16px 18px; margin-bottom: 16px; ",
+                       "border-left: 4px solid var(--c-info);"),
         uiOutput("preflight_heading_ui"),
         div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
