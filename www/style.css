@@ -948,3 +948,66 @@ details[open] summary { margin-bottom: 10px; }
   .well { padding: 12px; }
   .btn-lg { font-size: 14px; padding: 10px 16px; }
 }
+
+
+/* ---------- Format / language checkbox tile styling -------------------
+   .format-tiles / .lang-tiles wrap a checkboxGroupInput so each option
+   renders as a horizontal tile rather than a plain checkbox. The native
+   <input> stays in the DOM for Shiny's input bindings; we just hide it
+   visually and style its parent <label>. */
+.format-tiles .control-label,
+.lang-tiles  .control-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: var(--t-small);
+  color: var(--c-ink-2);
+}
+.format-tiles .shiny-options-group,
+.lang-tiles  .shiny-options-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.format-tiles .checkbox,
+.lang-tiles  .checkbox {
+  margin: 0;
+  padding: 0;
+}
+.format-tiles .checkbox label,
+.lang-tiles  .checkbox label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--c-ink-2);
+  transition: border-color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+.format-tiles .checkbox label:hover,
+.lang-tiles  .checkbox label:hover {
+  background: var(--c-surface-2);
+  border-color: var(--c-line-2);
+}
+/* Active state: any tile whose nested <input> is checked gets the navy
+   accent treatment. */
+.format-tiles .checkbox label:has(> input[type="checkbox"]:checked),
+.lang-tiles  .checkbox label:has(> input[type="checkbox"]:checked) {
+  background: var(--c-accent-soft);
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+/* Hide the native checkbox glyph but keep the input live for Shiny. */
+.format-tiles .checkbox input[type="checkbox"],
+.lang-tiles  .checkbox input[type="checkbox"] {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
