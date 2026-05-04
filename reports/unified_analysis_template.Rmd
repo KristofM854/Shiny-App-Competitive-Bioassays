@@ -241,14 +241,96 @@ fmt_smart <- function(x, digits = 4) {
 ```
 
 ```{css details-style, echo=FALSE, eval=knitr::is_html_output()}
+/* GUI refresh §6.1 / §6.7: report-only typography overrides. The Plex
+   font stack is loaded by app.R for the live Shiny app; the report
+   ships as a self-contained HTML so we re-import the same fonts here
+   so emailed / printed reports also pick up the design. */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap');
+
+body {
+  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", sans-serif;
+  color: #0f1722;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.title { /* rmarkdown's auto title becomes the serif display heading */
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-weight: 500;
+  font-size: 32px;
+  letter-spacing: -0.01em;
+  color: #0f1722;
+  margin-bottom: 4px;
+}
+h1, h2, h3, h4 {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 600;
+  color: #0f1722;
+  margin-top: 24px;
+}
+h1 { font-size: 22px; font-weight: 500; }
+h2 { font-size: 17px; }
+h3 { font-size: 14px; }
+h4 { font-size: 13px; }
+.mono, code, kbd, pre, tt {
+  font-family: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+}
+
+/* Section <details> chevron + sentence-case heading (§6.7) */
 details > summary {
   cursor: pointer;
-  font-weight: bold;
-  color: #336699;
+  font-weight: 500;
+  color: #2a3340;
   margin-bottom: 8px;
 }
+details > summary:hover { color: #1f3a5f; }
 details {
   margin-bottom: 12px;
+}
+
+/* GUI refresh §6.6: kable / kableExtra table styling. Mono numerics,
+   tabular numerals, small-caps mono header, surface-2 hover. */
+table.kable, table.dataframe, .kable_wrapper table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+table.kable thead th, table.dataframe thead th, .kable_wrapper thead th {
+  background: #f1f3f5;
+  color: #5b6573;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e3e6ea;
+  text-align: left;
+}
+table.kable td, table.dataframe td, .kable_wrapper td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e3e6ea;
+  vertical-align: top;
+}
+/* Numeric-looking cells (mono + tabular) get right-aligned. heuristic:
+   any <td> where rmarkdown's pandoc CSS class has been applied. */
+table.kable td.r, table.dataframe td.r {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+table.kable tbody tr:hover, table.dataframe tbody tr:hover {
+  background: #f1f3f5;
+}
+
+/* GUI refresh §6.3: executive summary card — quiet 1 px line, no
+   tinted gradient (the .Rmd helper renders inline styling for
+   email-safe fallback, this overrides for live HTML). */
+.exec-summary-card, div[style*="linear-gradient(135deg, #E8F5E9"] {
+  background: #ffffff !important;
+  border: 1px solid #e3e6ea !important;
+  border-left: 4px solid #009e73 !important;
+  box-shadow: none !important;
 }
 ```
 
@@ -503,6 +585,38 @@ flag_range <- function(response_val, conc_val, is_elisa_assay) {
     return("")
   }
 }
+
+# GUI refresh §6.2 / Q4(e): pre-compute LLOQ/ULOQ from
+# determine_lloq_uloq() right after the fit so the KPI strip below
+# can reference formal_lloq / formal_uloq. The lloq-uloq chunk
+# further down still owns the rendering of the back-calculation
+# table; it now reads .lloq_res from this chunk's environment
+# instead of recomputing.
+.lloq_res <- if (!drc_failed_completely && !is.null(model_fit)) {
+  tryCatch(
+    determine_lloq_uloq(
+      standards_for_model = standards_for_model,
+      model_fit           = model_fit,
+      response_var        = response_var,
+      is_elisa            = is_elisa
+    ),
+    error = function(e) NULL
+  )
+} else {
+  NULL
+}
+formal_lloq <- if (!is.null(.lloq_res)) .lloq_res$formal_lloq else NA_real_
+formal_uloq <- if (!is.null(.lloq_res)) .lloq_res$formal_uloq else NA_real_
+```
+
+```{r kpi-strip, results='asis'}
+# GUI refresh §6.2: 5-tile KPI strip above the executive summary box.
+render_kpi_strip(R2          = R2,
+                 RMSE        = RMSE,
+                 formal_lloq = formal_lloq,
+                 formal_uloq = formal_uloq,
+                 assay_config = assay_config,
+                 is_elisa    = is_elisa)
 ```
 
 ```{r exec-summary-box, results='asis'}
@@ -845,17 +959,23 @@ tryCatch({
 # Formal LLOQ/ULOQ determination by back-calculated standard accuracy.
 # M1.3: compute lives in determine_lloq_uloq() in reports/analysis_pipeline.R;
 # this chunk handles localisation, formatting, and rendering.
+# GUI refresh §6.2 / Q4(e): determine_lloq_uloq() is now called once
+# in the model-fitting chunk above (so the KPI strip can read its
+# results); this chunk reuses .lloq_res from that call. Falls back
+# to recomputing if the upstream chunk failed.
 tryCatch({
   section_start("Click to expand LLOQ/ULOQ determination")
   emit_heading(tr("lloq_uloq_title", lang), 4)
   cat(tr("lloq_uloq_desc", lang), "\n\n")
 
-  .lloq_res <- determine_lloq_uloq(
-    standards_for_model = standards_for_model,
-    model_fit           = model_fit,
-    response_var        = response_var,
-    is_elisa            = is_elisa
-  )
+  if (!exists(".lloq_res") || is.null(.lloq_res)) {
+    .lloq_res <- determine_lloq_uloq(
+      standards_for_model = standards_for_model,
+      model_fit           = model_fit,
+      response_var        = response_var,
+      is_elisa            = is_elisa
+    )
+  }
   backcalc_results <- .lloq_res$backcalc_results
   backcalc_summary <- .lloq_res$backcalc_summary
   passing_concs    <- .lloq_res$passing_concs
@@ -1770,14 +1890,23 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                 size = 3, color = "#E69F00") +
       scale_shape_manual(name = "Sample Status",
                         values = c("Within Range" = 16, "Out of Range" = 17, "Unknown" = 18)) +
+      # GUI refresh §6.5: keep variability cue on standards (still
+      # useful) but adopt the Okabe-Ito hexes verbatim.
       scale_color_manual(name = "Standard Variability",
-                        values = c("Normal Variability" = "#0072B2", 
-                                  "High Variability" = "#D55E00")) +
-      theme_classic() +
+                        values = c("Normal Variability" = "#0072b2",
+                                  "High Variability"   = "#d55e00")) +
+      # GUI refresh §6.5: theme_minimal() with the design's gridline
+      # color and a hairline panel border. Replaces the previous
+      # theme_classic() + theme() chain with a single declarative
+      # block.
+      theme_minimal() +
       theme(
-        legend.position = "top",
-        legend.box = "vertical",
-        axis.text.x = element_text(angle = 45, hjust = 1)
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(color = "#e3e6ea", linewidth = 0.4),
+        panel.border     = element_rect(color = "#e3e6ea", fill = NA, linewidth = 0.5),
+        legend.position  = "top",
+        legend.box       = "vertical",
+        axis.text.x      = element_text(angle = 45, hjust = 1)
       ) +
       labs(x = labels$x_label, y = labels$y_label,
            title = tr("drc_combined_title", lang))

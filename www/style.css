@@ -1,8 +1,897 @@
-/* ============================================
-   Bioassay Analysis Suite — Custom Styles
-   ============================================ */
+/* =========================================================================
+   Bioassay Suite — Refresh
+   Design tokens + component primitives.
+   Direction: RStudio / Jupyter typographic feel, deep navy accent,
+              Okabe-Ito colorblind-safe palette.
+   ========================================================================= */
 
-/* --- Screen-reader only (accessible descriptions) --- */
+:root {
+  /* --- Type ----------------------------------------------------------- */
+  --ff-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ff-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ff-serif: "IBM Plex Serif", Charter, Georgia, serif;
+
+  /* --- Neutrals (cool, very lightly tinted) --------------------------- */
+  --c-bg:        #f7f8f9;   /* canvas */
+  --c-surface:   #ffffff;   /* cards / panels */
+  --c-surface-2: #f1f3f5;   /* sunken / secondary fills */
+  --c-line:      #e3e6ea;   /* hairlines */
+  --c-line-2:    #cdd2d8;   /* stronger borders */
+  --c-ink:       #0f1722;   /* primary text */
+  --c-ink-2:     #2a3340;   /* secondary text */
+  --c-ink-3:     #5b6573;   /* muted */
+  --c-ink-4:     #8a93a0;   /* hint */
+
+  /* --- Brand accent: deep navy --------------------------------------- */
+  --c-accent:      #1f3a5f;
+  --c-accent-2:    #18304f;
+  --c-accent-soft: #e8edf4;
+
+  /* --- Okabe-Ito (colorblind-safe) ------------------------------------ */
+  --oi-orange:     #e69f00;
+  --oi-skyblue:    #56b4e9;
+  --oi-bgreen:     #009e73;
+  --oi-yellow:     #f0e442;
+  --oi-blue:       #0072b2;
+  --oi-vermillion: #d55e00;
+  --oi-purple:     #cc79a7;
+  --oi-black:      #000000;
+
+  /* --- Semantic (mapped to Okabe-Ito) --------------------------------- */
+  --c-pass:    #009e73; /* bgreen */
+  --c-pass-soft:#e6f5ee;
+  --c-warn:    #e69f00; /* orange */
+  --c-warn-soft:#fbf0d9;
+  --c-fail:    #d55e00; /* vermillion */
+  --c-fail-soft:#fbe6d9;
+  --c-info:    #0072b2; /* blue */
+  --c-info-soft:#dfecf5;
+
+  /* --- Geometry ------------------------------------------------------- */
+  --r-1: 3px;
+  --r-2: 6px;
+  --r-3: 10px;
+  --r-pill: 999px;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* --- Shadow / elevation --------------------------------------------- */
+  --sh-1: 0 1px 0 rgba(15,23,34,0.04), 0 1px 2px rgba(15,23,34,0.04);
+  --sh-2: 0 1px 0 rgba(15,23,34,0.04), 0 4px 12px rgba(15,23,34,0.06);
+
+  /* --- Type scale (for 1280-wide artboards) -------------------------- */
+  --t-display: 28px;
+  --t-h1:      22px;
+  --t-h2:      17px;
+  --t-h3:      14px;
+  --t-body:    13px;
+  --t-small:   12px;
+  --t-micro:   11px;
+}
+
+/* ---------- Reset-ish ------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+.bs-root {
+  font-family: var(--ff-sans);
+  color: var(--c-ink);
+  background: var(--c-bg);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.bs-root h1, .bs-root h2, .bs-root h3, .bs-root h4 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--c-ink);
+}
+.bs-root h1 { font-size: var(--t-h1); }
+.bs-root h2 { font-size: var(--t-h2); }
+.bs-root h3 { font-size: var(--t-h3); }
+.bs-root p  { margin: 0; }
+
+.bs-root a { color: var(--c-accent); text-decoration: none; border-bottom: 1px solid currentColor; }
+
+.mono { font-family: var(--ff-mono); font-feature-settings: "zero", "ss01"; }
+.serif { font-family: var(--ff-serif); }
+.muted { color: var(--c-ink-3); }
+.hint  { color: var(--c-ink-4); }
+
+/* ---------- App shell ------------------------------------------------- */
+.bs-app {
+  background: var(--c-bg);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.bs-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.bs-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bs-brand .mark {
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  background: var(--c-accent);
+  display: grid; place-items: center;
+  color: #fff;
+  font-family: var(--ff-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.02em;
+}
+.bs-brand .name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--c-ink);
+  letter-spacing: -0.01em;
+}
+.bs-brand .name .v {
+  color: var(--c-ink-4);
+  font-family: var(--ff-mono);
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.bs-topbar-tools {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ---------- Stepper --------------------------------------------------- */
+.bs-stepper {
+  display: flex;
+  align-items: stretch;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line);
+  padding: 0 28px;
+  gap: 0;
+}
+.bs-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 14px 0;
+  position: relative;
+  cursor: pointer;
+  color: var(--c-ink-3);
+  font-size: var(--t-small);
+}
+.bs-step + .bs-step { padding-left: 20px; }
+.bs-step + .bs-step::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  width: 12px; height: 1px;
+  background: var(--c-line-2);
+}
+.bs-step .num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--c-line-2);
+  background: var(--c-surface);
+  color: var(--c-ink-3);
+  display: grid; place-items: center;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+.bs-step .label { font-weight: 500; }
+
+.bs-step.is-done .num {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+}
+.bs-step.is-done .label { color: var(--c-ink-2); }
+
+.bs-step.is-current { color: var(--c-ink); }
+.bs-step.is-current .num {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+.bs-step.is-current .label { color: var(--c-ink); font-weight: 600; }
+
+.bs-step.is-current::after {
+  content: "";
+  position: absolute;
+  bottom: -1px; left: 20px; right: 20px;
+  height: 2px;
+  background: var(--c-accent);
+}
+.bs-step:first-child.is-current::after { left: 0; }
+
+/* ---------- Page chrome ---------------------------------------------- */
+.bs-page {
+  padding: 28px 28px 40px;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+.bs-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.bs-page-head .eyebrow {
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-ink-4);
+  margin-bottom: 4px;
+}
+.bs-page-head h1 { font-size: var(--t-display); font-weight: 500; letter-spacing: -0.015em; }
+.bs-page-head .sub { color: var(--c-ink-3); margin-top: 6px; max-width: 60ch; }
+
+/* ---------- Cards ----------------------------------------------------- */
+.bs-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+}
+.bs-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--c-line);
+}
+.bs-card-head h2 {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.bs-card-head .meta { font-family: var(--ff-mono); font-size: var(--t-small); color: var(--c-ink-3); }
+.bs-card-body { padding: 18px; }
+.bs-card-foot {
+  padding: 12px 18px;
+  border-top: 1px solid var(--c-line);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--c-surface-2);
+  border-radius: 0 0 var(--r-2) var(--r-2);
+}
+
+/* ---------- Buttons --------------------------------------------------- */
+.bs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--c-line-2);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: 500 var(--t-body)/1 var(--ff-sans);
+  cursor: pointer;
+  transition: all .12s ease;
+}
+.bs-btn:hover { background: var(--c-surface-2); border-color: var(--c-ink-4); }
+.bs-btn.is-primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+}
+.bs-btn.is-primary:hover { background: var(--c-accent-2); border-color: var(--c-accent-2); }
+.bs-btn.is-quiet { border-color: transparent; background: transparent; color: var(--c-ink-2); }
+.bs-btn.is-quiet:hover { background: var(--c-surface-2); }
+.bs-btn.is-sm { padding: 5px 10px; font-size: var(--t-small); }
+.bs-btn.is-block { width: 100%; justify-content: center; }
+.bs-btn .ico { width: 14px; height: 14px; flex: none; }
+
+/* ---------- Form controls -------------------------------------------- */
+.bs-label {
+  display: block;
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--c-ink-2);
+  margin-bottom: 6px;
+}
+.bs-help {
+  font-size: var(--t-small);
+  color: var(--c-ink-3);
+  margin-top: 6px;
+}
+.bs-input, .bs-select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--c-line-2);
+  border-radius: var(--r-2);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: 400 var(--t-body)/1.4 var(--ff-sans);
+}
+.bs-input.mono { font-family: var(--ff-mono); }
+.bs-input:focus, .bs-select:focus {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+.bs-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='none' stroke='%235b6573' stroke-width='1.5' d='M2.5 4.5l3.5 3.5 3.5-3.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.bs-field { display: flex; flex-direction: column; }
+
+/* ---------- Pills / badges / tags ------------------------------------ */
+.bs-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px;
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  color: var(--c-ink-2);
+  border: 1px solid var(--c-line);
+}
+.bs-pill.is-pass { background: var(--c-pass-soft); color: #00684c; border-color: #b9e2d2; }
+.bs-pill.is-warn { background: var(--c-warn-soft); color: #8b5a00; border-color: #ead2a0; }
+.bs-pill.is-fail { background: var(--c-fail-soft); color: #8b3a00; border-color: #ebc7a8; }
+.bs-pill.is-info { background: var(--c-info-soft); color: #004f7a; border-color: #c2d8e6; }
+.bs-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ---------- Tab/Sidebar (matrix switcher) ---------------------------- */
+.bs-tablist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bs-tablist .tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--r-2);
+  font-size: var(--t-body);
+  color: var(--c-ink-2);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.bs-tablist .tab:hover { background: var(--c-surface-2); }
+.bs-tablist .tab.is-active {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-2);
+  font-weight: 600;
+  border-color: #c9d4e3;
+}
+.bs-tablist .tab .num {
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  color: var(--c-ink-4);
+  min-width: 18px;
+}
+.bs-tablist .tab.is-active .num { color: var(--c-accent); }
+.bs-tablist .tab .count {
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  color: var(--c-ink-4);
+}
+
+/* ---------- KPI tiles ------------------------------------------------- */
+.bs-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+.bs-kpi {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  padding: 14px 16px;
+}
+.bs-kpi .lab {
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-ink-4);
+  margin-bottom: 6px;
+}
+.bs-kpi .val {
+  font-family: var(--ff-mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--c-ink);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.bs-kpi .unit {
+  font-family: var(--ff-mono);
+  font-size: var(--t-small);
+  color: var(--c-ink-3);
+  margin-top: 4px;
+}
+.bs-kpi.is-status .val {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 16px;
+}
+.bs-kpi .status-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--c-pass);
+  box-shadow: 0 0 0 3px var(--c-pass-soft);
+}
+
+/* ---------- Plate matrix --------------------------------------------- */
+.plate-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  width: 100%;
+}
+.plate-grid th, .plate-grid td {
+  border: 1px solid var(--c-line);
+  text-align: center;
+  padding: 0;
+  height: 28px;
+  background: var(--c-surface);
+}
+.plate-grid th {
+  background: var(--c-surface-2);
+  color: var(--c-ink-3);
+  font-weight: 500;
+  font-size: 10px;
+  height: 22px;
+}
+.plate-grid td.is-row {
+  background: var(--c-surface-2);
+  color: var(--c-ink-3);
+  font-weight: 500;
+  width: 24px;
+}
+.plate-grid td.cell-std { background: #d9eadd; color: #00684c; }
+.plate-grid td.cell-sample { background: #ffffff; color: var(--c-ink-2); }
+.plate-grid td.cell-blank { background: #f1f3f5; color: var(--c-ink-3); }
+.plate-grid td.cell-nsb { background: #fbf0d9; color: #8b5a00; }
+.plate-grid td.cell-b0  { background: #dfecf5; color: #004f7a; }
+
+/* ---------- Heatmap (pure CSS) --------------------------------------- */
+.heatmap-table {
+  border-collapse: separate;
+  border-spacing: 1px;
+  font-family: var(--ff-mono);
+  font-size: 9.5px;
+  background: var(--c-line);
+  border: 1px solid var(--c-line);
+}
+.heatmap-table th, .heatmap-table td {
+  width: 36px; height: 24px;
+  text-align: center;
+  background: var(--c-surface);
+  color: var(--c-ink-2);
+  padding: 0;
+}
+.heatmap-table th { background: var(--c-surface-2); color: var(--c-ink-4); font-weight: 500; }
+
+/* ---------- Tables ---------------------------------------------------- */
+.bs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-small);
+}
+.bs-table th, .bs-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--c-line);
+}
+.bs-table th {
+  font-weight: 500;
+  color: var(--c-ink-3);
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--c-surface-2);
+  border-bottom: 1px solid var(--c-line-2);
+}
+.bs-table td.num { font-family: var(--ff-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.bs-table tr:hover td { background: var(--c-surface-2); }
+
+/* ---------- Pre-flight checklist ------------------------------------- */
+.bs-checklist { display: flex; flex-direction: column; gap: 6px; }
+.bs-checklist .item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  font-size: var(--t-small);
+}
+.bs-checklist .item .glyph {
+  width: 16px; height: 16px;
+  display: grid; place-items: center;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 50%;
+  flex: none;
+}
+.bs-checklist .item.is-pass .glyph { background: var(--c-pass-soft); color: #00684c; }
+.bs-checklist .item.is-warn .glyph { background: var(--c-warn-soft); color: #8b5a00; }
+.bs-checklist .item.is-fail .glyph { background: var(--c-fail-soft); color: #8b3a00; }
+.bs-checklist .item .desc { color: var(--c-ink-2); }
+.bs-checklist .item .meta { margin-left: auto; color: var(--c-ink-4); font-family: var(--ff-mono); font-size: var(--t-micro); }
+
+/* ---------- Section divider ------------------------------------------ */
+.bs-section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 28px 0 12px;
+}
+.bs-section-head .num {
+  font-family: var(--ff-mono);
+  font-size: var(--t-micro);
+  color: var(--c-ink-4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 10px;
+}
+.bs-section-head h2 { display: inline; }
+
+/* ---------- Two-pane layout ------------------------------------------ */
+.bs-two-col {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.bs-three-col {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ---------- Style guide swatches ------------------------------------- */
+.sg-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sg-swatch .chip {
+  height: 56px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--c-line);
+}
+.sg-swatch .name { font-size: var(--t-small); font-weight: 500; }
+.sg-swatch .hex  { font-family: var(--ff-mono); font-size: var(--t-micro); color: var(--c-ink-3); }
+
+/* ---------- Misc ------------------------------------------------------ */
+.bs-divider { height: 1px; background: var(--c-line); margin: 18px 0; }
+.row-gap-3 > * + * { margin-top: 12px; }
+.row-gap-4 > * + * { margin-top: 16px; }
+.row-gap-5 > * + * { margin-top: 24px; }
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-5 { gap: 24px; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.flex-1 { flex: 1; }
+.text-right { text-align: right; }
+.w-100 { width: 100%; }
+
+/* ---------- Curve/plot placeholder ----------------------------------- */
+.bs-plot {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  padding: 16px;
+}
+
+/* ---------- Code-like inline numbers --------------------------------- */
+.kbd {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--c-ink-2);
+}
+
+
+/* =========================================================================
+   GUI Refresh — Shiny / Bootstrap shim layer
+   These rules map the default Bootstrap 3 (shipped with Shiny) selectors to
+   the design tokens above so existing widgets pick up the new look without
+   needing per-input style attributes. Order matters: this block must come
+   AFTER the token definitions.
+   ========================================================================= */
+
+html, body {
+  font-family: var(--ff-sans);
+  color: var(--c-ink);
+  background: var(--c-bg);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* --- Headings (Bootstrap defaults are too thick / too colored) --- */
+h1, .h1 { font-size: var(--t-h1); font-weight: 500; color: var(--c-ink); margin-top: 0; }
+h2, .h2 { font-size: var(--t-h2); font-weight: 600; color: var(--c-ink); }
+h3, .h3 { font-size: var(--t-h3); font-weight: 600; color: var(--c-ink); }
+h4, .h4 { font-size: var(--t-body); font-weight: 600; color: var(--c-ink);
+          border-bottom: none; padding-bottom: 0; margin-top: 16px; }
+h5, .h5 { font-size: var(--t-small); font-weight: 600; color: var(--c-ink-2); }
+
+a { color: var(--c-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Buttons --- */
+.btn {
+  font-family: var(--ff-sans);
+  font-weight: 500;
+  border-radius: var(--r-2);
+  border: 1px solid var(--c-line-2);
+  box-shadow: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.btn:hover { box-shadow: var(--sh-1); }
+
+.btn-default {
+  background: var(--c-surface);
+  color: var(--c-ink);
+  border-color: var(--c-line-2);
+}
+.btn-default:hover, .btn-default:focus {
+  background: var(--c-surface-2);
+  color: var(--c-ink);
+  border-color: var(--c-line-2);
+}
+
+.btn-primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+  background: var(--c-accent-2);
+  border-color: var(--c-accent-2);
+  color: #fff;
+}
+
+.btn-success {
+  background: var(--c-pass);
+  border-color: var(--c-pass);
+  color: #fff;
+}
+.btn-success:hover, .btn-success:focus, .btn-success:active {
+  background: #007e5b;
+  border-color: #007e5b;
+  color: #fff;
+}
+
+.btn-warning {
+  background: var(--c-warn);
+  border-color: var(--c-warn);
+  color: #fff;
+}
+
+.btn-danger {
+  background: var(--c-fail);
+  border-color: var(--c-fail);
+  color: #fff;
+}
+
+.btn-xs { font-size: var(--t-micro); padding: 2px 8px; }
+.btn-sm { font-size: var(--t-small); padding: 4px 10px; }
+.btn-lg { font-size: var(--t-body); padding: 10px 18px; border-radius: var(--r-3); }
+
+/* --- Form controls --- */
+.form-control {
+  font-family: var(--ff-sans);
+  font-size: var(--t-body);
+  color: var(--c-ink);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-2);
+  border-radius: var(--r-2);
+  box-shadow: none;
+  height: auto;
+  padding: 6px 10px;
+}
+.form-control:focus {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+
+/* Numeric / scientific values get the mono face */
+input[type="number"].form-control,
+input[id$="_conc"].form-control,
+input[id*="hill"].form-control {
+  font-family: var(--ff-mono);
+}
+
+label { font-weight: 500; color: var(--c-ink-2); margin-bottom: 6px; }
+.help-block { color: var(--c-ink-3); font-size: var(--t-small); }
+
+/* --- Wells / panels --- */
+.well {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+  padding: 16px 18px;
+}
+
+/* --- Tab pills -> numbered stepper -------------------------------------
+   Restyle the default nav-pills as a horizontal numbered stepper. The tab
+   labels are wrapped server-side as <span class="num">01</span><span
+   class="label">Configuration</span> so this CSS only needs to handle the
+   visual rules. */
+.nav-pills {
+  display: flex;
+  gap: 4px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line);
+  padding: 4px 16px 0;
+  margin-bottom: 24px;
+}
+.nav-pills > li { float: none; margin: 0; }
+.nav-pills > li > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: transparent;
+  border-radius: 0;
+  color: var(--c-ink-3);
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+  font-size: var(--t-small);
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.nav-pills > li > a .num {
+  display: inline-grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1.5px solid var(--c-line-2);
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-ink-3);
+}
+.nav-pills > li > a .label {
+  font-family: var(--ff-sans);
+  font-size: 12px;
+  font-weight: 500;
+}
+.nav-pills > li > a:hover {
+  background: transparent;
+  color: var(--c-ink-2);
+  border-bottom-color: var(--c-line-2);
+}
+.nav-pills > li.active > a,
+.nav-pills > li.active > a:hover,
+.nav-pills > li.active > a:focus {
+  background: transparent;
+  color: var(--c-accent);
+  border-bottom-color: var(--c-accent);
+}
+.nav-pills > li.active > a .num {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+
+/* --- Handsontable --- */
+.handsontable td {
+  font-family: var(--ff-mono);
+  font-size: 11px !important;
+  color: var(--c-ink);
+}
+.handsontable th {
+  background: var(--c-surface-2) !important;
+  color: var(--c-ink-3) !important;
+  font-family: var(--ff-mono);
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em;
+}
+
+/* --- Notifications (shiny::showNotification) --- */
+.shiny-notification {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-left-width: 4px;
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-2);
+  font-family: var(--ff-sans);
+  font-size: var(--t-small);
+  color: var(--c-ink);
+}
+.shiny-notification-message { border-left-color: var(--c-info); }
+.shiny-notification-warning { border-left-color: var(--c-warn); }
+.shiny-notification-error   { border-left-color: var(--c-fail); }
+
+/* --- Quick start preset tiles --- */
+.preset-tile {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+  overflow: hidden;
+}
+.preset-tile:hover { border-color: var(--c-line-2); background: var(--c-surface-2); }
+.preset-tile:focus { outline: none; border-color: var(--c-accent);
+                     box-shadow: 0 0 0 3px var(--c-accent-soft); }
+.preset-tile .rail { width: 4px; flex: 0 0 4px; align-self: stretch; }
+.preset-tile .rail-blue   { background: var(--oi-blue); }
+.preset-tile .rail-green  { background: var(--oi-bgreen); }
+.preset-tile .rail-purple { background: var(--oi-purple); }
+.preset-tile .body { flex: 1; padding: 14px 16px; min-width: 0; }
+.preset-tile .title { font-weight: 600; font-size: var(--t-body); color: var(--c-ink); margin-bottom: 2px; }
+.preset-tile .sub { font-size: var(--t-small); color: var(--c-ink-3); }
+.preset-tile .ico-arrow { align-self: center; padding: 0 16px; color: var(--c-ink-4); }
+
+/* --- Format / language tiles (Tab 5) --- */
+.format-tile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--c-ink-2);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.format-tile:hover { background: var(--c-surface-2); }
+.format-tile.is-active {
+  background: var(--c-accent-soft);
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+/* =========================================================================
+   Preserved utilities (kept from the previous style.css)
+   ========================================================================= */
+
+/* --- Screen-reader only (accessibility) --- */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -14,211 +903,111 @@
   border: 0;
 }
 
-/* --- Global --- */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #333;
-  background-color: #FAFAFA;
-}
-
-/* --- Wizard Tab Pills --- */
-.nav-pills > li > a {
-  font-size: 15px;
-  font-weight: 600;
-  padding: 10px 24px;
-  border-radius: 20px;
-  color: #555;
-  border: 1px solid #DDD;
-  margin-right: 8px;
-  transition: all 0.2s ease;
-}
-
-.nav-pills > li > a:hover {
-  background-color: #E3F2FD;
-  border-color: #2196F3;
-  color: #1565C0;
-}
-
-.nav-pills > li.active > a,
-.nav-pills > li.active > a:hover,
-.nav-pills > li.active > a:focus {
-  background-color: #1976D2;
-  border-color: #1976D2;
-  color: white;
-}
-
-/* --- Navigation Buttons --- */
-.btn-primary {
-  background-color: #1976D2;
-  border-color: #1565C0;
-}
-
-.btn-primary:hover {
-  background-color: #1565C0;
-  border-color: #0D47A1;
-}
-
-.btn-success {
-  background-color: #388E3C;
-  border-color: #2E7D32;
-}
-
-/* --- Well Panels --- */
-.well {
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-
-/* --- Handsontable Tweaks --- */
-.handsontable td {
-  font-size: 12px !important;
-}
-
-.handsontable th {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  background-color: #F5F5F5 !important;
-}
-
-/* --- Section Headers --- */
-h4 {
-  color: #1565C0;
-  border-bottom: 2px solid #E3F2FD;
-  padding-bottom: 8px;
-  margin-top: 10px;
-}
-
-h5 {
-  color: #37474F;
-  font-weight: 600;
-}
-
-/* --- Quick Start Cards --- */
-#quickstart_section .btn {
-  transition: all 0.2s ease;
-}
-
-#quickstart_section .btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-/* --- Matrix pairs: CSS Grid alignment ---
-   Each pair is a 2-column grid. Each card inside uses a 3-row sub-grid
-   (title / meta / body) so that titles align across the pair, meta areas
-   align, and matrix widgets align — regardless of content differences. */
-.matrix-pairs {
-  display: grid;
-  gap: 2rem;
-}
-
+/* --- Matrix layout (Tab 2 — pre-layer-switcher; will be obsoleted) --- */
+.matrix-pairs { display: grid; gap: 24px; }
 .matrix-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2rem;
+  gap: 24px;
   align-items: start;
 }
-
 .matrix-card {
   display: grid;
   grid-template-rows: auto auto 1fr;
   min-width: 0;
 }
-
-.matrix-title {
-  margin-bottom: 0.5rem;
-}
-
-.matrix-title h5 {
-  display: inline;
-  margin-right: 0.5rem;
-}
-
+.matrix-title { margin-bottom: 8px; }
+.matrix-title h5 { display: inline; margin-right: 8px; }
 .matrix-meta {
-  min-height: 2.25rem;
-  margin-bottom: 0.5rem;
+  min-height: 36px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+}
+.matrix-body { min-width: 0; overflow-x: auto; }
+
+#matrix_dilution_section .form-group { margin-bottom: 0; }
+#matrix_dilution_section .checkbox { margin-top: 0; margin-bottom: 0; }
+
+/* --- <details><summary> hygiene --- */
+details summary { user-select: none; }
+details[open] summary { margin-bottom: 10px; }
+
+/* --- Responsive --- */
+@media (max-width: 992px) {
+  .nav-pills > li > a { font-size: 11px; padding: 10px 12px; }
 }
 
-.matrix-body {
-  min-width: 0;
-  overflow-x: auto;
-}
-
-/* Inline form controls inside dilution meta row */
-#matrix_dilution_section .form-group {
-  margin-bottom: 0;
-}
-
-#matrix_dilution_section .checkbox {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-/* Responsive: collapse pairs to single column on small screens */
 @media (max-width: 768px) {
-  .matrix-pair {
-    grid-template-columns: 1fr;
-  }
+  .matrix-pair { grid-template-columns: 1fr; }
+  .nav-pills > li > a { font-size: 10px; padding: 8px 10px; gap: 6px; }
+  .nav-pills > li > a .num { width: 18px; height: 18px; font-size: 10px; }
+  .nav-pills > li > a .label { font-size: 11px; }
+  .handsontable { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .well { padding: 12px; }
+  .btn-lg { font-size: 14px; padding: 10px 16px; }
 }
 
-/* --- Details/Summary (Advanced Options) --- */
-details summary {
+
+/* ---------- Format / language checkbox tile styling -------------------
+   .format-tiles / .lang-tiles wrap a checkboxGroupInput so each option
+   renders as a horizontal tile rather than a plain checkbox. The native
+   <input> stays in the DOM for Shiny's input bindings; we just hide it
+   visually and style its parent <label>. */
+.format-tiles .control-label,
+.lang-tiles  .control-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: var(--t-small);
+  color: var(--c-ink-2);
+}
+.format-tiles .shiny-options-group,
+.lang-tiles  .shiny-options-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.format-tiles .checkbox,
+.lang-tiles  .checkbox {
+  margin: 0;
+  padding: 0;
+}
+.format-tiles .checkbox label,
+.lang-tiles  .checkbox label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--c-ink-2);
+  transition: border-color 0.12s ease, background 0.12s ease;
   user-select: none;
 }
-
-details[open] summary {
-  margin-bottom: 10px;
+.format-tiles .checkbox label:hover,
+.lang-tiles  .checkbox label:hover {
+  background: var(--c-surface-2);
+  border-color: var(--c-line-2);
 }
-
-/* --- Responsive: Prevent overflow on small screens --- */
-@media (max-width: 992px) {
-  .nav-pills > li > a {
-    font-size: 13px;
-    padding: 8px 16px;
-  }
+/* Active state: any tile whose nested <input> is checked gets the navy
+   accent treatment. */
+.format-tiles .checkbox label:has(> input[type="checkbox"]:checked),
+.lang-tiles  .checkbox label:has(> input[type="checkbox"]:checked) {
+  background: var(--c-accent-soft);
+  border-color: var(--c-accent);
+  color: var(--c-accent);
 }
-
-/* Mobile responsive: small screens */
-@media (max-width: 768px) {
-  .nav-pills > li > a {
-    font-size: 11px;
-    padding: 6px 10px;
-  }
-
-  .matrix-grid-row {
-    flex-direction: column !important;
-  }
-
-  .matrix-bottom-cell {
-    flex-direction: column !important;
-  }
-
-  .handsontable {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .btn-lg {
-    font-size: 14px;
-    padding: 10px 16px;
-  }
-
-  .well {
-    padding: 10px;
-  }
-}
-
-/* Tablet responsive */
-@media (max-width: 576px) {
-  .nav-pills > li > a {
-    font-size: 10px;
-    padding: 4px 8px;
-  }
-
-  h4 {
-    font-size: 16px;
-  }
+/* Hide the native checkbox glyph but keep the input live for Shiny. */
+.format-tiles .checkbox input[type="checkbox"],
+.lang-tiles  .checkbox input[type="checkbox"] {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }

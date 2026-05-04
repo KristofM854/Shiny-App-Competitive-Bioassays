@@ -520,3 +520,103 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
   section_end()
   invisible(NULL)
 }
+
+
+# =============================================================================
+# GUI refresh §6.2: KPI strip
+# =============================================================================
+
+# Render the 5-tile KPI strip immediately under the report title:
+#   [ R² · curve fit ] [ RMSE ] [ LLOQ ] [ ULOQ ] [ ● Overall ]
+# The first four tiles are mono-numeric values; the last is a colored
+# pass / warn / fail dot + word.
+#
+# Pulled values:
+#   R2, RMSE                 - from fit_all_models() result
+#   formal_lloq, formal_uloq - from determine_lloq_uloq() result
+#   overall_status           - same R^2 / threshold logic as the
+#                              render_overall_status_box() helper
+#
+# Inputs that may be NA (LLOQ / ULOQ when too few standards pass the
+# accuracy gate) render as an em-dash in the tile so the layout stays
+# stable across runs.
+render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
+                             assay_config, is_elisa) {
+  fmt_or_dash <- function(x, fn = identity) {
+    if (is.null(x) || is.na(x) || !is.finite(x)) return("—")
+    fn(x)
+  }
+  fmt_r2   <- fmt_or_dash(R2,   function(v) sprintf("%.4f", v))
+  fmt_rmse <- fmt_or_dash(RMSE, function(v) sprintf("%.3f", v))
+  conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
+  fmt_conc <- function(v) {
+    if (is.null(v) || is.na(v) || !is.finite(v)) return("—")
+    if (isTRUE(is_elisa)) format(v, digits = 4, big.mark = ",")
+    else                  format(v, scientific = TRUE, digits = 3)
+  }
+  fmt_lloq <- fmt_conc(formal_lloq)
+  fmt_uloq <- fmt_conc(formal_uloq)
+
+  qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
+  if (is.null(R2) || is.na(R2)) {
+    overall_word <- "Unknown"; overall_role <- "ink-3"
+  } else if (R2 >= 0.99) {
+    overall_word <- "Pass"; overall_role <- "pass"
+  } else if (R2 >= qc_profile$r2_threshold) {
+    overall_word <- "Qualified"; overall_role <- "warn"
+  } else {
+    overall_word <- "Review"; overall_role <- "fail"
+  }
+
+  # HTML strip: 5 tiles in a flex row. CSS (var(--c-pass) etc.) lives
+  # in www/style.css; for the report's stand-alone HTML the colors are
+  # also re-declared inline so the strip looks right when emailed or
+  # printed without the app stylesheet.
+  cat('<div class="bs-kpi-strip" style="display: flex; gap: 12px; margin: 14px 0 22px 0; flex-wrap: wrap;">\n')
+
+  tile <- function(label, value, unit = "", color_role = NULL) {
+    border_left <- if (!is.null(color_role)) {
+      sprintf("border-left: 4px solid var(--c-%s, #5b6573);", color_role)
+    } else {
+      ""
+    }
+    cat(sprintf(paste0(
+      '<div class="bs-kpi-tile" style="flex: 1; min-width: 140px;',
+      ' background: #fff; border: 1px solid #e3e6ea; %s',
+      ' border-radius: 6px; padding: 10px 14px;">',
+      '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px;',
+      ' color: #5b6573; text-transform: uppercase; letter-spacing: 0.04em;">%s</div>',
+      '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 22px;',
+      ' font-weight: 500; color: #0f1722; margin-top: 2px;">%s</div>'),
+      border_left, label, value))
+    if (nzchar(unit)) {
+      cat(sprintf(paste0(
+        '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px;',
+        ' color: #8a93a0;">%s</div>'), unit))
+    }
+    cat('</div>\n')
+  }
+
+  tile("R² · curve fit", fmt_r2, "")
+  tile("RMSE",                     fmt_rmse, "")
+  tile("LLOQ",                     fmt_lloq, conc_unit)
+  tile("ULOQ",                     fmt_uloq, conc_unit)
+
+  # Status tile: colored dot + word
+  dot_color <- switch(overall_role,
+                      pass = "#009e73", warn = "#e69f00",
+                      fail = "#d55e00", "#5b6573")
+  cat(sprintf(paste0(
+    '<div class="bs-kpi-tile" style="flex: 1; min-width: 140px;',
+    ' background: #fff; border: 1px solid #e3e6ea;',
+    ' border-left: 4px solid %s; border-radius: 6px; padding: 10px 14px;">',
+    '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px;',
+    ' color: #5b6573; text-transform: uppercase; letter-spacing: 0.04em;">Overall</div>',
+    '<div style="font-size: 18px; font-weight: 500; color: #0f1722; margin-top: 2px;">',
+    '<span style="color: %s;">●</span> %s</div></div>\n'),
+    dot_color, dot_color, overall_word))
+
+  cat('</div>\n')
+
+  invisible(NULL)
+}

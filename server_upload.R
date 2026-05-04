@@ -35,6 +35,9 @@ server_upload <- function(input, output, session, shared) {
       paste0(r, c, "<br>Value: ", round(vals, 3))
     })
 
+    # GUI refresh §1.2 / §5.1: Okabe-Ito derived heatmap ramp
+    # (navy -> blue -> bluish-green -> yellow). Perceptually
+    # uniform-ish and colorblind-safe.
     plotly::plot_ly(
       z = num_mat[rev(seq_len(PLATE_NROW)), ],
       x = COL_NAMES,
@@ -43,11 +46,10 @@ server_upload <- function(input, output, session, shared) {
       hoverinfo = "text",
       type = "heatmap",
       colorscale = list(
-        c(0, "#4575b4"),
-        c(0.25, "#91bfdb"),
-        c(0.5, "#fee090"),
-        c(0.75, "#fc8d59"),
-        c(1, "#d73027")
+        c(0,    "#1f3a5f"),
+        c(0.33, "#0072b2"),
+        c(0.67, "#009e73"),
+        c(1,    "#f0e442")
       ),
       showscale = TRUE
     ) %>%
@@ -685,14 +687,27 @@ server_upload <- function(input, output, session, shared) {
       is_partial <- actual_wells < 96  # True partial plate check
 
       lang <- input$app_language %||% "en"
+      # GUI refresh §5.1: import summary becomes a key/value table on
+      # the bs-card surface (was a green wellPanel #E8F5E9). Numeric
+      # values use the mono face so they line up.
+      partial_text <- if (is_partial) tr("yes_label", lang) else tr("no_label", lang)
       div(
-        style = "background-color: #E8F5E9; padding: 10px; margin: 10px 0; border-left: 4px solid #4CAF50;",
-        tags$b(tr("import_summary", lang)),
-        tags$ul(
-          tags$li(paste(tr("format_label", lang), info$format)),
-          tags$li(paste(tr("wells_label", lang), actual_wells, "/ 96")),
-          tags$li(paste(tr("partial_label", lang),
-                        if (is_partial) tr("yes_label", lang) else tr("no_label", lang)))
+        class = "bs-card",
+        style = "padding: 14px 16px; margin: 12px 0;",
+        tags$div(
+          style = "font-weight: 600; margin-bottom: 8px;",
+          tr("import_summary", lang)
+        ),
+        tags$div(
+          class = "bs-kv",
+          style = "display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: var(--t-small);",
+          tags$div(class = "muted", tr("format_label", lang)),
+          tags$div(class = "mono", info$format),
+          tags$div(class = "muted", tr("wells_label", lang)),
+          tags$div(class = "mono",
+                   sprintf("%d / 96", actual_wells)),
+          tags$div(class = "muted", tr("partial_label", lang)),
+          tags$div(partial_text)
         )
       )
     }
