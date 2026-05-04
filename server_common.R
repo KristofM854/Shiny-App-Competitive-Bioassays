@@ -632,24 +632,24 @@ server_common <- function(input, output, session, shared) {
     # #4: report_languages (checkboxGroupInput) is now an independent selection
     # — the UI language doesn't force which language(s) get rendered, the user
     # ticks them explicitly.
-    updateActionButton(session, "start_tour", label = tr("start_tour", lang))
+    # start_tour is now a hand-rolled tags$button (v3 §1). updateActionButton
+    # only works reliably on Shiny's own actionButton structure; use
+    # shinyjs::html() to update the innerHTML of our plain <button> instead.
+    shinyjs::html("start_tour", tr("start_tour", lang))
     updateActionButton(session, "convert",
                        label = tagList(icon("file-arrow-down"), " ",
                                        tr("generate_report", lang)))
 
-    # Tab 1: Quick Start buttons (H1 — 2x3 grid: 5 active buttons across two
-    # rows. Each row has its own header uiOutput; buttons get icon + label
-    # updated here so both rows re-translate on language toggle.)
-    updateActionButton(session, "qs_rba_stx_demo",
-                       label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
-    updateActionButton(session, "qs_elisa_cortisol_demo",
-                       label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
+    # Tab 1: Quick Start tiles (v3 §3) are now hand-rolled tags$a elements
+    # with a structured interior (rail + body divs). updateActionButton would
+    # replace the entire innerHTML with just icon + text, destroying the card
+    # layout. The three demo tiles therefore must NOT be updated here.
+    # The two manual-configure buttons inside <details> are still actionButtons
+    # and CAN be safely updated.
     updateActionButton(session, "qs_rba_stx_manual",
                        label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
     updateActionButton(session, "qs_elisa_cortisol_manual",
                        label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
-    updateActionButton(session, "qs_elisa_custom_manual",
-                       label = tagList(icon("cog"), " ", tr("preset_elisa_custom_btn", lang)))
 
     # Tab 1: Assay type / toxin / analyte / units / num_standards
     updateSelectInput(session, "assay_type",
