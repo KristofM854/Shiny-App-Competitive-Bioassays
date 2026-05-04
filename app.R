@@ -154,25 +154,40 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
   ),
 
-  uiOutput("app_title_ui"),
-  br(),
-
-  # ------------------------------
-  # Language Toggle & Guided Tour
-  # ------------------------------
+  # GUI refresh §2.1: horizontal top bar replaces the previous title +
+  # language/tour div. Left = brand monogram + wordmark + version pill;
+  # right = Guided tour button + Docs (GitHub README) + divider + language
+  # selector. Existing widget IDs preserved (#start_tour, #app_language)
+  # so the existing observers keep working unchanged.
   div(
-    style = "display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 20px; align-items: center;",
-    actionButton("start_tour", "\U0001F680 Start Guided Tour",
-                class = "btn btn-lg btn-info",
-                style = "font-size: 18px; padding: 15px 30px;"),
+    class = "bs-topbar",
     div(
-      id = "language_toggle_section",
+      class = "bs-brand",
+      div(class = "mark", "B"),
+      div(class = "name",
+          "Bioassay Suite",
+          tags$span(class = "v", "v0.9.0"))
+    ),
+    div(
+      class = "bs-topbar-tools",
       style = "display: flex; align-items: center; gap: 8px;",
-      tags$span("\U0001F310", style = "font-size: 20px;"),
-      selectInput("app_language", NULL,
-                  choices = c("English" = "en", "Español" = "es"),
-                  selected = "en",
-                  width = "130px")
+      actionButton("start_tour", "\U0001F680 Guided tour",
+                   class = "btn btn-default btn-sm"),
+      tags$a("\U0001F4D6 Docs",
+             href = "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "btn btn-default btn-sm",
+             style = "text-decoration: none;"),
+      div(style = "width: 1px; height: 20px; background: var(--c-line); margin: 0 6px;"),
+      div(
+        id = "language_toggle_section",
+        style = "display: flex; align-items: center; gap: 6px;",
+        tags$span("\U0001F310", style = "font-size: 14px; color: var(--c-ink-3);"),
+        selectInput("app_language", NULL,
+                    choices = c("English" = "en", "Español" = "es"),
+                    selected = "en",
+                    width = "120px")
+      )
     )
   ),
 
@@ -187,7 +202,7 @@ ui <- fluidPage(
     # TAB 1: Assay Configuration
     # ======================================================================
     tabPanel(
-      "1. Configuration",
+      HTML('<span class="num">01</span><span class="label">Configuration</span>'),
       value = "tab_config",
       br(),
       div(
@@ -366,7 +381,7 @@ ui <- fluidPage(
     # TAB 2: Plate Layout
     # ======================================================================
     tabPanel(
-      "2. Plate Layout",
+      HTML('<span class="num">02</span><span class="label">Plate Layout</span>'),
       value = "tab_layout",
       br(),
 
@@ -563,7 +578,7 @@ ui <- fluidPage(
     # TAB 3: Upload & Preview
     # ======================================================================
     tabPanel(
-      "3. Upload & Preview",
+      HTML('<span class="num">03</span><span class="label">Upload &amp; Preview</span>'),
       value = "tab_upload",
       br(),
 
@@ -644,7 +659,7 @@ ui <- fluidPage(
     # TAB 4: Analysis Settings
     # ======================================================================
     tabPanel(
-      "4. Analysis Settings",
+      HTML('<span class="num">04</span><span class="label">Analysis Settings</span>'),
       value = "tab_analysis",
       br(),
       div(
@@ -734,7 +749,7 @@ ui <- fluidPage(
     # TAB 5: Generate Report
     # ======================================================================
     tabPanel(
-      "5. Generate Report",
+      HTML('<span class="num">05</span><span class="label">Generate Report</span>'),
       value = "tab_report",
       br(),
       div(
