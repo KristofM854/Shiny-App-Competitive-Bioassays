@@ -454,31 +454,63 @@ ui <- fluidPage(
         ),
         br(),
 
-        # ---- MATRIX PAIRS (CSS Grid) ----
+        # GUI refresh §4: layer switcher. The four matrices stay in the
+        # data model; only one renders at a time, driven by
+        # input.active_layer. The matrix_*_section divs themselves are
+        # unchanged so their existing reactives, observers, and shared$
+        # state continue to work — switching layers is purely visibility.
         div(
-          class = "matrix-pairs",
+          id = "layer_switcher_section",
+          radioButtons("active_layer", NULL,
+                       choices = c("Sample Type" = "type",
+                                   "Sample ID"   = "id",
+                                   "Dilution"    = "dilution",
+                                   "Replicates"  = "rep"),
+                       selected = "type",
+                       inline = TRUE)
+        ),
 
-          # === Pair 1: Sample Type | Sample ID ===
-          tags$section(
-            class = "matrix-pair",
+        div(
+          id = "matrix_viewport",
+          class = "bs-card",
+          style = "padding: 16px 18px;",
 
-            # Left: Sample Type
+          # Sample Type layer
+          conditionalPanel(
+            condition = "input.active_layer == 'type'",
             div(
-              id = "matrix_type_section", role = "grid", `aria-label` = "Sample type matrix: 8 rows by 12 columns",
+              id = "matrix_type_section", role = "grid",
+              `aria-label` = "Sample type matrix: 8 rows by 12 columns",
               uiOutput("sample_type_heading_ui"),
               actionButton("reset_type", "Reset", class = "btn btn-xs"),
-
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
                 uiOutput("elisa_controls_banner_ui")
               ),
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"),
+                                           type = 6, color = "#1f3a5f")
+            )
+          ),
 
-              shinycssloaders::withSpinner(rHandsontableOutput("matrix_type"), type = 6, color = "#1976D2")
-            ),
-
-            # Right: Sample ID
+          # Sample ID layer
+          conditionalPanel(
+            condition = "input.active_layer == 'id'",
             div(
-              id = "matrix_dilution_section", role = "grid", `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
+              id = "matrix_id_section", role = "grid",
+              `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
+              uiOutput("sample_id_heading_ui"),
+              actionButton("reset_id", "Reset", class = "btn btn-xs"),
+              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"),
+                                           type = 6, color = "#1f3a5f")
+            )
+          ),
+
+          # Dilution layer
+          conditionalPanel(
+            condition = "input.active_layer == 'dilution'",
+            div(
+              id = "matrix_dilution_section", role = "grid",
+              `aria-label` = "Dilution fraction matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
               uiOutput("dilution_matrix_header"),
               div(
@@ -501,32 +533,25 @@ ui <- fluidPage(
                 div(`aria-live` = "polite", uiOutput("dilution_gt1_warning")),
                 actionButton("reset_dilution", "Reset", class = "btn btn-xs"),
                 div(class = "matrix-table-anchor",
-                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"), type = 6, color = "#1976D2")),
+                    shinycssloaders::withSpinner(rHandsontableOutput("matrix_dilution"),
+                                                 type = 6, color = "#1f3a5f")),
                 uiOutput("dilution_matrix_help")
               )
             )
           ),
 
-          # === Pair 2: Dilution Factors | Replicate Groups ===
-          tags$section(
-            class = "matrix-pair",
-
-            # Left: Dilution Factors
+          # Replicates layer
+          conditionalPanel(
+            condition = "input.active_layer == 'rep'",
             div(
-              id = "matrix_id_section", role = "grid", `aria-label` = "Sample ID matrix: 8 rows by 12 columns",
-              uiOutput("sample_id_heading_ui"),
-              actionButton("reset_id", "Reset", class = "btn btn-xs"),
-              shinycssloaders::withSpinner(rHandsontableOutput("matrix_id"), type = 6, color = "#1976D2")
-            ),
-
-            # Right: Replicate Groups
-            div(
-              id = "matrix_replicate_section", role = "grid", `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
+              id = "matrix_replicate_section", role = "grid",
+              `aria-label` = "Replicate group matrix: 8 rows by 12 columns",
               class = "matrix-bottom-cell",
               uiOutput("replicate_heading_ui"),
               actionButton("reset_replicate", "Reset", class = "btn btn-xs"),
               div(class = "matrix-table-anchor",
-                shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"), type = 6, color = "#1976D2"))
+                  shinycssloaders::withSpinner(rHandsontableOutput("matrix_replicate"),
+                                               type = 6, color = "#1f3a5f"))
             )
           )
         ),
