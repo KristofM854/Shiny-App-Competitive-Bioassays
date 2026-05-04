@@ -661,81 +661,96 @@ $(function() {
       value = "tab_upload",
       br(),
 
-      div(
-        id = "upload_section",
-        uiOutput("step2_header"),
-        div(
-          style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
-          actionButton("back_to_layout_top", "\u2190 Back: Plate Layout",
-                      class = "btn btn-default btn-lg"),
-          actionButton("next_to_analysis_top", "Next: Analysis Settings \u2192",
-                      class = "btn btn-primary btn-lg")
-        ),
-
-        div(
-          id = "upload_controls",
-          radioButtons("import_method", "Import method:",
-                      choices = c("Classic Import" = "classic",
-                                  "Visual Plate Selector" = "visual"),
-                      selected = "classic", inline = TRUE),
-
+      fluidRow(
+        # ---- LEFT (8 cols): file picker + preview + heatmap ----
+        column(
+          width = 8,
           div(
-            style = "display:flex; gap:10px;",
-            uiOutput("upload_counts_ui"),
-            uiOutput("clear_upload_ui")
-          ),
-          uiOutput("download_plate_template_ui")
-        ),
-
-        # Visual plate selector panel
-        conditionalPanel(
-          condition = "input.import_method == 'visual'",
-          div(
-            # GUI refresh §5.1: replace blue dashed border with the
-            # standard bs-card surface + accent-soft tint.
-            id = "visual_selector_section",
             class = "bs-card",
-            style = "padding: 16px; margin: 12px 0; background: var(--c-accent-soft); border-color: var(--c-line);",
-            uiOutput("visual_selector_heading_ui"),
-            uiOutput("visual_selector_intro_ui"),
-            uiOutput("visual_file_preview"),
-            uiOutput("visual_plate_selections"),
-            uiOutput("visual_well_exclusion")
+            h3("Upload plate data"),
+            p(class = "bs-card-sub",
+              "Upload your raw absorbance / counts file. We'll validate and preview before you continue."),
+            radioButtons(
+              "import_method", NULL,
+              choices = c("Classic import" = "classic",
+                          "Visual plate selector" = "visual"),
+              selected = "classic", inline = TRUE
+            ),
+            div(
+              style = "display: flex; gap: 12px; flex-wrap: wrap;",
+              uiOutput("upload_counts_ui"),
+              uiOutput("clear_upload_ui"),
+              uiOutput("download_plate_template_ui")
+            ),
+            actionButton("show_sample_layout", "Show default plate layout",
+                         class = "btn-default btn-sm",
+                         style = "margin-top: 8px;")
+          ),
+
+          # Visual plate selector (shown only when method = visual)
+          conditionalPanel(
+            condition = "input.import_method == 'visual'",
+            div(
+              id = "visual_selector_section",
+              class = "bs-card",
+              style = "background: var(--c-accent-soft);",
+              uiOutput("visual_selector_heading_ui"),
+              uiOutput("visual_selector_intro_ui"),
+              uiOutput("visual_file_preview"),
+              uiOutput("visual_plate_selections"),
+              uiOutput("visual_well_exclusion")
+            )
+          ),
+
+          div(
+            class = "bs-card",
+            h4("Plate preview & heatmap"),
+            fluidRow(
+              column(
+                width = 6,
+                h5("Raw values"),
+                tableOutput("meas_preview")
+              ),
+              column(
+                width = 6,
+                h5("Heatmap"),
+                tags$figure(
+                  id = "heatmap_preview_section",
+                  style = "margin: 0;",
+                  `aria-describedby` = "plate_heatmap_desc_text",
+                  role = "figure",
+                  uiOutput("heatmap_title_ui"),
+                  tags$figcaption(id = "plate_heatmap_desc_text",
+                                  uiOutput("heatmap_caption_ui", inline = TRUE)),
+                  plotly::plotlyOutput("plate_heatmap", height = "320px"),
+                  div(class = "sr-only", `aria-live` = "polite",
+                      textOutput("plate_heatmap_description"))
+                )
+              )
+            )
           )
         ),
 
-        actionButton("show_sample_layout", "Show default plate layout",
-                    class = "btn btn-sm btn-secondary",
-                    style = "margin-top: -10px;")
-      ),
-
-      div(id = "upload_preview_section",
-          uiOutput("upload_summary"),
-          tableOutput("meas_preview")),
-      br(),
-
-      # Data heatmap preview
-      tags$figure(
-        id = "heatmap_preview_section",
-        style = "max-width: 700px;",
-        `aria-describedby` = "plate_heatmap_desc_text",
-        role = "figure",
-        uiOutput("heatmap_title_ui"),
-        tags$figcaption(id = "plate_heatmap_desc_text",
-          uiOutput("heatmap_caption_ui", inline = TRUE)
-        ),
-        plotly::plotlyOutput("plate_heatmap", height = "300px"),
-        div(class = "sr-only", `aria-live` = "polite", textOutput("plate_heatmap_description"))
+        # ---- RIGHT (4 cols): import summary + validation ----
+        column(
+          width = 4,
+          div(
+            class = "bs-card",
+            h4("Import summary"),
+            uiOutput("upload_summary")
+          )
+        )
       ),
       br(),
       div(
         style = "display: flex; justify-content: space-between; padding: 15px;",
         actionButton("back_to_layout", "\u2190 Back: Plate Layout",
-                    class = "btn btn-default btn-lg"),
+                     class = "btn-default btn-lg"),
         actionButton("next_to_analysis", "Next: Analysis Settings \u2192",
-                    class = "btn btn-primary btn-lg")
+                     class = "btn-primary btn-lg")
       )
     ),
+
 
     # ======================================================================
     # TAB 4: Analysis Settings

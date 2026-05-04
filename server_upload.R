@@ -687,27 +687,21 @@ server_upload <- function(input, output, session, shared) {
       is_partial <- actual_wells < 96  # True partial plate check
 
       lang <- input$app_language %||% "en"
-      # GUI refresh §5.1: import summary becomes a key/value table on
-      # the bs-card surface (was a green wellPanel #E8F5E9). Numeric
-      # values use the mono face so they line up.
+      # GUI refresh v2 §5.1 — Import summary as a bs-report
+      # key/value table. The wrapping bs-card lives in app.R
+      # (the right column of Tab 3); this renderer only emits
+      # the table.
       partial_text <- if (is_partial) tr("yes_label", lang) else tr("no_label", lang)
-      div(
-        class = "bs-card",
-        style = "padding: 14px 16px; margin: 12px 0;",
-        tags$div(
-          style = "font-weight: 600; margin-bottom: 8px;",
-          tr("import_summary", lang)
-        ),
-        tags$div(
-          class = "bs-kv",
-          style = "display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: var(--t-small);",
-          tags$div(class = "muted", tr("format_label", lang)),
-          tags$div(class = "mono", info$format),
-          tags$div(class = "muted", tr("wells_label", lang)),
-          tags$div(class = "mono",
-                   sprintf("%d / 96", actual_wells)),
-          tags$div(class = "muted", tr("partial_label", lang)),
-          tags$div(partial_text)
+      tags$table(
+        class = "bs-report",
+        tags$tbody(
+          tags$tr(tags$td(tr("format_label", lang)),
+                  tags$td(class = "num", info$format)),
+          tags$tr(tags$td(tr("wells_label", lang)),
+                  tags$td(class = "num",
+                          sprintf("%d / 96", actual_wells))),
+          tags$tr(tags$td(tr("partial_label", lang)),
+                  tags$td(class = "num", partial_text))
         )
       )
     }
