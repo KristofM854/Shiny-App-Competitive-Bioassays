@@ -202,8 +202,8 @@ server_layout <- function(input, output, session, shared) {
     rhandsontable(mat, rowHeaderWidth = 30, rowHeaders = ROW_NAMES,
                   height = 250, stretchH = "all", overflow = "hidden") %>%
       hot_col(col = 1:12, type = "dropdown",
-              source = type_choices) %>%
-      hot_cols(renderer = "
+              source = type_choices,
+              renderer = "
   function(instance, td, row, col, prop, value, cellProperties) {
     Handsontable.renderers.TextRenderer.apply(this, arguments);
 
