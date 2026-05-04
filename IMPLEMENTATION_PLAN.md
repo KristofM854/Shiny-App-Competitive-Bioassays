@@ -490,9 +490,9 @@ The exact expected values need to be captured from one known-good run; include a
 
 - [x] Add i18n keys for the new UI elements and their Spanish translations.
 
-**Sub-tasks (post-split, eventual):**
+**Sub-tasks (post-split):**
 
-- [ ] Create `reports/unified_analysis_template_compact.Rmd` as a thin orchestration file that calls the same functions in `analysis_pipeline.R` and `report_sections.R` but includes only the compact-mode sections. Remove the `compact` param from the detailed template.
+- [x] **Compact entry-point template landed.** `reports/unified_analysis_template_compact.Rmd` is a thin wrapper: its YAML pins `compact: true` in the params block and the body is a single `{r child = "unified_analysis_template.Rmd"}` include. The `eval=!is_compact` gates already in the detailed template suppress the nine full-audit-only chunks (weight-comparison, model-stability-assessment, standard-backcalculation, plate-positional-qc, parallelism-assessment, tissue-normalization-traceability, exclusion-audit). `report_pipeline.R` now selects the compact template directly when rendering the compact variant instead of passing `compact = TRUE` through `params`. The H4 RDS cache lives in `output_dir` and is shared between the two templates so the heavy compute (LL.4 fit + delta-method per-well predictions) still runs only once across both renders. The `compact` param remains on the detailed template's YAML so it still works when rendered directly with `params$compact = FALSE` (the historical path) and so the child include can inherit `compact = TRUE` cleanly via the parent's params object.
 
 **Acceptance:** Every report run produces both a compact and detailed HTML (and DOCX/PDF if those formats were selected). The compact version is 3-5 pages for a typical single-plate RBA run. The detailed version is unchanged from current output. Download button defaults to compact.
 
