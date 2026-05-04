@@ -627,8 +627,11 @@ ui <- fluidPage(
         conditionalPanel(
           condition = "input.import_method == 'visual'",
           div(
+            # GUI refresh §5.1: replace blue dashed border with the
+            # standard bs-card surface + accent-soft tint.
             id = "visual_selector_section",
-            style = "border: 2px dashed #2196F3; padding: 15px; margin: 10px 0; border-radius: 8px;",
+            class = "bs-card",
+            style = "padding: 16px; margin: 12px 0; background: var(--c-accent-soft); border-color: var(--c-line);",
             uiOutput("visual_selector_heading_ui"),
             uiOutput("visual_selector_intro_ui"),
             uiOutput("visual_file_preview"),
