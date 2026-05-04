@@ -205,7 +205,7 @@ server_layout <- function(input, output, session, shared) {
               source = type_choices,
               renderer = "
   function(instance, td, row, col, prop, value, cellProperties) {
-    Handsontable.renderers.TextRenderer.apply(this, arguments);
+    Handsontable.renderers.AutocompleteRenderer.apply(this, arguments);
 
     // Strip any sample-type class from a previous render
     td.classList.remove(

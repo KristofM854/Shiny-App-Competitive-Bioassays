@@ -643,9 +643,22 @@ server_common <- function(input, output, session, shared) {
     # Tab 1: Quick Start tiles (v3 §3) are now hand-rolled tags$a elements
     # with a structured interior (rail + body divs). updateActionButton would
     # replace the entire innerHTML with just icon + text, destroying the card
-    # layout. The three demo tiles therefore must NOT be updated here.
-    # The two manual-configure buttons inside <details> are still actionButtons
-    # and CAN be safely updated.
+    # layout. Instead, send only the inner text via a targeted custom message
+    # that walks [data-i18n] attributes and swaps textContent — the tile
+    # structure is never touched.
+    session$sendCustomMessage("bs_tile_i18n", list(
+      qs_tile_rba_title    = tr("qs_tile_rba_title", lang),
+      qs_tile_rba_sub      = tr("qs_tile_rba_sub", lang),
+      qs_tile_elisa_co_title = tr("qs_tile_elisa_co_title", lang),
+      qs_tile_elisa_co_sub   = tr("qs_tile_elisa_co_sub", lang),
+      qs_tile_elisa_cu_title = tr("qs_tile_elisa_cu_title", lang),
+      qs_tile_elisa_cu_sub   = tr("qs_tile_elisa_cu_sub", lang),
+      qs_tile_demo_meta    = tr("qs_tile_demo_meta", lang),
+      qs_tile_no_demo_meta = tr("qs_tile_no_demo_meta", lang)
+    ))
+
+    # The two manual-configure buttons inside <details> are still real Shiny
+    # actionButtons and CAN be safely updated.
     updateActionButton(session, "qs_rba_stx_manual",
                        label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
     updateActionButton(session, "qs_elisa_cortisol_manual",
