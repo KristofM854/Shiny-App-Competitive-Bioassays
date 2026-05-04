@@ -604,25 +604,26 @@ The exact expected values need to be captured from one known-good run; include a
 
 ## FUTURE / DEFERRED (not for v1.0)
 
-### F0. Machine-comparable golden-artifacts diff script
+### F0. Machine-comparable golden-artifacts diff script — *landed*
 
-**Scope:** Add a small CLI script `tests/testthat/diff_golden_artifacts.R` that takes two output directories (`before-rba/` vs `after-rba/`, and analogously for ELISA) and prints any numerical drift exceeding a configurable tolerance (default 1e-9) across `model_stats.json`, `unknown_results_summary.csv`, and `replicate_stats.csv`.
+**Scope:** A CLI script `tests/testthat/diff_golden_artifacts.R` that takes two output directories and prints any numerical drift exceeding a configurable tolerance (default 1e-9) across `model_stats.json`, `unknown_results.csv`, `unknown_results_summary.csv`, and `replicate_stats.csv` (recursive, so per-plate subdirs are picked up too). Exit status 1 on any drift, 0 otherwise.
 
-**Rationale:** The B6 golden test only pins R², IC50, and replicate-group count. After M1.1–M1.4 land, we want a tighter ratchet: every numeric field in the JSON/CSV sidecars stays byte-identical to the pre-refactor baseline (modulo float epsilon). A standalone script keeps the comparison out of the regular test loop (no need to redistribute baseline artifacts) but gives a one-shot assertion before merge.
+**Usage:**
 
-**Sketch:**
-
-```r
-# Rscript tests/testthat/diff_golden_artifacts.R before/ after/ [tol]
-diff_golden_artifacts <- function(before, after, tol = 1e-9) {
-  # walk model_stats.json: per-key abs(before - after) <= tol * max(1, abs(before))
-  # walk unknown_results_summary.csv: per-(SampleID,column) numeric diff
-  # walk replicate_stats.csv if present
-  # exit non-zero with a one-line summary if any field exceeds tol
-}
+```bash
+Rscript tests/testthat/diff_golden_artifacts.R \
+    /path/to/before-run /path/to/after-run [tol]
 ```
 
-**Status:** Add when M1.1–M1.4 are scheduled; not needed before then.
+**Verified against the user's archived 2026-04-30 baselines:**
+
+| pair | result |
+|---|---|
+| zip 04 vs 05 (RBA single-plate) | clean, exit 0 |
+| zip 03/Plate 1 vs zip 07/Plate 1 (cortisol multi-plate, primary plate) | clean, exit 0 |
+| synthetic +0.001 drift in r_squared | DRIFT line emitted, exit 1 |
+
+**Status:** done in commit on branch claude/review-implementation-guide-Xm8xG.
 
 ---
 
