@@ -110,16 +110,23 @@ analysis_config <- tryCatch({
 
 preprocess_template_chunks <- function(template_path, label_prefix, temp_dir = tempdir()) {
   template_lines <- readLines(template_path, warn = FALSE)
-  chunk_pattern <- "^```\\{r\\s+([^,}]+)"
+  # Match any labelled chunk header regardless of engine. The original
+  # pattern hard-coded `r`, so a `{css details-style, ...}` chunk in the
+  # unified template kept its label and produced a "Duplicate chunk label
+  # 'details-style'" error on the second per-plate child render — which is
+  # why the multi-plate template only saved Plate 1's sidecars and dropped
+  # Plate 2/3 silently (F0a). Group 1 is the engine, group 2 is the label.
+  # Anonymous chunks (no label) don't collide so they're skipped.
+  chunk_pattern <- "^```\\{([a-zA-Z0-9_]+)\\s+([^,}\\s]+)"
   processed_lines <- sapply(template_lines, function(line) {
-    if (grepl(chunk_pattern, line)) {
-      chunk_match <- regmatches(line, regexpr(chunk_pattern, line, perl = TRUE))
-      if (length(chunk_match) > 0) {
-        chunk_name <- sub("^```\\{r\\s+", "", chunk_match)
-        new_chunk_name <- paste0(label_prefix, "-", chunk_name)
-        line <- sub(paste0("(```\\{r\\s+)", chunk_name),
-                    paste0("\\1", new_chunk_name), line)
-      }
+    m <- regmatches(line, regexec(chunk_pattern, line, perl = TRUE))[[1]]
+    if (length(m) >= 3) {
+      engine     <- m[[2]]
+      chunk_name <- m[[3]]
+      new_chunk_name <- paste0(label_prefix, "-", chunk_name)
+      old_token <- paste0("```{", engine, " ", chunk_name)
+      new_token <- paste0("```{", engine, " ", new_chunk_name)
+      line <- sub(old_token, new_token, line, fixed = TRUE)
     }
     return(line)
   }, USE.NAMES = FALSE)

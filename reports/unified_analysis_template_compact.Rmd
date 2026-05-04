@@ -1,0 +1,54 @@
+---
+title: "Bioassay Analysis Report (Compact)"
+author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+output:
+  html_document:
+    df_print: paged
+    self_contained: true
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: flatly
+    css: report_style.css
+  word_document:
+    toc: true
+    fig_caption: true
+    fig_width: 6
+    fig_height: 4
+  pdf_document:
+    toc: true
+header-includes:
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyfoot[C]{\thepage}
+  - \fancyhead{}
+  - \renewcommand{\headrulewidth}{0pt}
+params:
+  output_dir: NULL
+  lang: "en"
+  compact: true
+---
+
+<!--
+================================================================================
+Compact orchestration template (IMPLEMENTATION_PLAN.md §H4 split).
+
+This is a thin wrapper around `unified_analysis_template.Rmd`. The compact
+variant reuses the full template's chunk pipeline; presentation-only
+chunks that are unhelpful in the 3-5 page summary form
+(weight-comparison, model-stability-assessment, standard-backcalculation,
+plate-positional-qc, parallelism-assessment, tissue-normalization-
+traceability, exclusion-audit) are gated by `eval=!is_compact` in that
+template, so setting `compact: true` here in this file's params block
+suppresses them automatically.
+
+The H4 RDS cache (.fit_all_models_cache.rds, .quantify_samples_cache.rds)
+is shared with the detailed template via output_dir, so when both
+variants are rendered in the same render_reports() call the heavy
+compute (LL.4 fit + delta-method per-well predictions) runs only once.
+================================================================================
+-->
+
+```{r child = "unified_analysis_template.Rmd"}
+```

@@ -297,21 +297,31 @@ render_reports <- function(params, session) {
   if (!dir.exists(template_dir)) template_dir <- "reports"
 
   if (is_mw) {
-    report_template <- file.path(template_dir, "multiwavelength_analysis_template.Rmd")
+    report_template_full    <- file.path(template_dir, "multiwavelength_analysis_template.Rmd")
+    report_template_compact <- report_template_full   # multi-wave has no compact variant
   } else {
-    report_template <- file.path(template_dir, "unified_analysis_template.Rmd")
+    # H4 split: each variant has its own entry-point template. The compact
+    # template is a thin wrapper that child-includes the detailed template
+    # with `compact: true` in its params block.
+    report_template_full    <- file.path(template_dir, "unified_analysis_template.Rmd")
+    report_template_compact <- file.path(template_dir, "unified_analysis_template_compact.Rmd")
   }
 
-  if (!file.exists(report_template)) {
-    showNotification(
-      "Report template not found - data saved but no report generated.",
-      type = "warning", duration = 8
-    )
-    message("Template not found at: ", report_template)
-    return(list())
+  for (tpl in unique(c(report_template_full, report_template_compact))) {
+    if (!file.exists(tpl)) {
+      showNotification(
+        "Report template not found - data saved but no report generated.",
+        type = "warning", duration = 8
+      )
+      message("Template not found at: ", tpl)
+      return(list())
+    }
   }
 
-  report_template <- normalizePath(report_template, winslash = "/", mustWork = TRUE)
+  report_template_full    <- normalizePath(report_template_full,
+                                           winslash = "/", mustWork = TRUE)
+  report_template_compact <- normalizePath(report_template_compact,
+                                           winslash = "/", mustWork = TRUE)
   out_dir_abs <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
 
   output_paths <- list()
@@ -365,19 +375,24 @@ render_reports <- function(params, session) {
         render_ok <- tryCatch({
           render_params <- list(output_dir = out_dir_abs,
                                 lang = lang_code)
-          if (!is_mw) render_params$compact <- is_compact_variant
           if (is_mw) render_params$wavelengths <- params$wavelengths
+
+          # H4 split: each variant has its own entry-point template; the
+          # compact param now lives in the compact template's YAML
+          # default, so we no longer pass it through render_params.
+          this_template <- if (is_compact_variant) report_template_compact
+                           else report_template_full
 
           base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
           out_name <- paste0(base_out, "-", variant, "-", lang_code)
 
           out_file <- rmarkdown::render(
-            input = report_template,
+            input = this_template,
             output_format = formats_map[[fmt]],
             output_file = out_name,
             output_dir = out_dir_abs,
             params = render_params,
-            knit_root_dir = dirname(report_template),
+            knit_root_dir = dirname(this_template),
             envir = new.env(parent = globalenv())
           )
           output_paths[[paste(fmt, variant, lang_code, sep = "-")]] <- out_file
@@ -406,17 +421,20 @@ render_reports <- function(params, session) {
           )
           html_ok <- tryCatch({
             render_params <- list(output_dir = out_dir_abs, lang = lang_code)
-            if (!is_mw) render_params$compact <- is_compact_variant
             if (is_mw) render_params$wavelengths <- params$wavelengths
+            # Match the variant -> template selection from the primary
+            # render path so the fallback writes to the correct file.
+            this_template <- if (is_compact_variant) report_template_compact
+                             else report_template_full
             base_out <- if (is_mw) "Multi-Wavelength-Analysis-Report" else "RBA-results-report"
             out_name <- paste0(base_out, "-", variant, "-", lang_code)
             out_file <- rmarkdown::render(
-              input = report_template,
+              input = this_template,
               output_format = formats_map[["html"]],
               output_file = out_name,
               output_dir = out_dir_abs,
               params = render_params,
-              knit_root_dir = dirname(report_template),
+              knit_root_dir = dirname(this_template),
               envir = new.env(parent = globalenv())
             )
             output_paths[[fallback_key]] <- out_file

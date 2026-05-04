@@ -6,6 +6,10 @@
 .RData
 .Rproj.user/
 
+# Test artifacts (R creates Rplots.pdf when a chunk plots without an
+# explicit device; not part of the test corpus).
+tests/testthat/Rplots.pdf
+
 # OS files
 .DS_Store
 Thumbs.db
