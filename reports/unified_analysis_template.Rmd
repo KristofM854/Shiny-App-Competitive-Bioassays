@@ -287,6 +287,51 @@ details > summary:hover { color: #1f3a5f; }
 details {
   margin-bottom: 12px;
 }
+
+/* GUI refresh §6.6: kable / kableExtra table styling. Mono numerics,
+   tabular numerals, small-caps mono header, surface-2 hover. */
+table.kable, table.dataframe, .kable_wrapper table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+table.kable thead th, table.dataframe thead th, .kable_wrapper thead th {
+  background: #f1f3f5;
+  color: #5b6573;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e3e6ea;
+  text-align: left;
+}
+table.kable td, table.dataframe td, .kable_wrapper td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e3e6ea;
+  vertical-align: top;
+}
+/* Numeric-looking cells (mono + tabular) get right-aligned. heuristic:
+   any <td> where rmarkdown's pandoc CSS class has been applied. */
+table.kable td.r, table.dataframe td.r {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+table.kable tbody tr:hover, table.dataframe tbody tr:hover {
+  background: #f1f3f5;
+}
+
+/* GUI refresh §6.3: executive summary card — quiet 1 px line, no
+   tinted gradient (the .Rmd helper renders inline styling for
+   email-safe fallback, this overrides for live HTML). */
+.exec-summary-card, div[style*="linear-gradient(135deg, #E8F5E9"] {
+  background: #ffffff !important;
+  border: 1px solid #e3e6ea !important;
+  border-left: 4px solid #009e73 !important;
+  box-shadow: none !important;
+}
 ```
 
 ```{r load-data, include=FALSE}
@@ -1845,14 +1890,23 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                 size = 3, color = "#E69F00") +
       scale_shape_manual(name = "Sample Status",
                         values = c("Within Range" = 16, "Out of Range" = 17, "Unknown" = 18)) +
+      # GUI refresh §6.5: keep variability cue on standards (still
+      # useful) but adopt the Okabe-Ito hexes verbatim.
       scale_color_manual(name = "Standard Variability",
-                        values = c("Normal Variability" = "#0072B2", 
-                                  "High Variability" = "#D55E00")) +
-      theme_classic() +
+                        values = c("Normal Variability" = "#0072b2",
+                                  "High Variability"   = "#d55e00")) +
+      # GUI refresh §6.5: theme_minimal() with the design's gridline
+      # color and a hairline panel border. Replaces the previous
+      # theme_classic() + theme() chain with a single declarative
+      # block.
+      theme_minimal() +
       theme(
-        legend.position = "top",
-        legend.box = "vertical",
-        axis.text.x = element_text(angle = 45, hjust = 1)
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(color = "#e3e6ea", linewidth = 0.4),
+        panel.border     = element_rect(color = "#e3e6ea", fill = NA, linewidth = 0.5),
+        legend.position  = "top",
+        legend.box       = "vertical",
+        axis.text.x      = element_text(angle = 45, hjust = 1)
       ) +
       labs(x = labels$x_label, y = labels$y_label,
            title = tr("drc_combined_title", lang))
