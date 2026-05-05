@@ -64,31 +64,31 @@ load_assay_config <- function(output_dir) {
 #' Get appropriate axis labels based on assay configuration
 #' @param assay_config Assay configuration list
 #' @return List with x_label, y_label, and units
-get_axis_labels <- function(assay_config) {
+get_axis_labels <- function(assay_config, lang = "en") {
 
   if (assay_config$assay_type == "elisa") {
 
     if (assay_config$detection_method == "absorbance") {
-      y_label <- "Response (%B/B0)"
+      y_label <- tr("y_label_bbb0", lang)
       y_unit <- "%B/B0"
     } else {
-      y_label <- "Absorbance"
+      y_label <- tr("y_label_absorbance", lang)
       y_unit <- "Abs"
     }
 
-    x_label <- paste0("Standard concentration (", assay_config$units %||% "pg/mL", ")")
+    x_label <- paste0(tr("x_label_conc", lang), " (", assay_config$units %||% "pg/mL", ")")
 
   } else {
     # RBA
     if (assay_config$detection_method == "radioligand") {
-      y_label <- "Counts per minute (CPM)"
+      y_label <- tr("y_label_cpm", lang)
       y_unit <- "CPM"
     } else {
-      y_label <- "Relative fluorescence units (RFU)"
+      y_label <- tr("y_label_rfu", lang)
       y_unit <- "RFU"
     }
 
-    x_label <- "Standard concentration (mol/L)"
+    x_label <- tr("x_label_mol_l", lang)
   }
 
   return(list(
