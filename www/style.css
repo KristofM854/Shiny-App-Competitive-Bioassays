@@ -903,3 +903,189 @@ table.bs-report td.num { text-align: right; }
 .bs-quickstart-more > summary:hover {
   color: var(--c-ink);
 }
+
+/* ============================================
+   v3.1 §1 — Configuration form widths (Tab 1)
+   ============================================ */
+
+/* Long-option selects (assay type, analyte, units, preset layout):
+   give them a sensible minimum so the chosen option doesn't wrap
+   onto two lines. Scoped to .bs-card so it doesn't leak to the
+   topbar language select. */
+.bs-card .shiny-input-container .selectize-control {
+  min-width: 320px;
+}
+.bs-card .shiny-input-container .selectize-input {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Number-of-standards: the numeric/select control should be narrow,
+   not full-width. Target by id-bearing form-group via :has(). */
+.bs-card .form-group:has(> label[for="num_standards"]) .selectize-control,
+.bs-card .form-group:has(> #num_standards) {
+  min-width: 96px;
+  max-width: 120px;
+  width: 120px !important;
+}
+
+/* Standards-value grid (S1..S8): widen each column so the label
+   "S1 (ng/ml)" stays on a single line. If the markup uses a wrapper
+   class .bs-standards-grid, this targets it directly; the second
+   block is a fallback for any form-group whose label starts
+   with std_value_. */
+.bs-card .bs-standards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 14px 18px;
+}
+.bs-card .bs-standards-grid .form-group label,
+.bs-card .bs-standards-grid .control-label,
+.bs-card .form-group:has(> label[for^="std_value_"]) .control-label {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* ============================================
+   v3.1 §2 — Plate Layout header bar (Tab 2)
+   ============================================ */
+
+/* The green header bar with "Load Preset Layout / Import Layout".
+   Add breathing room and vertical-center its inner controls.
+   Targets either an explicit class or any well/panel sibling that
+   the v3 markup placed there. */
+.bs-card .bs-layout-header,
+.bs-layout-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 18px !important;
+}
+.bs-layout-header > * {
+  margin: 0 !important;
+}
+
+/* File input ("Browse...") — Shiny's .input-group renders the
+   button + filename text on one row, but the wrapping form-group
+   stacks label-on-top. Force vertical center with the rest of the
+   header. */
+.bs-layout-header .form-group,
+.bs-card .form-group:has(> .input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 0 !important;
+}
+.bs-card .form-group .input-group {
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+}
+.bs-card .form-group .input-group .btn-file,
+.bs-card .form-group .input-group .input-group-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+}
+.bs-card .form-group .input-group .form-control {
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+/* LAYERS rail: more space between the title and the first item. */
+.bs-card .bs-layers-rail h4,
+.bs-card .bs-layers-rail .rail-title,
+.bs-layers-rail h4 {
+  margin: 0 0 14px 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-3);
+}
+
+/* ============================================
+   v3.1 §3 — Radio alignment + button content centering
+   ============================================ */
+
+/* Radio rows: replace Bootstrap's absolute-positioned dot with
+   a flex-aligned dot-then-label pair. */
+.bs-card .radio,
+.bs-card .radio-inline,
+.bs-card .shiny-options-group .radio,
+.bs-card .shiny-options-group .radio-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin: 0 16px 0 0;
+}
+.bs-card .radio > label,
+.bs-card .radio-inline > label,
+.bs-card .shiny-options-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.bs-card .radio input[type="radio"],
+.bs-card .radio-inline input[type="radio"],
+.bs-card .shiny-options-group input[type="radio"] {
+  position: static !important;
+  margin: 0 !important;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Same for checkbox groups */
+.bs-card .checkbox,
+.bs-card .checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bs-card .checkbox input[type="checkbox"],
+.bs-card .checkbox-inline input[type="checkbox"] {
+  position: static !important;
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+
+/* Buttons: center icon + label content. Exclude .preset-tile
+   (Quick Start cards — they intentionally left-align body copy)
+   and .bs-quiet-btn (topbar text buttons — centered already). */
+.bs-card .btn,
+.bs-card .action-button:not(.preset-tile):not(.bs-quiet-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Full-width buttons (report buttons in Tab 5, Give Feedback) */
+.bs-card .btn-block,
+.bs-card .btn[style*="width: 100%"],
+.bs-card .btn[style*="width:100%"],
+.bs-card #give_feedback,
+.bs-card .bs-feedback-btn {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+/* Generic: tighten label-to-control spacing inside .bs-card */
+.bs-card .form-group {
+  margin-bottom: 14px;
+}
+.bs-card .form-group > .control-label {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-ink);
+}

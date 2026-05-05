@@ -637,8 +637,8 @@ server_common <- function(input, output, session, shared) {
     # shinyjs::html() to update the innerHTML of our plain <button> instead.
     shinyjs::html("start_tour", tr("start_tour", lang))
     updateActionButton(session, "convert",
-                       label = tagList(icon("file-arrow-down"), " ",
-                                       tr("generate_report", lang)))
+                       label = tr("generate_report", lang),
+                       icon  = icon("file-arrow-down"))
 
     # Tab 1: Quick Start tiles (v3 §3) are now hand-rolled tags$a elements
     # with a structured interior (rail + body divs). updateActionButton would
@@ -660,9 +660,11 @@ server_common <- function(input, output, session, shared) {
     # The two manual-configure buttons inside <details> are still real Shiny
     # actionButtons and CAN be safely updated.
     updateActionButton(session, "qs_rba_stx_manual",
-                       label = tagList(icon("flask"), " ", tr("preset_rba_stx_btn", lang)))
+                       label = tr("preset_rba_stx_btn", lang),
+                       icon  = icon("flask"))
     updateActionButton(session, "qs_elisa_cortisol_manual",
-                       label = tagList(icon("vial"), " ", tr("preset_elisa_cortisol_btn", lang)))
+                       label = tr("preset_elisa_cortisol_btn", lang),
+                       icon  = icon("vial"))
 
     # Tab 1: Assay type / toxin / analyte / units / num_standards
     updateSelectInput(session, "assay_type",
@@ -710,11 +712,14 @@ server_common <- function(input, output, session, shared) {
                           "preset_elisa_custom_blank"), lang),
                       selected = input$preset_layout %||% "")
     updateActionButton(session, "layout_save",
-                       label = tagList(icon("save"), " ", tr("save_layout_short", lang)))
+                       label = tr("save_layout_short", lang),
+                       icon  = icon("save"))
     updateActionButton(session, "undo_layout",
-                       label = tagList(icon("undo"), " ", tr("undo_btn", lang)))
+                       label = tr("undo_btn", lang),
+                       icon  = icon("undo"))
     updateActionButton(session, "redo_layout",
-                       label = tagList(icon("redo"), " ", tr("redo_btn", lang)))
+                       label = tr("redo_btn", lang),
+                       icon  = icon("redo"))
     updateActionButton(session, "apply_uniform_dilution", label = tr("apply_btn", lang))
     updateActionButton(session, "apply_uniform_extraction", label = tr("apply_btn", lang))
     updateActionButton(session, "reset_type", label = tr("reset_btn", lang))
