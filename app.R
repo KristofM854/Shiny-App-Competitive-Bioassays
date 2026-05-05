@@ -151,7 +151,8 @@ ui <- fluidPage(
               crossorigin = NA),
     tags$link(rel = "stylesheet",
               href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap"),
-    tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+    tags$link(rel = "stylesheet", type = "text/css",
+              href = paste0("style.css?v=", as.numeric(Sys.time())))
   ),
 
   div(
@@ -490,7 +491,8 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
             ),
             column(2,
               div(style = "margin-top: 25px;",
-                actionButton("layout_save", label = tagList(icon("save"), "Save Layout"),
+                actionButton("layout_save", label = "Save Layout",
+                            icon  = icon("save"),
                             class = "btn btn-success btn-sm", style = "width: 100%;")
               )
             ),
@@ -501,9 +503,11 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
             ),
             column(2,
               div(style = "margin-top: 25px; display: flex; gap: 6px;",
-                actionButton("undo_layout", label = tagList(icon("undo"), "Undo"),
+                actionButton("undo_layout", label = "Undo",
+                            icon  = icon("undo"),
                             class = "btn btn-default btn-sm"),
-                actionButton("redo_layout", label = tagList(icon("redo"), "Redo"),
+                actionButton("redo_layout", label = "Redo",
+                            icon  = icon("redo"),
                             class = "btn btn-default btn-sm")
               )
             )
@@ -943,8 +947,8 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
             # the heavy inline overrides (font-weight 700, 12 px radius)
             # and let the design system drive the look.
             actionButton("convert",
-                        label = tagList(icon("file-arrow-down"),
-                                       "Generate Report"),
+                        label = "Generate Report",
+                        icon  = icon("file-arrow-down"),
                         class = "btn btn-primary btn-lg",
                         style = "width: 100%;"),
             br(), br(),
