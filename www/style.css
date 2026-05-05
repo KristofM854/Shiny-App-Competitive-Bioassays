@@ -1089,3 +1089,221 @@ table.bs-report td.num { text-align: right; }
   font-weight: 600;
   color: var(--c-ink);
 }
+
+/* ============================================
+   v3.2 §1 — Hide native <select> + ellipsis on long options
+   Global scope (NOT .bs-card-scoped) so it covers the topbar
+   language select AND every form select in the wizard.
+   ============================================ */
+
+/* Hide the native <select> that selectize.js wraps. selectize keeps
+   it in the DOM for form-value submission but it should never paint. */
+.selectize-control > select.shiny-bound-input,
+.selectize-hidden-accessible {
+  position: absolute !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none !important;
+  border: 0 !important;
+}
+
+/* Long-option ellipsis: force the .item element to respect the
+   right-padding gutter so text truncates before hitting the chevron. */
+.bs-card .selectize-input {
+  padding-right: 28px !important;
+}
+.bs-card .selectize-input > .item {
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* ============================================
+   v3.2 §2 — Plate Layout header: bottom-align controls
+   Each cell becomes a flex column; controls bottom-align so they
+   share a baseline regardless of whether the cell has a label.
+   ============================================ */
+
+.bs-layout-header,
+.bs-card .bs-layout-header {
+  display: flex;
+  align-items: stretch;       /* was: center — switch to stretch */
+  gap: 24px;
+  padding: 12px 18px !important;
+  min-height: 72px;
+}
+
+/* Each direct child becomes a flex column with controls bottom-aligned. */
+.bs-layout-header > .form-group,
+.bs-layout-header > .btn,
+.bs-layout-header > .action-button,
+.bs-layout-header > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;   /* controls sit on the bottom edge */
+  margin: 0 !important;
+}
+
+/* Labels stay above their control; tighten the label-to-control gap. */
+.bs-layout-header .form-group .control-label {
+  margin: 0 0 4px 0 !important;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--c-ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+/* Buttons in the header (Save Layout, etc.) — match control height. */
+.bs-layout-header > .btn,
+.bs-layout-header > .action-button {
+  height: 36px;
+  align-self: flex-end;
+}
+
+/* ============================================
+   v3.2 §4 — Analysis Settings tidy
+   ============================================ */
+
+/* Advanced Options disclosure */
+.bs-advanced {
+  margin-top: 18px;
+  border-top: 1px solid var(--c-line);
+  padding-top: 14px;
+}
+.bs-advanced > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  color: #c75c1c;
+  font-weight: 600;
+  user-select: none;
+}
+.bs-advanced > summary::-webkit-details-marker { display: none; }
+.bs-advanced > summary::before {
+  content: "\25B8";
+  display: inline-block;
+  margin-right: 2px;
+  transition: transform 120ms;
+  color: #c75c1c;
+  font-size: 11px;
+}
+.bs-advanced[open] > summary::before { transform: rotate(90deg); }
+.bs-advanced .title { font-size: 14px; }
+.bs-advanced .sub {
+  font-size: 12px;
+  color: var(--c-ink-3);
+  font-weight: 400;
+}
+.bs-advanced-body {
+  padding: 12px 0 4px 22px;
+}
+
+/* DRC weighting: force one checkbox per line */
+.bs-card .bs-drc-weighting .checkbox,
+.bs-card .bs-drc-weighting .shiny-options-group > .checkbox {
+  display: flex !important;
+  width: 100%;
+  margin: 4px 0;
+}
+.bs-card .bs-drc-weighting label {
+  width: 100%;
+}
+
+/* ============================================
+   v3.2 §5 — Report format + Give Feedback centering
+   ============================================ */
+
+/* Report format segmented control: center each label inside its segment. */
+.bs-card .bs-report-format .radio-inline,
+.bs-card .bs-report-format > label,
+.bs-card .bs-report-format .shiny-options-group label {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 88px;
+  padding: 6px 14px;
+  margin: 0 !important;
+}
+
+/* Give Feedback: symmetric padding + line-height: 1 to neutralize
+   Bootstrap's 1.428 line-height that pushes content above midline. */
+.bs-card #give_feedback,
+.bs-card .bs-feedback-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px !important;
+  line-height: 1 !important;
+}
+.bs-card #give_feedback > i,
+.bs-card .bs-feedback-btn > i {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* ============================================
+   v3.2 §6 — Topbar language select centering
+   ============================================ */
+
+.bs-topbar .actions .bs-lang-select .selectize-input {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 24px 0 10px !important;
+  line-height: 1 !important;
+}
+.bs-topbar .actions .bs-lang-select .selectize-input > .item {
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* v3.2 §7.2 — Widen topbar pill to fit "Русский (бета)" */
+.bs-topbar .actions .bs-lang-select .selectize-control {
+  width: 140px !important;
+  min-width: 140px;
+}
+
+/* ============================================
+   v3.2 §7.3 — Beta banner
+   ============================================ */
+.bs-beta-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: var(--c-warn-bg, #fef3df);
+  border-bottom: 1px solid var(--c-warn-border, #e6c97a);
+  color: var(--c-warn-ink, #6a4c0e);
+  font-family: var(--ff-sans);
+  font-size: 13px;
+}
+.bs-beta-banner .icon { color: #c75c1c; flex-shrink: 0; }
+.bs-beta-banner .msg { flex: 1; }
+.bs-beta-banner .bs-beta-dismiss {
+  background: transparent;
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--c-warn-ink, #6a4c0e);
+  cursor: pointer;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+.bs-beta-banner .bs-beta-dismiss:hover {
+  background: rgba(0,0,0,0.06);
+  border-radius: 4px;
+}
