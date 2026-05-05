@@ -23,7 +23,8 @@
 # never crashes the report.
 render_exclusion_audit_section <- function(data_long,
                                            outlier_flags = NULL,
-                                           high_var_standards = NULL) {
+                                           high_var_standards = NULL,
+                                           lang = "en") {
   tryCatch({
     ol_flags_for_audit <- if (!is.null(outlier_flags) &&
                               is.data.frame(outlier_flags) &&
@@ -50,7 +51,7 @@ render_exclusion_audit_section <- function(data_long,
     if (nrow(exclusion_audit) > 0) {
       cat(sprintf("**%d exclusion(s) documented across %d unique well(s).**\n\n",
                   nrow(exclusion_audit), length(unique(exclusion_audit$Well))))
-      render_table(exclusion_audit, caption = "Exclusion Audit Trail")
+      render_table(exclusion_audit, caption = tr("exclusion_audit_caption", lang))
     } else {
       cat("*No exclusions were applied during this analysis.*\n\n")
     }
@@ -82,13 +83,12 @@ render_tissue_normalization_section <- function(is_elisa,
   tryCatch({
     if (isTRUE(is_elisa) && !is.null(tissue_weights) &&
         length(tissue_weights) > 0) {
-      section_start("Click to expand tissue normalization traceability")
-      emit_heading("Tissue Normalization Method", 4)
+      section_start(tr("section_tissue_norm", lang))
+      emit_heading(tr("section_tissue_norm", lang), 4)
 
-      cat("Tissue-based concentrations are calculated using the following formula ",
-          "with explicit unit conversions:\n\n", sep = "")
+      cat(tr("tissue_norm_formula_intro", lang), "\n\n", sep = "")
       cat("$$C_{tissue}\\ (\\mathrm{pg/g}) = \\frac{C_{extract}\\ (\\mathrm{pg/mL}) \\times \\left[V_{extraction}\\ (\\mathrm{\\mu L}) \\,/\\, 1000\\right]}{m_{tissue}\\ (\\mathrm{mg}) \\,/\\, 1000}$$\n\n")
-      cat("Where:\n\n")
+      cat(tr("where_label", lang), "\n\n")
       cat("- $C_{extract}$ = concentration in the original (undiluted) extract, from the curve (pg/mL)\n")
       cat("- $V_{extraction}$ = total volume the tissue was extracted into (µL, converted to mL by /1000)\n")
       cat("- $m_{tissue}$ = mass of tissue extracted (mg, converted to g by /1000)\n")
@@ -117,10 +117,12 @@ render_tissue_normalization_section <- function(is_elisa,
         display_tw <- tw_trace %>%
           dplyr::select(Replicate, TissueMass_mg, Extraction_uL,
                         TissueMass_g, Extraction_mL)
-        names(display_tw) <- c("Replicate Group", "Tissue Mass (mg)",
-                               "Extraction Vol. (uL)",
-                               "Tissue Mass (g)", "Extraction Vol. (mL)")
-        render_table(display_tw, caption = "Tissue Normalization Parameters")
+        names(display_tw) <- c(tr("col_replicate_group", lang),
+                               tr("col_tissue_mass_mg", lang),
+                               tr("col_extraction_vol_ul", lang),
+                               tr("col_tissue_mass_g", lang),
+                               tr("col_extraction_vol_ml", lang))
+        render_table(display_tw, caption = tr("tissue_norm_params_caption", lang))
 
         cat(sprintf("\n**Units:** Final tissue concentrations are reported as pg/g tissue (= pg analyte per gram of tissue).\n\n"))
 
@@ -263,6 +265,7 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
   } else {
     overall_status <- "Review Required"
     status_icon <- "\U0001F534"
+    # overall_status kept as English key for comparisons below
     exec_warnings <- c(exec_warnings,
                        sprintf("R² below threshold (%.4f < %.2f)",
                                R2, qc_profile$r2_threshold))
@@ -302,7 +305,12 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
     cat("---\n\n")
   }
 
-  cat(sprintf("**Overall status:** %s %s\n\n", status_icon, overall_status))
+  overall_status_display <- switch(overall_status,
+    "Pass"             = tr("qc_green", lang),
+    "Qualified Pass"   = tr("qc_qualified", lang),
+    "Review Required"  = tr("qc_review", lang),
+    overall_status)
+  cat(sprintf("**Overall status:** %s %s\n\n", status_icon, overall_status_display))
   cat(sprintf("**Assay:** %s — %s | **Model:** %s\n\n",
               toupper(assay_config$assay_type %||% "Unknown"),
               assay_config$analyte %||%
@@ -336,7 +344,7 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
                 as.numeric(control_summary$blank_avg),
                 as.numeric(control_summary$nsb_avg),
                 as.numeric(control_summary$b0_avg),
-                if (control_summary$hierarchy_valid) "Valid" else "**INVALID**"))
+                if (control_summary$hierarchy_valid) tr("control_hierarchy_valid", lang) else paste0("**", tr("control_hierarchy_invalid", lang), "**")))
   }
 
   if (length(exec_warnings) > 0) {
@@ -412,7 +420,7 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
                                             response_var, replicate_stats,
                                             R2, weight_desc, assay_config,
                                             lang) {
-  section_start("Click to expand QC traffic light summary")
+  section_start(tr("qc_card_title", lang))
   tryCatch({
     coefs <- coef(model_fit)
     hill_slope <- abs(coefs[1])
@@ -512,7 +520,7 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
                       tr("qc_status", lang))
 
     emit_heading(tr("qc_card_title", lang), 4)
-    cat(sprintf("*%s: %s*\n\n", "Regression", weight_desc))
+    cat(sprintf("*%s: %s*\n\n", tr("regression_label", lang), weight_desc))
     render_table(qc_df, caption = tr("qc_card_title", lang))
   }, error = function(e) {
     cat("\n\n*QC summary could not be generated.*\n\n")
