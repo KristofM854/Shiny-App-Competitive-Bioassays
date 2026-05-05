@@ -523,8 +523,15 @@ server_common <- function(input, output, session, shared) {
 
   output$advanced_options_heading_ui <- renderUI({
     lang <- input$app_language %||% "en"
-    h4(style = "margin: 0 0 4px 0; color: #E65100;",
-       icon("sliders-h"), " ", tr("advanced_options_heading", lang))
+    tagList(
+      icon("sliders-h"),
+      span(class = "title", tr("advanced_options", lang)),
+      span(class = "sub",   tr("advanced_options_sub", lang))
+    )
+  })
+
+  output$beta_warning_text <- renderText({
+    tr("beta_warning", input$app_language %||% "en")
   })
 
   output$advanced_options_intro_ui <- renderUI({
