@@ -552,7 +552,12 @@ get_translations <- function() {
       no_plate_body = "Please upload plate reader data before generating a report.",
 
       # Omitted wells
-      omitted_by_user = "Omitted from analysis by user"
+      omitted_by_user = "Omitted from analysis by user",
+
+      # v3.2 new keys
+      advanced_options     = "Advanced Options",
+      advanced_options_sub = "weighting, CI, outliers, and QC thresholds",
+      beta_warning         = ""
     ),
     
     es = list(
@@ -1091,7 +1096,12 @@ get_translations <- function() {
       no_plate_body = "Cargue datos del lector de placas antes de generar un reporte.",
 
       # Omitted wells
-      omitted_by_user = "Omitido del an\u00E1lisis por el usuario"
+      omitted_by_user = "Omitido del an\u00E1lisis por el usuario",
+
+      # v3.2 new keys
+      advanced_options     = "Opciones avanzadas",
+      advanced_options_sub = "ponderaci\u00F3n, IC, outliers y umbrales QC",
+      beta_warning         = ""
     )
   )
 }

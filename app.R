@@ -188,9 +188,15 @@ ui <- fluidPage(
       div(
         class = "bs-lang-select",
         selectInput("app_language", NULL,
-                    choices = c("English" = "en", "Español" = "es"),
+                    choices = c(
+                      "English"          = "en",
+                      "Español"          = "es",
+                      "Français"         = "fr",
+                      "Русский (бета)"   = "ru",
+                      "中文 (测试版)"     = "zh"
+                    ),
                     selected = "en",
-                    width = "110px")
+                    width = "140px")
       )
     )
   ),
@@ -236,6 +242,47 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
     document.querySelectorAll('[data-i18n=\"' + key + '\"]').forEach(function(el) {
       el.textContent = msg[key];
     });
+  });
+});
+")),
+
+  # v3.2 §7.3 — Beta banner (shown for RU/ZH; dismissed per-language to localStorage)
+  div(
+    id = "bs-beta-banner",
+    class = "bs-beta-banner",
+    style = "display: none;",
+    span(class = "icon", icon("exclamation-triangle")),
+    span(class = "msg", textOutput("beta_warning_text", inline = TRUE)),
+    tags$button(
+      type = "button",
+      class = "bs-beta-dismiss",
+      onclick = "dismissBetaBanner()",
+      "×"
+    )
+  ),
+
+  tags$script(HTML("
+window.dismissBetaBanner = function() {
+  var lang = $('#app_language').val();
+  localStorage.setItem('bs_beta_dismissed_' + lang, '1');
+  $('#bs-beta-banner').hide();
+};
+
+function refreshBetaBanner() {
+  var lang = $('#app_language').val();
+  var isBeta = (lang === 'ru' || lang === 'zh');
+  var dismissed = localStorage.getItem('bs_beta_dismissed_' + lang) === '1';
+  if (isBeta && !dismissed) {
+    $('#bs-beta-banner').show();
+  } else {
+    $('#bs-beta-banner').hide();
+  }
+}
+
+$(function() {
+  refreshBetaBanner();
+  $(document).on('change', '#app_language', function() {
+    setTimeout(refreshBetaBanner, 100);
   });
 });
 ")),
@@ -500,16 +547,6 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
               div(style = "margin-top: 25px;",
                 uiOutput("layout_load_ui")
               )
-            ),
-            column(2,
-              div(style = "margin-top: 25px; display: flex; gap: 6px;",
-                actionButton("undo_layout", label = "Undo",
-                            icon  = icon("undo"),
-                            class = "btn btn-default btn-sm"),
-                actionButton("redo_layout", label = "Redo",
-                            icon  = icon("redo"),
-                            class = "btn btn-default btn-sm")
-              )
             )
           )
         ),
@@ -572,6 +609,12 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
                 textInput("bulk_rep_group", NULL, placeholder = "A"),
                 actionButton("apply_uniform_rep", "Set all wells",
                              class = "btn-default btn-block")
+              ),
+              div(
+                class = "bs-undo-redo",
+                style = "margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--c-line); display: flex; gap: 8px;",
+                actionButton("undo_layout", "Undo", icon = icon("rotate-left"), class = "btn-default btn-sm"),
+                actionButton("redo_layout", "Redo", icon = icon("rotate-right"), class = "btn-default btn-sm")
               )
             )
           ),
@@ -833,62 +876,68 @@ Shiny.addCustomMessageHandler('bs_tile_i18n', function(msg) {
         uiOutput("analysis_settings_heading_ui"),
 
         # Primary setting (always visible)
-        checkboxGroupInput("regression_weight", "DRC regression weighting:",
-                   choices = c("Unweighted" = "none",
-                               "1/Y (moderate)" = "inv_y",
-                               "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2",
-                               "Auto (data-driven)" = "auto"),
-                   selected = "none"),
+        div(
+          class = "bs-drc-weighting",
+          checkboxGroupInput("regression_weight", "DRC regression weighting:",
+                     choices = c("Unweighted" = "none",
+                                 "1/Y (moderate)" = "inv_y",
+                                 "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2",
+                                 "Auto (data-driven)" = "auto"),
+                     selected = "none")
+        ),
         uiOutput("regression_weight_help_ui"),
 
-        # GUI refresh §5.2: replaces the previous yellow tinted div
-        # (#FFF8E1 + #FFA000 left-border) with a quiet hairline divider
-        # row pattern. Visual hierarchy alone separates the advanced
-        # options from the primary control above.
-        div(
-          style = "margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--c-line);",
-          uiOutput("advanced_options_heading_ui"),
-          uiOutput("advanced_options_intro_ui"),
+        # Advanced Options collapsed behind a disclosure chevron (v3.2 §4)
+        tags$details(
+          class = "bs-advanced",
+          tags$summary(
+            class = "bs-advanced-summary",
+            uiOutput("advanced_options_heading_ui")
+          ),
+          div(
+            class = "bs-advanced-body",
+            uiOutput("advanced_options_intro_ui"),
 
-          fluidRow(
-            column(6,
-              numericInput("quant_range_min", "Lower %B/B0 bound:",
-                          value = 20, min = 5, max = 50, step = 5)
+            fluidRow(
+              column(6,
+                numericInput("quant_range_min", "Lower %B/B0 bound:",
+                            value = 20, min = 5, max = 50, step = 5)
+              ),
+              column(6,
+                numericInput("quant_range_max", "Upper %B/B0 bound:",
+                            value = 80, min = 50, max = 95, step = 5)
+              )
             ),
-            column(6,
-              numericInput("quant_range_max", "Upper %B/B0 bound:",
-                          value = 80, min = 50, max = 95, step = 5)
-            )
-          ),
-          uiOutput("quant_range_help_ui"),
+            uiOutput("quant_range_help_ui"),
 
-          hr(),
-
-          radioButtons("ci_method", "Confidence interval method:",
-                      choices = c("t-distribution (default)" = "t_dist",
-                                  "Bootstrap (1000 resamples)" = "bootstrap"),
-                      selected = "t_dist", inline = TRUE),
-
-          checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
-          conditionalPanel(
-            condition = "input.enable_outlier_detection == true",
-            numericInput("outlier_min_n", "Minimum replicates for outlier test:",
-                        value = 3, min = 3, max = 10, step = 1),
-            uiOutput("outlier_help_ui"),
             hr(),
-            radioButtons("normality_assumption", "Normality assumption for outlier detection:",
-                        choices = c("Assume normality (default)" = "assume",
-                                    "Test with Shapiro-Wilk" = "test_shapiro"),
-                        selected = "assume"),
+
+            radioButtons("ci_method", "Confidence interval method:",
+                        choices = c("t-distribution (default)" = "t_dist",
+                                    "Bootstrap (1000 resamples)" = "bootstrap"),
+                        selected = "t_dist", inline = TRUE),
+
+            checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
             conditionalPanel(
-              condition = "input.normality_assumption == 'test_shapiro'",
-              uiOutput("normality_shapiro_help_ui")
-            )
-          ),
-          hr(),
-          numericInput("cv_limit", "Maximum CV for standards (%):",
-                      value = 30, min = 5, max = 50, step = 5),
-          uiOutput("cv_limit_help_ui")
+              condition = "input.enable_outlier_detection == true",
+              numericInput("outlier_min_n", "Minimum replicates for outlier test:",
+                          value = 3, min = 3, max = 10, step = 1),
+              uiOutput("outlier_help_ui"),
+              hr(),
+              radioButtons("normality_assumption", "Normality assumption for outlier detection:",
+                          choices = c("Assume normality (default)" = "assume",
+                                      "Test with Shapiro-Wilk" = "test_shapiro"),
+                          selected = "assume"),
+              conditionalPanel(
+                condition = "input.normality_assumption == 'test_shapiro'",
+                uiOutput("normality_shapiro_help_ui")
+              )
+            ),
+            hr(),
+            numericInput("cv_limit", "Maximum CV for standards (%):",
+                        value = 30, min = 5, max = 50, step = 5),
+            uiOutput("cv_limit_help_ui")
+          )
         )
       ),
       br(),
