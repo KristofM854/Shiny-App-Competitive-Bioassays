@@ -304,12 +304,12 @@ get_color_scheme <- function(assay_config) {
 #' @param assay_config Assay configuration
 #' @param response_var Name of response variable column
 #' @return ggplot2 object
-create_dose_response_plot <- function(standards_data, model_fits, assay_config, response_var = "MeasurementValue") {
-  
-  labels <- get_axis_labels(assay_config)
+create_dose_response_plot <- function(standards_data, model_fits, assay_config, response_var = "MeasurementValue", lang = "en") {
+
+  labels <- get_axis_labels(assay_config, lang = lang)
   colors <- get_color_scheme(assay_config)
   theme <- get_plot_theme(assay_config)
-  
+
   ggplot(data = standards_data %>% dplyr::filter(!is.na(concentration)),
          aes(x = concentration, y = .data[[response_var]], color = high_variability)) +
     geom_point(aes(text = paste0(
@@ -319,10 +319,14 @@ create_dose_response_plot <- function(standards_data, model_fits, assay_config, 
     ))) +
     geom_line(data = model_fits, aes(x = conc, y = p), color = "black", inherit.aes = FALSE) +
     scale_color_manual(
-      name = NULL,
+      name = tr("legend_std_quality", lang),
       values = c(
         "Normal Variability" = colors$standard,
         "High Variability" = colors$high_variability
+      ),
+      labels = c(
+        "Normal Variability" = tr("variability_normal", lang),
+        "High Variability"   = tr("variability_high", lang)
       )
     ) +
     scale_x_log10(
@@ -332,7 +336,7 @@ create_dose_response_plot <- function(standards_data, model_fits, assay_config, 
       labels = scales::scientific_format(digits = 2)
     ) +
     ylab(labels$y_label) +
-    ggtitle("Dose Response Curve") +
+    ggtitle(tr("plot_drc_title", lang)) +
     theme
 }
 
@@ -341,39 +345,43 @@ create_dose_response_plot <- function(standards_data, model_fits, assay_config, 
 #' @param assay_config Assay configuration
 #' @param response_var Name of response variable column
 #' @return ggplot2 object  
-create_standards_boxplot <- function(standards_data, assay_config, response_var = "MeasurementValue") {
-  
-  labels <- get_axis_labels(assay_config)
+create_standards_boxplot <- function(standards_data, assay_config, response_var = "MeasurementValue", lang = "en") {
+
+  labels <- get_axis_labels(assay_config, lang = lang)
   colors <- get_color_scheme(assay_config)
   theme <- get_plot_theme(assay_config)
-  
+
   ggplot(data = standards_data %>% dplyr::filter(!is.na(concentration)),
          aes(x = concentration, y = .data[[response_var]])) +
     geom_boxplot(aes(group = concentration), outlier.shape = NA) +
     geom_jitter(aes(color = high_variability,
                    text = paste0(
                      "Conc.: ", concentration, "<br>",
-                     labels$y_unit, ": ", .data[[response_var]], "<br>", 
+                     labels$y_unit, ": ", .data[[response_var]], "<br>",
                      "Variability: ", high_variability
                    )),
                width = 0.15, size = 1) +
     scale_color_manual(
-      name = NULL,
+      name = tr("legend_std_quality", lang),
       values = c(
         "Normal Variability" = colors$standard,
-        "High Variability" = colors$high_variability  
+        "High Variability" = colors$high_variability
+      ),
+      labels = c(
+        "Normal Variability" = tr("variability_normal", lang),
+        "High Variability"   = tr("variability_high", lang)
       )
     ) +
     scale_x_log10(
       limits = PLOT_CONFIG$x_limits,
       name = labels$x_label,
-      breaks = PLOT_CONFIG$x_breaks, 
+      breaks = PLOT_CONFIG$x_breaks,
       labels = scales::scientific_format(digits = 2)
     ) +
     labs(
       x = labels$x_label,
       y = labels$y_unit,
-      title = "Standard Variability"
+      title = tr("plot_std_variability", lang)
     ) +
     theme
 }
@@ -382,8 +390,8 @@ create_standards_boxplot <- function(standards_data, assay_config, response_var 
 #' @param fitted_vals Fitted values from model
 #' @param residuals_vals Residual values from model
 #' @return ggplot2 object
-create_residuals_plot <- function(fitted_vals, residuals_vals) {
-  
+create_residuals_plot <- function(fitted_vals, residuals_vals, lang = "en") {
+
   ggplot(data = data.frame(fitted = fitted_vals, residuals = residuals_vals),
          aes(x = fitted, y = residuals)) +
     geom_point(aes(text = paste0(
@@ -392,9 +400,9 @@ create_residuals_plot <- function(fitted_vals, residuals_vals) {
     )), color = "darkblue") +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(
-      x = "Fitted values",
-      y = "Residuals", 
-      title = "Fitted vs Residuals"
+      x = tr("col_fitted_values", lang),
+      y = tr("col_residuals", lang),
+      title = tr("plot_fitted_residuals", lang)
     ) +
     theme_classic() +
     theme(
@@ -459,9 +467,9 @@ create_samples_boxplot <- function(unknown_results, assay_config) {
 #' @param assay_config Assay configuration  
 #' @param response_var Response variable name
 #' @return ggplot2 object
-create_combined_drc_plot <- function(model_fits, unknown_results, assay_config, response_var) {
-  
-  labels <- get_axis_labels(assay_config)
+create_combined_drc_plot <- function(model_fits, unknown_results, assay_config, response_var, lang = "en") {
+
+  labels <- get_axis_labels(assay_config, lang = lang)
   colors <- get_color_scheme(assay_config)
   
   # Prepare unknown data for plotting

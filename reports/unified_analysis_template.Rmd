@@ -393,7 +393,7 @@ if (isTRUE(is_elisa)) {
 }
 
 # Get axis labels
-labels <- get_axis_labels(assay_config)
+labels <- get_axis_labels(assay_config, lang = lang)
 
 # Load notes (optional)
 notes_file <- file.path(output_dir, "notes.json")
@@ -454,7 +454,7 @@ if (nzchar(trimws(notes_text)) && notes_text != "No notes added.") {
 
 ## `r tr("std_curve_config", lang)`
 
-`r section_open("Click to expand standard concentrations")`
+`r section_open(tr("std_concentrations", lang))`
 
 ```{r standards-table}
 # Extract and display standard concentrations
@@ -483,7 +483,7 @@ if (isTRUE(is_elisa)) {
 render_table(
   standard_table, 
   caption = tr("std_concentrations_table", lang),
-  col_names = c("Standard", unit_label)
+  col_names = c(tr("col_standards", lang), unit_label)
 )
 ```
 
@@ -497,10 +497,10 @@ cat(tr("methods_drc_citation", lang))
 # Describe the regression weighting used by the primary model
 selected_weights <- analysis_config$regression_weight
 if (is.null(selected_weights) || length(selected_weights) == 0) selected_weights <- "none"
-weight_options_labels <- list(none = "Unweighted", inv_y = "1/Y weighted", inv_y2 = "1/Y\u00B2 weighted")
+weight_options_labels <- list(none = tr("weight_unweighted", lang), inv_y = paste0(tr("weight_unweighted", lang), " 1/Y"), inv_y2 = paste0(tr("weight_unweighted", lang), " 1/Y\u00B2"))
 primary_weight_key <- selected_weights[[1]]
 weight_label <- weight_options_labels[[primary_weight_key]] %||% primary_weight_key
-cat(sprintf("4-parameter log-logistic model (LL.4) fitted with %s regression. ", weight_label))
+cat(sprintf("4-parameter log-logistic model (LL.4) fitted with %s %s. ", weight_label, tr("regression_label", lang)))
 
 if (isTRUE(analysis_config$enable_outlier_detection)) {
   cat(tr("methods_outlier_citation", lang))
@@ -508,7 +508,7 @@ if (isTRUE(analysis_config$enable_outlier_detection)) {
 
 use_shapiro_methods <- isTRUE(analysis_config$normality_assumption == "test_shapiro")
 if (use_shapiro_methods) {
-  cat("Non-normality fallback: MAD-based detection (Leys et al., 2013). ")
+  cat(tr("outlier_method_mad", lang), " ")
 }
 cat("\n\n")
 ```
@@ -679,7 +679,7 @@ render_qc_traffic_light_section(model_fit          = model_fit,
 ```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
 # Show comparison of multiple weighting methods if the user selected more than one
 if (multi_weight_mode && length(all_models) > 1) {
-  section_start("Click to expand weighting comparison")
+  section_start(tr("weight_comparison_title", lang))
   emit_heading(tr("weight_comparison_title", lang), 4)
   cat(tr("weight_comparison_desc", lang), "\n\n")
 
@@ -719,7 +719,7 @@ if (multi_weight_mode && length(all_models) > 1) {
   })
   comp_df <- do.call(rbind, comp_rows)
   col_names <- c(tr("qc_metric", lang), "R\u00B2", "RMSE", "AIC",
-                  "Hill slope", "Bottom", "Top", "IC50")
+                  tr("hill_slope", lang), tr("bottom", lang), tr("top", lang), tr("ic50", lang))
   if ("Stability" %in% names(comp_df)) {
     col_names <- c(col_names, "Stability")
   }
@@ -734,7 +734,7 @@ if (multi_weight_mode && length(all_models) > 1) {
     best_label <- all_models[[best_key]]$label
     best_aic <- min(aic_vals, na.rm = TRUE)
     cat(sprintf("\n\n**AIC recommends: %s** (lowest AIC = %.1f). ", best_label, best_aic))
-    cat(sprintf("Current report uses **%s** (first selected).\n\n", all_models[[primary_key]]$label))
+    cat(tr("weight_comparison_primary", lang, all_models[[primary_key]]$label), "\n\n")
   }
 
   # --- Overlay DRC curves ---
@@ -762,7 +762,7 @@ if (multi_weight_mode && length(all_models) > 1) {
               aes(x = conc, y = p, color = method),
               size = 1.1) +
     scale_color_manual(
-      name = "Weighting",
+      name = tr("col_weighting_label", lang),
       values = setNames(
         curve_colors[plotted_keys],
         sapply(all_models[plotted_keys], function(m) m$label)
@@ -824,7 +824,7 @@ if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
 # H2: document the auto-weighting decision (if taken) at the top of the
 # weighting-suitability section, before the full diagnostic block below.
 if (!is.null(auto_weighting_result)) {
-  weight_labels <- list(none = "Unweighted", inv_y = "1/Y", inv_y2 = "1/Y²")
+  weight_labels <- list(none = tr("weight_unweighted", lang), inv_y = "1/Y", inv_y2 = "1/Y²")
   chosen_label <- weight_labels[[auto_weighting_result$chosen_weight]] %||%
                   auto_weighting_result$chosen_weight
   if (isTRUE(auto_weighting_result$fallback)) {
@@ -862,7 +862,7 @@ tryCatch({
       response_var = response_var
     )
 
-    cat("\n\n### Weighting Suitability Assessment\n\n")
+    cat(sprintf("\n\n### %s\n\n", tr("weighting_suitability_title", lang)))
 
     cat(sprintf("**Test:** %s\n\n", hetero_result$test_name %||% "N/A"))
 
@@ -900,7 +900,7 @@ tryCatch({
     })
     names(stability_results) <- names(all_models)
 
-    emit_heading("Model Stability Assessment", 4)
+    emit_heading(tr("model_stability_title", lang), 4)
 
     # Build summary table
     grade_icon <- function(g) {
@@ -916,16 +916,17 @@ tryCatch({
     stability_df <- data.frame(
       Model = sapply(stability_results, function(s) s$model_name),
       Method = sapply(stability_results, function(s) s$fit_method %||% "N/A"),
-      Converged = sapply(stability_results, function(s) if (s$converged) "Yes" else "No"),
-      SE_Available = sapply(stability_results, function(s) if (s$se_available) "Yes" else "No"),
-      Boundary = sapply(stability_results, function(s) if (s$boundary_flag) "Yes" else "No"),
+      Converged = sapply(stability_results, function(s) if (s$converged) tr("yes_label", lang) else tr("no_label", lang)),
+      SE_Available = sapply(stability_results, function(s) if (s$se_available) tr("yes_label", lang) else tr("no_label", lang)),
+      Boundary = sapply(stability_results, function(s) if (s$boundary_flag) tr("yes_label", lang) else tr("no_label", lang)),
       Grade = sapply(stability_results, function(s) grade_icon(s$stability_grade)),
       stringsAsFactors = FALSE
     )
-    names(stability_df) <- c("Model", "Fit Method", "Converged", "SEs Available",
-                              "Boundary Hit", "Stability Grade")
+    names(stability_df) <- c(tr("col_model", lang), tr("col_fit_method", lang),
+                              tr("col_converged", lang), tr("col_se_available", lang),
+                              tr("col_boundary_hit", lang), tr("col_stability_grade", lang))
 
-    render_table(stability_df, caption = "Model Stability Assessment")
+    render_table(stability_df, caption = tr("model_stability_title", lang))
 
     # Print detailed warnings / suspicious parameters per model
     for (k in names(stability_results)) {
@@ -964,7 +965,7 @@ tryCatch({
 # results); this chunk reuses .lloq_res from that call. Falls back
 # to recomputing if the upstream chunk failed.
 tryCatch({
-  section_start("Click to expand LLOQ/ULOQ determination")
+  section_start(tr("lloq_uloq_title", lang))
   emit_heading(tr("lloq_uloq_title", lang), 4)
   cat(tr("lloq_uloq_desc", lang), "\n\n")
 
@@ -1039,7 +1040,7 @@ tryCatch({
 })
 ```
 
-`r section_open("Click to expand dose-response curve")`
+`r section_open(tr("drc_analysis", lang))`
 
 ```{r dose-response-plots, fig.width=12, fig.height=8, fig.cap="Dose-response curve showing fitted 4-parameter logistic model with observed standard concentrations"}
 # Create unified dose-response curve plot
@@ -1053,10 +1054,14 @@ drc_plot <- ggplot(plot_data, aes(x = concentration, y = .data[[response_var]], 
   ))) +
   geom_line(data = model_fits, aes(x = conc, y = p), color = "black", size = 1.2, inherit.aes = FALSE) +
   scale_color_manual(
-    name = "Standard Quality",
+    name = tr("legend_std_quality", lang),
     values = c(
       "Normal Variability" = "#2E86AB",
       "High Variability" = "#E63946"
+    ),
+    labels = c(
+      "Normal Variability" = tr("variability_normal", lang),
+      "High Variability"   = tr("variability_high", lang)
     )
   ) +
   theme_classic() +
@@ -1101,7 +1106,7 @@ render_plot(drc_plot, tooltip = "text", plotly_layout = list(showlegend = TRUE))
 
 ## `r tr("model_parameters", lang)`
 
-`r section_open("Click to expand 4-PL model coefficients")`
+`r section_open(tr("four_pl_coefficients", lang))`
 
 ```{r model-stats}
 # Extract and display model coefficients with correct parameter order
@@ -1113,7 +1118,7 @@ tryCatch({
   if (is.matrix(coefficients) && nrow(coefficients) >= 4) {
     
     # DRC package LL.4() parameter order: b (Hill slope), c (Lower asymptote), d (Upper asymptote), e (IC50)
-    actual_param_names <- c("Hill Slope", "Bottom", "Top", "IC50")
+    actual_param_names <- c(tr("hill_slope", lang), tr("bottom", lang), tr("top", lang), tr("ic50", lang))
     
     # Ensure we don't exceed available rows
     n_params <- min(length(actual_param_names), nrow(coefficients))
@@ -1215,10 +1220,10 @@ if (isTRUE(is_elisa)) {
 }
 
 conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
-names(recovery_display) <- c(paste0("Nominal (", conc_unit, ")"), "n",
-                              paste0("Back-Calc. (", conc_unit, ")"), 
+names(recovery_display) <- c(sprintf(tr("col_nominal", lang), conc_unit), tr("col_n", lang),
+                              sprintf(tr("col_backcalc", lang), conc_unit),
                               paste0("SD (", conc_unit, ")"),
-                              "Recovery (%)")
+                              tr("col_recovery", lang))
 
 render_table(recovery_display,
             caption = tr("std_backcalc_caption", lang))
@@ -1291,7 +1296,7 @@ if (file.exists(.samp_cache_path)) {
 list2env(.samp_res, envir = environment())
 ```
 
-### Sample Results Summary
+### `r tr("detailed_summary", lang)`
 
 ```{r sample-results-table, results='asis'}
 # Wrap entire chunk in tryCatch for debugging
@@ -1315,12 +1320,19 @@ tryCatch({
     base_cols <- c("Replicate", "sampleID", "n_replicates", "mean_conc_formatted", "ci_formatted", "cv_formatted")
     if ("quant_status" %in% names(replicate_stats)) {
       results_display <- replicate_stats %>%
-        dplyr::select(dplyr::all_of(base_cols), quant_status)
-      names(results_display) <- c("Replicate Group", "Sample ID", "n", conc_col_name, "Conservative Combined 95% CI", "CV [%]", "Status")
+        dplyr::select(dplyr::all_of(base_cols), quant_status) %>%
+        dplyr::mutate(quant_status = dplyr::case_when(
+          quant_status == "Interpolated"         ~ tr("status_interpolated", lang),
+          quant_status == "Extrapolated (below)" ~ tr("status_extrapolated_below", lang),
+          quant_status == "Extrapolated (above)" ~ tr("status_extrapolated_above", lang),
+          quant_status == "Not estimable"        ~ tr("status_not_estimable", lang),
+          TRUE ~ quant_status
+        ))
+      names(results_display) <- c(tr("col_replicate_group", lang), tr("col_sample_ids", lang), tr("col_n", lang), conc_col_name, tr("col_ci", lang), tr("col_cv", lang), tr("qc_status", lang))
     } else {
       results_display <- replicate_stats %>%
         dplyr::select(dplyr::all_of(base_cols))
-      names(results_display) <- c("Replicate Group", "Sample ID", "n", conc_col_name, "Conservative Combined 95% CI", "CV [%]")
+      names(results_display) <- c(tr("col_replicate_group", lang), tr("col_sample_ids", lang), tr("col_n", lang), conc_col_name, tr("col_ci", lang), tr("col_cv", lang))
     }
     
     # Add tissue-based concentrations if available
@@ -1692,7 +1704,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                        "Range Status: ", within_range
                      )),
                  width = 0.15, size = 2) +
-      xlab("Replicate Group") +
+      xlab(tr("col_replicate_group", lang)) +
       ylab(if (isTRUE(is_elisa)) {
         paste0("Estimated Concentration (", assay_config$units %||% "pg/mL", ")")
       } else {
@@ -1892,9 +1904,11 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
                         values = c("Within Range" = 16, "Out of Range" = 17, "Unknown" = 18)) +
       # GUI refresh §6.5: keep variability cue on standards (still
       # useful) but adopt the Okabe-Ito hexes verbatim.
-      scale_color_manual(name = "Standard Variability",
+      scale_color_manual(name = tr("plot_std_variability", lang),
                         values = c("Normal Variability" = "#0072b2",
-                                  "High Variability"   = "#d55e00")) +
+                                  "High Variability"   = "#d55e00"),
+                        labels = c("Normal Variability" = tr("variability_normal", lang),
+                                   "High Variability"   = tr("variability_high", lang))) +
       # GUI refresh §6.5: theme_minimal() with the design's gridline
       # color and a hairline panel border. Replaces the previous
       # theme_classic() + theme() chain with a single declarative
@@ -2094,14 +2108,15 @@ render_tissue_normalization_section(
 
 ### Exclusion Audit
 
-`r section_open("Click to expand exclusion audit trail")`
+`r section_open(tr("exclusion_audit_caption", lang))`
 
 ```{r exclusion-audit, results='asis', eval=!is_compact}
 # M5: Formal Exclusion Audit Table
 render_exclusion_audit_section(
   data_long          = if (exists("data_long")) data_long else NULL,
   outlier_flags      = if (exists("outlier_flags")) outlier_flags else NULL,
-  high_var_standards = if (exists("high_var_standards")) high_var_standards else NULL
+  high_var_standards = if (exists("high_var_standards")) high_var_standards else NULL,
+  lang               = lang
 )
 ```
 
