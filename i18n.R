@@ -1109,6 +1109,7 @@ tr <- function(key, lang = "en", ...) {
     text <- translations[["en"]][[key]]
     if (is.null(text)) return(paste0("[", key, "]"))
   }
+  if (!is.character(text)) text <- as.character(text)
   if (length(list(...)) > 0) {
     return(sprintf(text, ...))
   }
