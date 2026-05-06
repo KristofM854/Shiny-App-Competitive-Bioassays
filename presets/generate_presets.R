@@ -8,7 +8,7 @@ dir.create("presets", showWarnings = FALSE)
 
 # Source dependencies if not already loaded
 if (!exists("PLATE_NROW")) source("global.R")
-if (!exists("create_type_matrix")) source("utils_plate.R")
+if (!exists("create_type_matrix")) source("utils/utils_plate.R")
 
 # ===== Preset 1: RBA STX 8 standards (triplicate) =====
 saveRDS(list(
