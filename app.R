@@ -537,16 +537,12 @@ $(function() {
               uiOutput("layout_import_file_ui")
             ),
             column(2,
-              div(style = "margin-top: 25px;",
-                actionButton("layout_save", label = "Save Layout",
-                            icon  = icon("save"),
-                            class = "btn btn-success btn-sm", style = "width: 100%;")
-              )
+              actionButton("layout_save", label = "Save Layout",
+                          icon  = icon("save"),
+                          class = "btn btn-success btn-sm", style = "width: 100%;")
             ),
             column(2,
-              div(style = "margin-top: 25px;",
-                uiOutput("layout_load_ui")
-              )
+              uiOutput("layout_load_ui")
             )
           )
         ),
