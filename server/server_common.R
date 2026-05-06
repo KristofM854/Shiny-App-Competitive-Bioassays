@@ -752,7 +752,10 @@ server_common <- function(input, output, session, shared) {
                         label = tr("generate_compact_label", lang))
     updateCheckboxGroupInput(session, "report_languages",
                              label = tr("report_languages_label", lang),
-                             choices = c("English" = "en", "Español" = "es"),
+                             choices = c("English" = "en", "Español" = "es",
+                                         "Français" = "fr",
+                                         "Русский" = "ru",
+                                         "中文" = "zh"),
                              selected = input$report_languages %||% "en",
                              inline = TRUE)
     updateTextAreaInput(session, "notes", label = tr("notes_full_label", lang),
