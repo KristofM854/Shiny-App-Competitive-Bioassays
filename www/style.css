@@ -263,7 +263,7 @@ code, kbd, samp, pre { font-family: var(--ff-mono); }
   font-family: var(--ff-mono); font-size: 10.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--c-ink-4);
-  margin: 4px 8px 8px;
+  margin: 4px 8px 16px;
   border: 0; padding: 0;
 }
 .bs-layer-switcher .shiny-options-group { display: flex; flex-direction: column; gap: 2px; }
@@ -338,6 +338,14 @@ code, kbd, samp, pre { font-family: var(--ff-mono); }
   color: var(--c-ink) !important;
   box-shadow: none !important;
   padding: 4px 10px;
+}
+/* Vertically center text inside selectize single-select boxes */
+.selectize-input {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 .form-control:focus, .selectize-input.focus {
   border-color: var(--c-accent) !important;
@@ -969,27 +977,33 @@ table.bs-report td.num { text-align: right; }
 /* File input ("Browse...") — Shiny's .input-group renders the
    button + filename text on one row, but the wrapping form-group
    stacks label-on-top. Force vertical center with the rest of the
-   header. */
+   header. Also applied to #preset_layout_section which is not a
+   bs-card. */
 .bs-layout-header .form-group,
-.bs-card .form-group:has(> .input-group) {
+.bs-card .form-group:has(> .input-group),
+#preset_layout_section .form-group:has(> .input-group) {
   display: flex;
   flex-direction: column;
   justify-content: center;
   margin-bottom: 0 !important;
 }
-.bs-card .form-group .input-group {
+.bs-card .form-group .input-group,
+#preset_layout_section .form-group .input-group {
   display: flex;
-  align-items: stretch;
-  height: 36px;
+  align-items: center;
+  height: 32px;
 }
 .bs-card .form-group .input-group .btn-file,
-.bs-card .form-group .input-group .input-group-btn {
+.bs-card .form-group .input-group .input-group-btn,
+#preset_layout_section .form-group .input-group .btn-file,
+#preset_layout_section .form-group .input-group .input-group-btn {
   display: inline-flex;
   align-items: center;
-  height: 36px;
+  height: 32px;
 }
-.bs-card .form-group .input-group .form-control {
-  height: 36px;
+.bs-card .form-group .input-group .form-control,
+#preset_layout_section .form-group .input-group .form-control {
+  height: 32px;
   display: flex;
   align-items: center;
 }
