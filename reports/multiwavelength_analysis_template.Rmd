@@ -66,12 +66,17 @@ i18n_found <- FALSE
 i18n_candidates <- unique(c(
   file.path(script_dir, "i18n.R"),
   file.path(dirname(script_dir), "i18n.R"),
+  file.path(dirname(script_dir), "server", "i18n.R"),
   file.path(script_dir, "..", "i18n.R"),
+  file.path(script_dir, "..", "server", "i18n.R"),
   "../i18n.R",
+  "../server/i18n.R",
   "i18n.R",
   file.path(dirname(output_dir), "i18n.R"),
+  file.path(dirname(output_dir), "server", "i18n.R"),
   file.path(output_dir, "..", "i18n.R"),
   file.path(getwd(), "i18n.R"),
+  file.path(getwd(), "server", "i18n.R"),
   file.path(getwd(), "..", "i18n.R")
 ))
 for (i18n_candidate in i18n_candidates) {

@@ -39,20 +39,20 @@ if (!exists("PLATE_NROW")) {
 }
 
 # Source utility modules (these depend on global.R constants)
-source("utils_import_v3.R")
-source("utils_plate.R")
-source("utils_import_multiwavelength.R")  
-source("utils_normalization.R")
-source("i18n.R")
+source("utils/utils_import_v3.R")
+source("utils/utils_plate.R")
+source("utils/utils_import_multiwavelength.R")
+source("utils/utils_normalization.R")
+source("server/i18n.R")
 
 # Source modular server logic
-source("server_common.R")
-source("server_config.R")
-source("layout_history.R")
-source("server_layout.R")
-source("server_upload.R")
-source("report_pipeline.R")
-source("server_report.R")
+source("server/server_common.R")
+source("server/server_config.R")
+source("server/layout_history.R")
+source("server/server_layout.R")
+source("server/server_upload.R")
+source("server/report_pipeline.R")
+source("server/server_report.R")
 
 # Auto-generate preset .rds files if they don't exist
 if (!file.exists("presets/rba_stx_triplicate.rds")) {
