@@ -1008,6 +1008,103 @@ table.bs-report td.num { text-align: right; }
   align-items: center;
 }
 
+/* ============================================
+   GUI FIX PASS — May 2026
+   Four related fixes; see docs/gui-fix-pass.md for the rationale.
+   Order in this block matters — keep grouped.
+   ============================================ */
+
+/* (1) Ghost <select> rectangle next to every dropdown chevron.
+   selectize.js keeps the original <select> in the DOM for form
+   submission, but it should never paint. The previous rule only
+   targeted .shiny-bound-input + .selectize-hidden-accessible, which
+   misses the native <select> in many Shiny builds. Hide it by tag. */
+.selectize-control > select {
+  display: none !important;
+}
+
+/* (2) fileInput Browse button hidden behind the filename text field.
+   Shiny renders .input-group as [Browse btn][text "No file selected"],
+   but Bootstrap 3's .form-control width:100% rule combined with our
+   flex parent makes the text input cover the button. Restore proper
+   side-by-side layout. Covers BOTH Tab 2 (Import Layout) and Tab 3
+   (Upload Bioassay Results) via the two selector roots. */
+.bs-card .form-group .input-group .input-group-btn,
+#preset_layout_section .form-group .input-group .input-group-btn {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+}
+.bs-card .form-group .input-group .input-group-btn .btn-file,
+#preset_layout_section .form-group .input-group .input-group-btn .btn-file {
+  position: relative;
+  margin: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.bs-card .form-group .input-group .form-control,
+#preset_layout_section .form-group .input-group .form-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  z-index: 1;
+}
+
+/* (3) The empty Bootstrap progress bar that ships with every
+   fileInput() — it's a separate <div class="progress"> sibling that
+   makes the file input taller than its visible content, breaking
+   baseline alignment with neighbouring buttons. Hide it until an
+   upload is actually running. */
+.bs-card .shiny-file-input-progress,
+#preset_layout_section .shiny-file-input-progress,
+.bs-card .progress:empty,
+#preset_layout_section .progress:empty {
+  display: none;
+}
+.bs-card .shiny-file-input-progress.active,
+#preset_layout_section .shiny-file-input-progress.active {
+  display: block;
+}
+
+/* (4) Tab 2 preset row — every column shares one bottom baseline.
+   Removes the need for the inline `margin-top: 25px;` hacks on the
+   Save Layout / Load buttons in app.R (see implementation guide). */
+#preset_layout_section .row {
+  display: flex;
+  align-items: flex-end;
+}
+#preset_layout_section [class^="col-"],
+#preset_layout_section [class*=" col-"] {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* (5) Tab 3 upload row — kill .form-group bottom margin so the file
+   input's visible bottom (the "No file selected" row) sits at the
+   same baseline as the trash + Download Example buttons. */
+.bs-card > div[style*="align-items: flex-end"] .form-group,
+.bs-card > div[style*="align-items:flex-end"] .form-group {
+  margin-bottom: 0 !important;
+}
+
+/* (6) Give Feedback button — text was painting at the top of the
+   blue box because the .btn-block flex centering rule lower in this
+   file is scoped to .bs-card, but #notes_feedback_section is not a
+   .bs-card. Apply centering directly. */
+#notes_feedback_section .btn-block,
+#notes_feedback_section a.btn-info {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  line-height: 1;
+}
+
 /* LAYERS rail: more space between the title and the first item. */
 .bs-card .bs-layers-rail h4,
 .bs-card .bs-layers-rail .rail-title,
