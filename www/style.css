@@ -1031,7 +1031,8 @@ table.bs-report td.num { text-align: right; }
    (Upload Bioassay Results) via the two selector roots. */
 .bs-card .form-group .input-group .input-group-btn,
 #preset_layout_section .form-group .input-group .input-group-btn {
-  flex: 0 0 auto;
+  flex: 0 0 auto !important;
+  width: auto !important;    /* override Bootstrap's width:1% table-cell hack */
   position: relative;
   z-index: 2;
 }
@@ -1042,11 +1043,12 @@ table.bs-report td.num { text-align: right; }
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
+/* flex-basis: 0% (not auto) so Bootstrap's width:100% is never used as the
+   flex-basis; the item starts at 0 and grows into the remaining space. */
 .bs-card .form-group .input-group .form-control,
 #preset_layout_section .form-group .input-group .form-control {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto !important;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
   margin-left: -1px;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
@@ -1081,6 +1083,13 @@ table.bs-report td.num { text-align: right; }
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  float: none !important;    /* override Bootstrap's float:left */
+}
+/* Zero margin-bottom on ALL form-groups in this row — not just the fileInput
+   one. Without this the selectInput column is 15 px taller (Bootstrap default
+   margin) and its control sits 15 px above the button's baseline. */
+#preset_layout_section .form-group {
+  margin-bottom: 0 !important;
 }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
