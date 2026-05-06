@@ -572,13 +572,13 @@ server_common <- function(input, output, session, shared) {
     lang <- input$app_language %||% "en"
     actionButton("clear_upload", "", icon = icon("trash"),
                  title = tr("clear_file", lang),
-                 style = "margin-top: 30px; background-color:#f8d7da; border:none;")
+                 style = "background-color:#f8d7da; border:none;")
   })
 
   output$download_plate_template_ui <- renderUI({
     lang <- input$app_language %||% "en"
     downloadButton("download_plate_template", tr("download_example_file", lang),
-                   class = "btn btn-default btn-sm", style = "margin-top: 5px;")
+                   class = "btn btn-default btn-sm")
   })
 
   output$visual_selector_heading_ui <- renderUI({

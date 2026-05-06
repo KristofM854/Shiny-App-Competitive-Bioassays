@@ -779,7 +779,7 @@ $(function() {
               selected = "classic", inline = TRUE
             ),
             div(
-              style = "display: flex; gap: 12px; flex-wrap: wrap;",
+              style = "display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;",
               uiOutput("upload_counts_ui"),
               uiOutput("clear_upload_ui"),
               uiOutput("download_plate_template_ui")
