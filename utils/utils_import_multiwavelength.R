@@ -260,8 +260,10 @@ import_multiwavelength_plates <- function(file_path, sheet = 1,
     message("No multi-wavelength markers found. Attempting single plate import...")
 
     v3_candidates <- c(
+      file.path(getwd(), "utils", "utils_import_v3.R"),
       file.path(getwd(), "utils_import_v3.R"),
       file.path(dirname(sys.frame(1)$ofile %||% ""), "utils_import_v3.R"),
+      "utils/utils_import_v3.R",
       "utils_import_v3.R"
     )
     v3_path <- Filter(file.exists, v3_candidates)[1]
