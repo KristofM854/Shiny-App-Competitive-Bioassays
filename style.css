@@ -1055,20 +1055,19 @@ table.bs-report td.num { text-align: right; }
   z-index: 1;
 }
 
-/* (3) The empty Bootstrap progress bar that ships with every
-   fileInput() — it's a separate <div class="progress"> sibling that
-   makes the file input taller than its visible content, breaking
-   baseline alignment with neighbouring buttons. Hide it until an
-   upload is actually running. */
-.bs-card .shiny-file-input-progress,
-#preset_layout_section .shiny-file-input-progress,
-.bs-card .progress:empty,
-#preset_layout_section .progress:empty {
-  display: none;
+/* (3) Shiny renders the file-input progress bar as
+   class="progress active shiny-file-input-progress" at server-render
+   time — .active is NOT an "upload in progress" signal. The previous
+   rule hid the bar then immediately re-showed it via a higher-
+   specificity .active override, so the bar was always visible. Fix:
+   hide unconditionally with !important; re-show only when Shiny JS
+   sets .shiny-file-input-active on the parent container during an
+   actual upload. */
+.shiny-file-input-progress {
+  display: none !important;
 }
-.bs-card .shiny-file-input-progress.active,
-#preset_layout_section .shiny-file-input-progress.active {
-  display: block;
+.shiny-input-container.shiny-file-input-active .shiny-file-input-progress {
+  display: block !important;
 }
 
 /* (4) Tab 2 preset row — every column shares one bottom baseline.
@@ -1094,9 +1093,10 @@ table.bs-report td.num { text-align: right; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
    input's visible bottom (the "No file selected" row) sits at the
-   same baseline as the trash + Download Example buttons. */
-.bs-card > div[style*="align-items: flex-end"] .form-group,
-.bs-card > div[style*="align-items:flex-end"] .form-group {
+   same baseline as the trash + Download Example buttons.
+   .bs-upload-row is a stable class added to the wrapper div in app.R
+   (replaces the fragile div[style*="align-items: flex-end"] selector). */
+.bs-upload-row .form-group {
   margin-bottom: 0 !important;
 }
 
