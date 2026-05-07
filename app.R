@@ -155,7 +155,7 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css",
               href = paste0("style.css?v=", as.numeric(Sys.time()))),
     # CSS sentinel — bump this comment version with each PR (v10, v11, v12...)
-    tags$script(HTML('console.log("[Bioassay Suite] CSS v10.2 loaded");'))
+    tags$script(HTML('console.log("[Bioassay Suite] CSS v11 loaded");'))
   ),
 
   div(
@@ -295,6 +295,15 @@ $(function() {
     setTimeout(refreshBetaBanner, 100);
   });
 });
+"))
+
+  tags$script(HTML("
+$(function() {
+  $('#qs_skip_to_manual').on('click', function(e) {
+    e.preventDefault();
+    document.getElementById('step0_section').scrollIntoView({ behavior: 'smooth' });
+  });
+});
 ")),
 
   # ==========================================================================
@@ -311,11 +320,6 @@ $(function() {
       "Configuration",
       value = "tab_config",
       br(),
-      div(
-        style = "display: flex; justify-content: flex-end; padding: 0 15px 10px;",
-        actionButton("next_to_layout_top", "Next: Plate Layout \u2192",
-                    class = "btn btn-primary btn-lg")
-      ),
 
       # GUI refresh v3 §3 — Quick Start as three hand-rolled <a> tiles.
       # Hand-rolled (not actionLink) so we control the class list and
@@ -386,17 +390,13 @@ $(function() {
 
         # Manual-configure fallbacks for STX and Cortisol stay in a
         # quiet disclosure to avoid cluttering the primary path.
-        tags$details(
-          class = "bs-quickstart-more",
-          tags$summary("More options — configure manually without demo data"),
-          div(
-            style = "padding-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;",
-            actionButton("qs_rba_stx_manual",
-                         "RBA Saxitoxin — manual",
-                         class = "btn-default"),
-            actionButton("qs_elisa_cortisol_manual",
-                         "ELISA Cortisol — manual",
-                         class = "btn-default")
+        div(
+          style = "text-align: right; margin-top: 8px;",
+          tags$a(
+            href = "#",
+            id = "qs_skip_to_manual",
+            class = "bs-link-quiet",
+            "Skip presets \u2014 configure manually below \u2192"
           )
         )
       ),
@@ -499,9 +499,8 @@ $(function() {
         data.step = 0,
         data.intro = "Define your standard concentrations here."
       ),
-      br(),
       div(
-        style = "text-align: right; padding: 15px;",
+        class = "bs-sticky-nav is-next-only",
         actionButton("next_to_layout", "Next: Plate Layout \u2192",
                     class = "btn btn-primary btn-lg")
       )
@@ -520,13 +519,6 @@ $(function() {
         style = "padding-bottom: 40px;",
 
         uiOutput("step1_header"),
-        div(
-          style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
-          actionButton("back_to_config_top", "\u2190 Back: Configuration",
-                      class = "btn btn-default btn-lg"),
-          actionButton("next_to_upload_top", "Next: Upload & Preview \u2192",
-                      class = "btn btn-primary btn-lg")
-        ),
 
         # Preset plate layouts + layout management
         div(
@@ -652,19 +644,19 @@ $(function() {
                 div(
                   class = "bs-legend",
                   span(class = "chip", span(class = "dot",
-                                             style = "background:rgba(0,158,115,0.4)"),
+                                             style = "background:rgba(0,158,115,0.55)"),
                        "Standard"),
                   span(class = "chip", span(class = "dot",
-                                             style = "background:rgba(0,114,178,0.4)"),
+                                             style = "background:rgba(0,114,178,0.55)"),
                        "Sample"),
                   span(class = "chip", span(class = "dot",
                                              style = "background:#f1f3f5"),
                        "Blank"),
                   span(class = "chip", span(class = "dot",
-                                             style = "background:rgba(204,121,167,0.4)"),
+                                             style = "background:rgba(204,121,167,0.55)"),
                        "NSB"),
                   span(class = "chip", span(class = "dot",
-                                             style = "background:rgba(230,159,0,0.4)"),
+                                             style = "background:rgba(230,159,0,0.55)"),
                        "B0")
                 )
               )
@@ -759,9 +751,8 @@ $(function() {
           )
         )
       ),
-      br(),
       div(
-        style = "display: flex; justify-content: space-between; padding: 15px;",
+        class = "bs-sticky-nav",
         actionButton("back_to_config", "\u2190 Back: Configuration",
                     class = "btn btn-default btn-lg"),
         actionButton("next_to_upload", "Next: Upload & Preview \u2192",
@@ -786,11 +777,37 @@ $(function() {
             h3("Upload plate data"),
             p(class = "bs-card-sub",
               "Upload your raw absorbance / counts file. We'll validate and preview before you continue."),
-            radioButtons(
-              "import_method", NULL,
-              choices = c("Classic import" = "classic",
-                          "Visual plate selector" = "visual"),
-              selected = "classic", inline = TRUE
+            # Hidden source of truth — server logic reads input$import_method
+            div(style = "display: none;",
+                radioButtons("import_method", NULL,
+                             choices = c("Classic import" = "classic",
+                                         "Visual plate selector" = "visual"),
+                             selected = "classic", inline = TRUE)),
+
+            # Visible import-method tiles (drive the hidden radio above)
+            div(class = "bs-import-tiles",
+              tags$a(
+                id = "import_method_classic",
+                href = "#",
+                class = "action-button preset-tile is-active",
+                onclick = "return false;",
+                div(class = "rail rail-blue"),
+                div(class = "body",
+                    div(class = "title", "Classic import"),
+                    div(class = "sub",
+                        "Upload a plate-reader file directly (.xlsx, .csv, .txt)"))
+              ),
+              tags$a(
+                id = "import_method_visual",
+                href = "#",
+                class = "action-button preset-tile",
+                onclick = "return false;",
+                div(class = "rail rail-green"),
+                div(class = "body",
+                    div(class = "title", "Visual plate selector"),
+                    div(class = "sub",
+                        "Paste from Excel and pick wells visually"))
+              )
             ),
             div(
               class = "bs-upload-row",
@@ -826,7 +843,7 @@ $(function() {
               column(
                 width = 6,
                 h5("Raw values"),
-                tableOutput("meas_preview")
+                uiOutput("meas_preview")
               ),
               column(
                 width = 6,
@@ -858,9 +875,8 @@ $(function() {
           )
         )
       ),
-      br(),
       div(
-        style = "display: flex; justify-content: space-between; padding: 15px;",
+        class = "bs-sticky-nav",
         actionButton("back_to_layout", "\u2190 Back: Plate Layout",
                      class = "btn-default btn-lg"),
         actionButton("next_to_analysis", "Next: Analysis Settings \u2192",
@@ -876,13 +892,6 @@ $(function() {
       "Analysis Settings",
       value = "tab_analysis",
       br(),
-      div(
-        style = "display: flex; justify-content: space-between; padding: 0 15px 10px;",
-        actionButton("back_to_upload_top", "\u2190 Back: Upload & Preview",
-                    class = "btn btn-default btn-lg"),
-        actionButton("next_to_report_top", "Next: Generate Report \u2192",
-                    class = "btn btn-primary btn-lg")
-      ),
 
       fluidRow(
         column(
@@ -984,9 +993,8 @@ $(function() {
           )
         )
       ),
-      br(),
       div(
-        style = "display: flex; justify-content: space-between; padding: 15px;",
+        class = "bs-sticky-nav",
         actionButton("back_to_upload", "\u2190 Back: Upload & Preview",
                     class = "btn btn-default btn-lg"),
         actionButton("next_to_report", "Next: Generate Report \u2192",
@@ -1001,11 +1009,6 @@ $(function() {
       "Generate Report",
       value = "tab_report",
       br(),
-      div(
-        style = "display: flex; justify-content: flex-start; padding: 0 15px 10px;",
-        actionButton("back_to_analysis_top", "\u2190 Back: Analysis Settings",
-                    class = "btn btn-default btn-lg")
-      ),
 
       # Readiness check sits above the report-output card so the user
       # sees what is blocking before reaching the Generate button.
@@ -1068,9 +1071,8 @@ $(function() {
           )
         )
       ),
-      br(),
       div(
-        style = "text-align: left; padding: 15px;",
+        class = "bs-sticky-nav is-back-only",
         actionButton("back_to_analysis", "\u2190 Back: Analysis Settings",
                     class = "btn btn-default btn-lg")
       )

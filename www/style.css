@@ -1562,3 +1562,155 @@ table.bs-report td.num { text-align: right; }
   color: #fff;
   text-decoration: none;
 }
+
+/* ============================================
+   v11 §1 — Sticky bottom nav (PR 2 — 2.1)
+   ============================================ */
+.bs-sticky-nav {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--c-line);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  margin: 24px -15px -15px;
+}
+/* Single-button rows: push the lone button to the correct edge */
+.bs-sticky-nav.is-next-only  { justify-content: flex-end; }
+.bs-sticky-nav.is-back-only  { justify-content: flex-start; }
+
+/* ============================================
+   v11 §2 — Plate matrix bold headers (PR 2 — 2.2)
+   ============================================ */
+.bs-matrix-viewport .handsontable thead th {
+  font-weight: 700 !important;
+  color: var(--c-ink) !important;
+  background: var(--c-surface-2) !important;
+}
+.bs-matrix-viewport .handsontable th.rowHeader,
+.bs-matrix-viewport .handsontable tbody th {
+  font-weight: 700 !important;
+  color: var(--c-ink) !important;
+  background: var(--c-surface-2) !important;
+  min-width: 32px !important;
+}
+
+/* ============================================
+   v11 §3 — Plate legend chip size (PR 2 — 2.3)
+   ============================================ */
+.bs-legend .dot {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   v11 §4 — Layer switcher copy (PR 2 — 2.4)
+   h5 "Layers" → sentence case; h6 "Bulk action" → small ALL CAPS
+   ============================================ */
+.bs-layer-switcher h5 {
+  text-transform: none;
+  font-family: var(--ff-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-ink-2);
+  letter-spacing: 0;
+}
+.bs-layer-bulk h6 {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-family: var(--ff-mono);
+}
+
+/* ============================================
+   v11 §5 — Quick Start tile hover lift (PR 2 — 2.5)
+   ============================================ */
+.bs-quickstart .preset-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
+  border-color: var(--c-accent);
+}
+.bs-quickstart .preset-tile .meta {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--c-ink-3);
+}
+
+/* ============================================
+   v11 §6 — Skip-presets quiet link (PR 2 — 2.6)
+   ============================================ */
+.bs-link-quiet {
+  font-size: 12px;
+  color: var(--c-ink-3);
+  text-decoration: none;
+  font-family: var(--ff-sans);
+}
+.bs-link-quiet:hover {
+  color: var(--c-accent);
+  text-decoration: underline;
+}
+
+/* ============================================
+   v11 §7 — Import method tiles (PR 2 — 2.7)
+   ============================================ */
+.bs-import-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.bs-import-tiles .preset-tile.is-active {
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+.bs-import-tiles .preset-tile.is-active .title {
+  color: var(--c-accent);
+}
+
+/* ============================================
+   v11 §8 — Empty states (PR 2 — 2.8)
+   ============================================ */
+.bs-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--c-ink-3);
+}
+.bs-empty-state .icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+  display: block;
+}
+.bs-empty-state p {
+  font-size: 13px;
+  color: var(--c-ink-3);
+  margin: 0;
+}
+
+/* ============================================
+   v11 §9 — Tab 1 input width constraints
+   ============================================ */
+/* Molecular weight box: readonly well + manual numericInput */
+#mw_box_ui {
+  max-width: 280px;
+}
+#mw_box_ui .well {
+  max-width: 280px;
+}
+/* Number of standards: widen from the over-narrow 120px to match */
+.bs-card .form-group:has(> label[for="num_standards"]) .selectize-control,
+.bs-card .form-group:has(> #num_standards) {
+  min-width: 140px;
+  max-width: 280px;
+  width: auto !important;
+}
