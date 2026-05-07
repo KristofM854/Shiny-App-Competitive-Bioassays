@@ -155,7 +155,7 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css",
               href = paste0("style.css?v=", as.numeric(Sys.time()))),
     # CSS sentinel — bump this comment version with each PR (v10, v11, v12...)
-    tags$script(HTML('console.log("[Bioassay Suite] CSS v10 loaded");'))
+    tags$script(HTML('console.log("[Bioassay Suite] CSS v10.2 loaded");'))
   ),
 
   div(
