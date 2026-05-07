@@ -1,6 +1,6 @@
-/* sentinel v4 — remove after merge if alignment is confirmed fixed */
+/* sentinel v5 — remove after merge if alignment is confirmed fixed */
 body::before {
-  content: "css v4 loaded";
+  content: "css v5 loaded";
   position: fixed; top: 2px; right: 2px; z-index: 99999;
   font: 10px/1 monospace; color: #888; background: #fff;
   padding: 1px 4px; border: 1px solid #ddd; border-radius: 2px;
@@ -1104,6 +1104,30 @@ table.bs-report td.num { text-align: right; }
   display: contents !important;
   float: none !important;
 }
+/* Pin each Bootstrap column's content to its own grid column.
+   Without this, display:contents lets the grid auto-place items
+   by DOM order, which breaks when col 4's saved-layouts state
+   renders two elements (selectInput + button) instead of one —
+   the auto-placement algorithm misassigns columns. */
+#preset_layout_section .col-sm-3:nth-of-type(1) > *,
+#preset_layout_section .col-sm-3:nth-of-type(1) .control-label,
+#preset_layout_section .col-sm-3:nth-of-type(1) .selectize-control,
+#preset_layout_section .col-sm-3:nth-of-type(1) .form-group { grid-column: 1; }
+
+#preset_layout_section .col-sm-3:nth-of-type(2) > *,
+#preset_layout_section .col-sm-3:nth-of-type(2) .control-label,
+#preset_layout_section .col-sm-3:nth-of-type(2) .input-group,
+#preset_layout_section .col-sm-3:nth-of-type(2) .form-group { grid-column: 2; }
+
+#preset_layout_section .col-sm-2:nth-of-type(3) > *,
+#preset_layout_section .col-sm-2:nth-of-type(3) #layout_save { grid-column: 3; }
+
+#preset_layout_section .col-sm-2:nth-of-type(4) > *,
+#preset_layout_section .col-sm-2:nth-of-type(4) #layout_load_ui,
+#preset_layout_section .col-sm-2:nth-of-type(4) .selectize-control,
+#preset_layout_section .col-sm-2:nth-of-type(4) #layout_load,
+#preset_layout_section .col-sm-2:nth-of-type(4) .help-block { grid-column: 4; }
+
 /* Flatten the uiOutput (.shiny-html-output) wrappers that Shiny injects
    for layout_import_file_ui and layout_load_ui so their children become
    direct grid items and respect grid-row. Without this, inner .form-group
@@ -1168,6 +1192,7 @@ table.bs-report td.num { text-align: right; }
   flex-direction: column;
   gap: 4px;
   grid-row: 2;
+  grid-column: 4;
   align-self: end;
   margin: 0 !important;
 }
