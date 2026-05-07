@@ -539,8 +539,7 @@ $(function() {
             column(2,
               actionButton("layout_save", label = "Save Layout",
                           icon  = icon("save"),
-                          class = "btn btn-success btn-sm", style = "width: 100%;"),
-              uiOutput("layout_save_caption_ui")
+                          class = "btn btn-success btn-sm", style = "width: 100%;")
             ),
             column(2,
               uiOutput("layout_load_ui")

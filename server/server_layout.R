@@ -365,9 +365,12 @@ server_layout <- function(input, output, session, shared) {
                      type = "message", duration = 3)
   })
 
-  # Dynamic UI for load button (shows saved layouts when they exist;
-  # NULL when empty so the heterogeneous-height column doesn't break
-  # baseline alignment — see alignment-root-cause.md Phase B).
+  # Dynamic UI for load button (shows saved layouts when they exist,
+  # or an empty-state caption when they don't). The caption renders in
+  # col 4 only; col 3 is a single bare button so it never pushes the
+  # Save Layout button up. Absolute positioning in style.css (marker 4)
+  # pins every visible widget to the column bottom regardless of
+  # whatever else is in the column.
   output$layout_load_ui <- renderUI({
     input$layout_save
     if (dir.exists(layouts_dir)) {
@@ -384,21 +387,11 @@ server_layout <- function(input, output, session, shared) {
                        class = "btn btn-info btn-sm", style = "width: 100%;")
         )
       } else {
-        NULL
+        helpText(tr("layout_no_saved", input$app_language %||% "en"))
       }
     } else {
-      NULL
+      helpText(tr("layout_no_saved", input$app_language %||% "en"))
     }
-  })
-
-  # Caption shown under the Save Layout button when no saves exist.
-  # Rendered separately so it stays in column 3 and does not add
-  # misaligned height to column 4 (the load-UI column).
-  output$layout_save_caption_ui <- renderUI({
-    input$layout_save
-    no_saves <- !dir.exists(layouts_dir) ||
-      length(list.files(layouts_dir, pattern = "\\.rds$")) == 0
-    if (no_saves) helpText(tr("layout_no_saved", input$app_language %||% "en")) else NULL
   })
 
   # Load saved layout
