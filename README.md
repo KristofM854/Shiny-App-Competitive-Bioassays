@@ -283,7 +283,7 @@ the curve near the top asymptote.
 
 If you use this software in published work, please cite:
 
-> Moeller, K. & Molina Porras, A. (2026). *Competitive Binding Assay Analysis Suite* (v0.9.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19691224
+> Moeller, K. & Molina Porras, A. (2026). *Competitive Binding Assay Analysis Suite* (v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19691224
 
 ## Contact
 

@@ -287,6 +287,13 @@ server_report <- function(input, output, session, shared, config_reactives) {
       )
     }
 
+    # Drive the Generate Report button: disable when any check is blocking.
+    if (has_errors) {
+      shinyjs::disable("convert")
+    } else {
+      shinyjs::enable("convert")
+    }
+
     do.call(tagList, c(list(badge), checks))
   })
 
