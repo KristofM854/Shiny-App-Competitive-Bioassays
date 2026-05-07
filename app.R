@@ -521,9 +521,11 @@ $(function() {
         # Preset plate layouts + layout management
         div(
           id = "preset_layout_section",
-          style = "background-color: #E8F5E9; padding: 12px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
-          fluidRow(
-            column(3,
+          style = "background-color: #E8F5E9; padding: 16px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
+          div(
+            style = "display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: start;",
+            # Column 1 — Load preset + saved layouts
+            div(class = "preset-col",
               selectInput("preset_layout", "Load Preset Layout:",
                          choices = c(
                            "-- Select Preset --" = "",
@@ -531,18 +533,19 @@ $(function() {
                            "ELISA: Cortisol (Cayman kit, 8-point, duplicate)" = "elisa_cortisol_cayman",
                            "ELISA: Custom (blank template)" = "elisa_custom_blank"
                          ),
-                         selected = "")
+                         selected = "", width = "100%"),
+              uiOutput("layout_load_ui")
             ),
-            column(3,
+            # Column 2 — Import layout from file
+            div(class = "preset-col",
               uiOutput("layout_import_file_ui")
             ),
-            column(2,
+            # Column 3 — Save current layout
+            div(class = "preset-col",
+              tags$label("Save Current Layout", class = "control-label"),
               actionButton("layout_save", label = "Save Layout",
                           icon  = icon("save"),
                           class = "btn btn-success btn-sm", style = "width: 100%;")
-            ),
-            column(2,
-              uiOutput("layout_load_ui")
             )
           )
         ),
