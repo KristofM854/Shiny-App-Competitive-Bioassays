@@ -1,6 +1,6 @@
 
 /* ============================================
-   Bioassay Suite v0.9.0 — Design Tokens & Components
+   Bioassay Suite v1.0.0 — Design Tokens & Components
    Drop-in replacement for www/style.css (v2 spec §1)
    ============================================ */
 :root {
@@ -1483,4 +1483,80 @@ table.bs-report td.num { text-align: right; }
 .bs-beta-banner .bs-beta-dismiss:hover {
   background: rgba(0,0,0,0.06);
   border-radius: 4px;
+}
+
+/* ============================================
+   v10 §1 — Top bar navy (PR 1 — 1.6)
+   Overrides the §2.2 + v3 §1 light-mode rules.
+   Uses var(--c-accent) = #1f3a5f throughout.
+   DO NOT touch the column-alignment markers (3)(4)(5) above.
+   ============================================ */
+
+.bs-topbar {
+  background: var(--c-accent);
+  border-bottom: none;
+  color: #fff;
+}
+
+.bs-topbar .brand .wordmark {
+  color: #fff;
+}
+
+/* Mono-tile: white tile with navy "B" for contrast on the navy bar */
+.bs-topbar .brand .mono-tile {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--c-accent);
+}
+
+/* Version chip — colour overridden by the a.version rule in 1.7;
+   this fallback handles the <span> form during the transition. */
+.bs-topbar .brand .version {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* Quiet buttons on navy bar */
+.bs-topbar .actions .bs-quiet-btn,
+.bs-topbar .actions a.bs-quiet-btn,
+.bs-topbar .actions button.bs-quiet-btn {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  padding: 6px 12px;
+}
+.bs-topbar .actions .bs-quiet-btn:hover,
+.bs-topbar .actions a.bs-quiet-btn:hover,
+.bs-topbar .actions button.bs-quiet-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.60);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Divider on navy bar */
+.bs-topbar .actions .divider {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* v10 §2 — Version chip as Zenodo link (PR 1 — 1.7) */
+.bs-topbar a.version {
+  text-decoration: none;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.75);
+}
+.bs-topbar a.version:hover {
+  border-color: rgba(255, 255, 255, 0.60);
+  color: #fff;
+  text-decoration: none;
 }
