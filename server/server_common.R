@@ -504,7 +504,7 @@ server_common <- function(input, output, session, shared) {
 
   output$layout_import_file_ui <- renderUI({
     lang <- input$app_language %||% "en"
-    fileInput("layout_import_file", tr("layout_import_label", lang),
+    fileInput("layout_import_file", label = NULL,
               accept = c(".csv", ".xlsx", ".xls"),
               width = "100%")
   })
