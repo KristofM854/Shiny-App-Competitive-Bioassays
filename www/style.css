@@ -794,18 +794,20 @@ table.bs-report td.num { text-align: right; }
   color: #fff;
 }
 
-/* Progress connector — short hairline between adjacent pills.
-   Fixed width so it doesn't stretch absurdly on wide screens. */
+/* Progress connector — spans most of the gap so the stepper reads as
+   a continuous progress track rather than a dash.
+   Gap = 80px; connector = 64px, centred (8px breathing room each side). */
 .nav-pills > li:not(:last-child) {
-  margin-right: 36px;
+  margin-right: 80px;
 }
 .nav-pills > li:not(:last-child)::after {
   content: "";
   position: absolute;
   top: 50%;
-  right: -28px;            /* sit in the gap created by margin-right */
-  width: 20px;
-  height: 1px;
+  transform: translateY(-50%);
+  right: -72px;            /* centre 64px connector in 80px gap */
+  width: 64px;
+  height: 2px;
   background: var(--c-line);
   pointer-events: none;
 }
