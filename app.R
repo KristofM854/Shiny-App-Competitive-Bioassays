@@ -539,7 +539,8 @@ $(function() {
             column(2,
               actionButton("layout_save", label = "Save Layout",
                           icon  = icon("save"),
-                          class = "btn btn-success btn-sm", style = "width: 100%;")
+                          class = "btn btn-success btn-sm", style = "width: 100%;"),
+              uiOutput("layout_save_caption_ui")
             ),
             column(2,
               uiOutput("layout_load_ui")
@@ -775,6 +776,7 @@ $(function() {
               selected = "classic", inline = TRUE
             ),
             div(
+              class = "bs-upload-row",
               style = "display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;",
               uiOutput("upload_counts_ui"),
               uiOutput("clear_upload_ui"),
