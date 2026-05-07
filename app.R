@@ -155,7 +155,7 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css",
               href = paste0("style.css?v=", as.numeric(Sys.time()))),
     # CSS sentinel — bump this comment version with each PR (v10, v11, v12...)
-    tags$script(HTML('console.log("[Bioassay Suite] CSS v11 loaded");'))
+    tags$script(HTML('console.log("[Bioassay Suite] CSS v12 loaded");'))
   ),
 
   div(
@@ -192,22 +192,83 @@ ui <- fluidPage(
         "Docs"
       ),
       div(class = "divider"),
-      # Wrap selectInput in a span we can target. The .bs-lang-select
-      # class lets the CSS un-block-ify Shiny's .shiny-input-container
-      # without affecting any other selectInput in the app.
+      # Language switcher: hidden select driven by a globe-icon button + popover
       div(
-        class = "bs-lang-select",
-        selectInput("app_language", NULL,
-                    choices = c(
-                      "English"          = "en",
-                      "Español"          = "es",
-                      "Français"         = "fr",
-                      "Русский (бета)"   = "ru",
-                      "中文 (测试版)"     = "zh"
-                    ),
-                    selected = "en",
-                    width = "140px")
-      )
+        class = "bs-lang-wrap",
+        # Hidden <select> — server reads input$app_language as before
+        div(
+          style = "display: none;",
+          selectInput("app_language", NULL,
+                      choices = c(
+                        "English"          = "en",
+                        "Español"          = "es",
+                        "Français"         = "fr",
+                        "Русский (бета)"   = "ru",
+                        "中文 (测试版)"     = "zh"
+                      ),
+                      selected = "en")
+        ),
+        # Globe button
+        tags$button(
+          id = "lang_toggle",
+          type = "button",
+          class = "bs-quiet-btn bs-lang-btn",
+          `aria-label` = "Change language",
+          `aria-expanded` = "false",
+          HTML("\U0001F310")
+        ),
+        # Popover panel
+        div(
+          id = "lang_popover",
+          class = "bs-lang-popover",
+          `aria-hidden` = "true",
+          tags$a(href = "#", `data-lang` = "en",  class = "bs-lang-opt is-active", "English"),
+          tags$a(href = "#", `data-lang` = "es",  class = "bs-lang-opt", "Español"),
+          tags$a(href = "#", `data-lang` = "fr",  class = "bs-lang-opt", "Français"),
+          tags$a(href = "#", `data-lang` = "ru",  class = "bs-lang-opt",
+                 "Русский (бета)"),
+          tags$a(href = "#", `data-lang` = "zh",  class = "bs-lang-opt",
+                 "中文 (测试版)")
+        )
+      ),
+      tags$script(HTML("
+$(function() {
+  // Toggle popover open/close on globe button click
+  $('#lang_toggle').on('click', function(e) {
+    e.stopPropagation();
+    var $pop = $('#lang_popover');
+    var open = $pop.hasClass('is-open');
+    $pop.toggleClass('is-open', !open);
+    $(this).attr('aria-expanded', String(!open));
+  });
+  // Close on outside click
+  $(document).on('click', function(e) {
+    if (!$(e.target).closest('.bs-lang-wrap').length) {
+      $('#lang_popover').removeClass('is-open');
+      $('#lang_toggle').attr('aria-expanded', 'false');
+    }
+  });
+  // Language option click — update hidden Shiny select, close popover
+  $(document).on('click', '.bs-lang-opt', function(e) {
+    e.preventDefault();
+    var lang = $(this).data('lang');
+    Shiny.setInputValue('app_language', lang);
+    // Update selectize underlying value
+    var sel = document.getElementById('app_language');
+    if (sel) {
+      var selInst = $(sel).data('selectize');
+      if (selInst) selInst.setValue(lang, true);
+      else { sel.value = lang; $(sel).trigger('change'); }
+    }
+    // Mark active
+    $('.bs-lang-opt').removeClass('is-active');
+    $(this).addClass('is-active');
+    // Close
+    $('#lang_popover').removeClass('is-open');
+    $('#lang_toggle').attr('aria-expanded', 'false');
+  });
+});
+"))
     )
   ),
 
@@ -433,14 +494,14 @@ $(function() {
               conditionalPanel(
                 condition = "input.assay_type == 'rba'",
                 selectInput(
-                  "toxin_class", "Toxin standard used:",
+                  "toxin_class", "Toxin standard used",
                   choices = c("Saxitoxin", "Brevetoxin", "Ciguatoxin", "Custom"),
                   selected = "Saxitoxin"
                 ),
                 uiOutput("toxin_variant_ui"),
                 conditionalPanel(
                   condition = "input.toxin_class == 'Custom'",
-                  textInput("toxin_custom_name", "Custom standard name:",
+                  textInput("toxin_custom_name", "Custom standard name",
                            placeholder = "e.g., GTX2/3 mix")
                 ),
                 uiOutput("mw_box_ui")
@@ -448,7 +509,7 @@ $(function() {
               conditionalPanel(
                 condition = "input.assay_type == 'elisa'",
                 selectInput(
-                  "elisa_analyte", "Analyte:",
+                  "elisa_analyte", "Analyte",
                   choices = c(
                     "Cortisol"     = "cortisol",
                     "Testosterone" = "testosterone",
@@ -459,11 +520,11 @@ $(function() {
                 ),
                 conditionalPanel(
                   condition = "input.elisa_analyte == 'custom'",
-                  textInput("elisa_custom_name", "Custom analyte name:",
+                  textInput("elisa_custom_name", "Custom analyte name",
                            placeholder = "e.g., Estradiol")
                 ),
                 selectInput(
-                  "elisa_units", "Standard concentration units:",
+                  "elisa_units", "Standard concentration units",
                   choices = c(
                     "pg/mL" = "pg/mL",
                     "ng/mL" = "ng/ml",
@@ -481,12 +542,11 @@ $(function() {
             div(
               class = "label-col",
               h4("Standard concentrations"),
-              p("Specify the number of standards, then enter each concentration in mol/L using scientific notation (e.g. 1e-6, 3e-8)."),
-              uiOutput("concentration_unit_guidance")
+              p("Specify the number of standards, then enter each concentration in mol/L using scientific notation (e.g. 1e-6, 3e-8).")
             ),
             div(
               class = "input-col",
-              selectInput("num_standards", "Number of standards:",
+              selectInput("num_standards", "Number of standards",
                          choices = 0:12, selected = 8),
               div(
                 class = "bs-std-grid",
@@ -524,7 +584,6 @@ $(function() {
         div(
           id = "preset_layout_section",
           class = "preset-row",
-          style = "background-color: #E8F5E9; padding: 16px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
 
           # === Row 1: three labels, one baseline ===
           tags$label("Load Preset Layout",        class = "control-label preset-label"),
@@ -716,7 +775,7 @@ $(function() {
             div(
               style = "display: flex; gap: 20px; align-items: flex-start;",
               div(style = "flex: 0 0 220px;", uiOutput("qc_concentration_input")),
-              div(style = "flex: 0 0 220px;", textInput("expected_hill", "Expected Hill slope:",
+              div(style = "flex: 0 0 220px;", textInput("expected_hill", "Expected Hill slope",
                                                          value = "1", placeholder = "1"))
             ),
             uiOutput("qc_warnings"),
@@ -839,6 +898,7 @@ $(function() {
           div(
             class = "bs-card",
             h4("Plate preview & heatmap"),
+            p(class = "bs-card-sub", "Validate the upload before continuing."),
             fluidRow(
               column(
                 width = 6,
@@ -871,6 +931,7 @@ $(function() {
           div(
             class = "bs-card",
             h4("Import summary"),
+            p(class = "bs-card-sub", "Counts and any warnings from your file."),
             uiOutput("upload_summary")
           )
         )

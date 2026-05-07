@@ -276,28 +276,6 @@ server_config <- function(input, output, session, shared) {
   # Standard Inputs
   # --------------------------------------------------------------------------
 
-  output$concentration_unit_guidance <- renderUI({
-    lang <- input$app_language %||% "en"
-    assay <- input$assay_type %||% "rba"
-
-    if (assay == "elisa") {
-      units <- input$elisa_units %||% "pg/mL"
-      div(
-        style = "background-color: #E3F2FD; padding: 8px; margin: 8px 0; border-left: 3px solid #2196F3;",
-        tags$small(
-          tr("elisa_std_guidance", lang, units)
-        )
-      )
-    } else {
-      div(
-        style = "background-color: #E8F5E9; padding: 8px; margin: 8px 0; border-left: 3px solid #4CAF50;",
-        tags$small(
-          tr("rba_std_guidance", lang)
-        )
-      )
-    }
-  })
-
   output$std_inputs <- renderUI({
     req(as.integer(input$num_standards) > 0)
     n <- as.integer(input$num_standards)
