@@ -11,6 +11,31 @@ server_upload <- function(input, output, session, shared) {
   # --------------------------------------------------------------------------
   # Plate Heatmap Preview
   # --------------------------------------------------------------------------
+  # --------------------------------------------------------------------------
+  # Import Method Tiles (PR 2 — 2.7)
+  # The visible tiles drive the hidden radioButtons so all server logic that
+  # reads input$import_method continues to work unchanged.
+  # --------------------------------------------------------------------------
+
+  observeEvent(input$import_method_classic, {
+    updateRadioButtons(session, "import_method", selected = "classic")
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$import_method_visual, {
+    updateRadioButtons(session, "import_method", selected = "visual")
+  }, ignoreInit = TRUE)
+
+  observe({
+    shinyjs::removeClass("import_method_classic", "is-active")
+    shinyjs::removeClass("import_method_visual", "is-active")
+    if (isTRUE(input$import_method == "classic")) {
+      shinyjs::addClass("import_method_classic", "is-active")
+    } else if (isTRUE(input$import_method == "visual")) {
+      shinyjs::addClass("import_method_visual", "is-active")
+    }
+  })
+
+
 
   output$plate_heatmap <- plotly::renderPlotly({
     meas_mat <- shared$matrix_measresults()
@@ -24,7 +49,12 @@ server_upload <- function(input, output, session, shared) {
     rownames(num_mat) <- ROW_NAMES
     colnames(num_mat) <- COL_NAMES
 
-    if (all(is.na(num_mat))) return(NULL)
+    if (all(is.na(num_mat))) {
+      return(plotly::plotly_empty(type = "scatter", mode = "markers") |>
+             plotly::layout(title = list(
+               text = "Upload a file to see the heatmap",
+               font = list(size = 14, color = "#888"))))
+    }
 
     # Build hover text using cbind() for element-wise matrix indexing
     # (outer() passes vectorized args; plain matrix[vec, vec] creates a cross-product)
@@ -677,39 +707,51 @@ server_upload <- function(input, output, session, shared) {
 
   # Upload preview
   output$upload_summary <- renderUI({
-    req(shared$matrix_measresults())
     plate <- shared$matrix_measresults()
     info <- base::attr(plate, "import_info")  # Use base R attr() to avoid xfun warning
 
-    if (!is.null(info)) {
-      # Check actual data - count non-NA wells
-      actual_wells <- sum(!is.na(plate))
-      is_partial <- actual_wells < 96  # True partial plate check
-
-      lang <- input$app_language %||% "en"
-      # GUI refresh v2 §5.1 — Import summary as a bs-report
-      # key/value table. The wrapping bs-card lives in app.R
-      # (the right column of Tab 3); this renderer only emits
-      # the table.
-      partial_text <- if (is_partial) tr("yes_label", lang) else tr("no_label", lang)
-      tags$table(
-        class = "bs-report",
-        tags$tbody(
-          tags$tr(tags$td(tr("format_label", lang)),
-                  tags$td(class = "num", info$format)),
-          tags$tr(tags$td(tr("wells_label", lang)),
-                  tags$td(class = "num",
-                          sprintf("%d / 96", actual_wells))),
-          tags$tr(tags$td(tr("partial_label", lang)),
-                  tags$td(class = "num", partial_text))
-        )
-      )
+    if (is.null(info)) {
+      return(HTML(
+        '<div class="bs-empty-state">'
+        '<span class="icon">&#128203;</span>'
+        '<p>No file uploaded yet.</p>'
+        '</div>'
+      ))
     }
+
+    # Check actual data - count non-NA wells
+    actual_wells <- sum(!is.na(plate))
+    is_partial <- actual_wells < 96  # True partial plate check
+
+    lang <- input$app_language %||% "en"
+    partial_text <- if (is_partial) tr("yes_label", lang) else tr("no_label", lang)
+    tags$table(
+      class = "bs-report",
+      tags$tbody(
+        tags$tr(tags$td(tr("format_label", lang)),
+                tags$td(class = "num", info$format)),
+        tags$tr(tags$td(tr("wells_label", lang)),
+                tags$td(class = "num",
+                        sprintf("%d / 96", actual_wells))),
+        tags$tr(tags$td(tr("partial_label", lang)),
+                tags$td(class = "num", partial_text))
+      )
+    )
   })
 
-  output$meas_preview <- renderTable({
-    req(shared$matrix_measresults())
-    shared$matrix_measresults()
+  output$meas_preview <- renderUI({
+    meas_mat <- shared$matrix_measresults()
+    info <- base::attr(meas_mat, "import_info")
+    if (is.null(info)) {
+      return(HTML(
+        '<div class="bs-empty-state">'
+        '<span class="icon">&#9638;</span>'
+        '<p>Upload a file to see the plate preview.</p>'
+        '</div>'
+      ))
+    }
+    HTML(knitr::kable(meas_mat, format = "html", digits = 3,
+                      table.attr = 'class="table table-condensed table-bordered"'))
   })
 
   # --------------------------------------------------------------------------
