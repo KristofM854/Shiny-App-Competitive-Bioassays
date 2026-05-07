@@ -711,12 +711,12 @@ server_upload <- function(input, output, session, shared) {
     info <- base::attr(plate, "import_info")  # Use base R attr() to avoid xfun warning
 
     if (is.null(info)) {
-      return(HTML(
-        '<div class="bs-empty-state">'
-        '<span class="icon">&#128203;</span>'
-        '<p>No file uploaded yet.</p>'
+      return(HTML(paste0(
+        '<div class="bs-empty-state">',
+        '<span class="icon">&#128203;</span>',
+        '<p>No file uploaded yet.</p>',
         '</div>'
-      ))
+      )))
     }
 
     # Check actual data - count non-NA wells
@@ -743,12 +743,12 @@ server_upload <- function(input, output, session, shared) {
     meas_mat <- shared$matrix_measresults()
     info <- base::attr(meas_mat, "import_info")
     if (is.null(info)) {
-      return(HTML(
-        '<div class="bs-empty-state">'
-        '<span class="icon">&#9638;</span>'
-        '<p>Upload a file to see the plate preview.</p>'
+      return(HTML(paste0(
+        '<div class="bs-empty-state">',
+        '<span class="icon">&#9638;</span>',
+        '<p>Upload a file to see the plate preview.</p>',
         '</div>'
-      ))
+      )))
     }
     HTML(knitr::kable(meas_mat, format = "html", digits = 3,
                       table.attr = 'class="table table-condensed table-bordered"'))
