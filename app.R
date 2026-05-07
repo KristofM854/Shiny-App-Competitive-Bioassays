@@ -295,7 +295,7 @@ $(function() {
     setTimeout(refreshBetaBanner, 100);
   });
 });
-"))
+")),
 
   tags$script(HTML("
 $(function() {
