@@ -984,7 +984,7 @@ table.bs-report td.num { text-align: right; }
 #preset_layout_section .form-group:has(> .input-group) {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   margin-bottom: 0 !important;
 }
 .bs-card .form-group .input-group,
@@ -1090,6 +1090,14 @@ table.bs-report td.num { text-align: right; }
 #preset_layout_section .form-group {
   margin-bottom: 0 !important;
 }
+/* Also zero the shiny wrapper divs that uiOutput() and inputPanel() inject
+   around their children — these carry the same 14 px bottom margin from the
+   v3.1 §3 rule that appears later in this file and would otherwise re-open
+   the gap that fix (4) closed. */
+#preset_layout_section .shiny-html-output,
+#preset_layout_section .shiny-input-container {
+  margin-bottom: 0 !important;
+}
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
    input's visible bottom (the "No file selected" row) sits at the
@@ -1098,6 +1106,23 @@ table.bs-report td.num { text-align: right; }
    (replaces the fragile div[style*="align-items: flex-end"] selector). */
 .bs-upload-row .form-group {
   margin-bottom: 0 !important;
+}
+/* Zero .shiny-html-output/.shiny-input-container margins for the same reason
+   as fix (4) above — the v3.1 §3 .bs-card .form-group rule appears later and
+   wins the cascade for those wrappers unless we explicitly zero them here. */
+.bs-card > div[style*="align-items: flex-end"] > .shiny-html-output,
+.bs-card > div[style*="align-items: flex-end"] .shiny-input-container,
+.bs-card > div[style*="align-items:flex-end"] > .shiny-html-output,
+.bs-card > div[style*="align-items:flex-end"] .shiny-input-container {
+  margin-bottom: 0 !important;
+}
+/* Make uiOutput wrappers flex columns so their child button/widget sits at
+   the bottom of the wrapper box, visually reaching the row baseline. */
+.bs-card > div[style*="align-items: flex-end"] > .shiny-html-output,
+.bs-card > div[style*="align-items:flex-end"] > .shiny-html-output {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 /* (6) Give Feedback button — text was painting at the top of the
