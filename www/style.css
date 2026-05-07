@@ -1,6 +1,6 @@
-/* sentinel v8 — remove after merge if alignment is confirmed fixed */
+/* sentinel v9 — remove after merge if alignment is confirmed fixed */
 body::before {
-  content: "css v8 loaded";
+  content: "css v9 loaded";
   position: fixed; top: 2px; right: 2px; z-index: 99999;
   font: 10px/1 monospace; color: #888; background: #fff;
   padding: 1px 4px; border: 1px solid #ddd; border-radius: 2px;
@@ -1088,6 +1088,7 @@ table.bs-report td.num { text-align: right; }
   display: grid !important;
   grid-template-columns: 1fr 1fr 1fr;
   grid-template-rows: 20px auto;
+  grid-auto-rows: min-content;
   column-gap: 24px;
   row-gap: 8px;
   align-items: start;
@@ -1105,9 +1106,16 @@ table.bs-report td.num { text-align: right; }
 }
 #preset_layout_section .preset-cell {
   grid-row: 2;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+/* Kill any inner label Shiny emits inside a preset-cell — the hoisted
+   .preset-label in grid row 1 is the single source of truth. */
+#preset_layout_section .preset-cell .control-label,
+#preset_layout_section .preset-cell label.shiny-label-null {
+  display: none !important;
 }
 #preset_layout_section .preset-cell .form-group,
 #preset_layout_section .preset-cell .shiny-input-container,
