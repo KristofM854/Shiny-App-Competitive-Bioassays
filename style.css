@@ -1070,26 +1070,45 @@ table.bs-report td.num { text-align: right; }
   display: block !important;
 }
 
-/* (4) Tab 2 preset row — every column shares one bottom baseline.
-   Removes the need for the inline `margin-top: 25px;` hacks on the
-   Save Layout / Load buttons in app.R (see implementation guide). */
+/* (4) Tab 2 preset row — pin every visible widget to the column
+   bottom regardless of whatever else is in the column (helpText
+   caption, tagList stacks, etc.). align-items: flex-end cannot
+   normalise heterogeneous column content; position: absolute can.
+   Each column becomes a positioning context; labels float at top: 0
+   within the 22 px label-reserve padding; controls are pinned at
+   bottom: 0. Column height is fixed by min-height + stretch so all
+   four column bottoms are always co-planar. */
 #preset_layout_section .row {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
+  min-height: 76px;
 }
 #preset_layout_section [class^="col-"],
 #preset_layout_section [class*=" col-"] {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  float: none !important;    /* override Bootstrap's float:left */
+  float: none !important;
+  position: relative;
+  min-height: 64px;
+  padding: 22px 15px 0;
 }
-/* Zero margin-bottom on ALL form-groups in this row — not just the fileInput
-   one. Without this the selectInput column is 15 px taller (Bootstrap default
-   margin) and its control sits 15 px above the button's baseline. */
-#preset_layout_section .form-group {
-  margin-bottom: 0 !important;
+#preset_layout_section .control-label {
+  position: absolute;
+  top: 0; left: 15px; right: 15px;
+  margin: 0 !important;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
 }
+#preset_layout_section .col-sm-2 > .btn,
+#preset_layout_section .col-sm-2 > .action-button,
+#preset_layout_section .selectize-control,
+#preset_layout_section .input-group {
+  position: absolute;
+  left: 15px; right: 15px;
+  bottom: 0;
+}
+#preset_layout_section .form-group,
+#preset_layout_section .shiny-input-container,
+#preset_layout_section .shiny-html-output { margin: 0 !important; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
    input's visible bottom (the "No file selected" row) sits at the
