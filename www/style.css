@@ -1,3 +1,12 @@
+/* sentinel v4 — remove after merge if alignment is confirmed fixed */
+body::before {
+  content: "css v4 loaded";
+  position: fixed; top: 2px; right: 2px; z-index: 99999;
+  font: 10px/1 monospace; color: #888; background: #fff;
+  padding: 1px 4px; border: 1px solid #ddd; border-radius: 2px;
+  pointer-events: none;
+}
+
 /* ============================================
    Bioassay Suite v0.9.0 — Design Tokens & Components
    Drop-in replacement for www/style.css (v2 spec §1)
@@ -1055,56 +1064,112 @@ table.bs-report td.num { text-align: right; }
   z-index: 1;
 }
 
-/* (3) The empty Bootstrap progress bar that ships with every
-   fileInput() — it's a separate <div class="progress"> sibling that
-   makes the file input taller than its visible content, breaking
-   baseline alignment with neighbouring buttons. Hide it until an
-   upload is actually running. */
-.bs-card .shiny-file-input-progress,
-#preset_layout_section .shiny-file-input-progress,
-.bs-card .progress:empty,
-#preset_layout_section .progress:empty {
-  display: none;
+/* (3) Shiny renders the file-input progress bar as
+   class="progress active shiny-file-input-progress" at server-render
+   time — .active is NOT an "upload in progress" signal. The previous
+   rule hid the bar then immediately re-showed it via a higher-
+   specificity .active override (always present), so the bar was always
+   visible and added ~20px height to the fileInput column.
+   Fix: hide unconditionally; re-show only when Shiny JS adds
+   .shiny-file-input-active to the parent container during an upload. */
+.shiny-file-input-progress {
+  display: none !important;
 }
-.bs-card .shiny-file-input-progress.active,
-#preset_layout_section .shiny-file-input-progress.active {
-  display: block;
+.shiny-input-container.shiny-file-input-active .shiny-file-input-progress {
+  display: block !important;
 }
 
-/* (4) Tab 2 preset row — every column shares one bottom baseline.
-   Removes the need for the inline `margin-top: 25px;` hacks on the
-   Save Layout / Load buttons in app.R (see implementation guide). */
+/* (4) Tab 2 preset row — CSS Grid replacement.
+   Bootstrap's fluidRow + col system + heterogeneous column contents
+   cannot be aligned with align-items/flex-end alone. Flatten the
+   columns out of the layout via display: contents, then put every
+   label in row 1 and every visible control in row 2 of a 4-column
+   grid. Geometry is deterministic regardless of content. */
+#preset_layout_section > .row,
 #preset_layout_section .row {
-  display: flex;
-  align-items: flex-end;
+  display: grid !important;
+  grid-template-columns: 3fr 3fr 2fr 2fr;
+  grid-template-rows: 16px 32px;
+  row-gap: 6px;
+  column-gap: 16px;
+  align-items: end;
+  margin: 0 !important;
 }
 #preset_layout_section [class^="col-"],
 #preset_layout_section [class*=" col-"] {
+  display: contents !important;
+  float: none !important;
+}
+#preset_layout_section .control-label {
+  grid-row: 1;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* All visible controls live on row 2, height 32px, no margins. */
+#preset_layout_section .selectize-control,
+#preset_layout_section .input-group,
+#preset_layout_section .shiny-html-output > .form-group,
+#preset_layout_section #layout_save,
+#preset_layout_section #layout_load,
+#preset_layout_section .help-block {
+  grid-row: 2;
+  align-self: end;
+  margin: 0 !important;
+}
+/* The actual visible 32-px-tall element inside selectize. */
+#preset_layout_section .selectize-input {
+  height: 32px !important;
+  min-height: 32px !important;
+  line-height: 1 !important;
+  padding: 6px 24px 6px 10px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex !important;
+  align-items: center !important;
+}
+/* Hide the default Shiny form-group label-on-top stack and let the
+   grid handle label placement directly. The form-group itself becomes
+   a row-2 cell containing only the control; the label is hoisted by
+   the grid into row 1 via the rule above.
+   The :has(> .input-group) rule earlier in this file (v3.1 §2, marker 2)
+   has higher specificity than the plain .form-group rule here and would
+   keep display:flex on the fileInput form-group, preventing its children
+   from becoming direct grid items. Override it with !important. */
+#preset_layout_section .form-group {
+  display: contents !important;
+  margin: 0 !important;
+}
+/* col 4's saved-layouts state stacks selectInput + button. Override
+   the grid-row: 2 rule above with auto so the stack can grow naturally
+   while still bottom-aligning to the button baseline. */
+#preset_layout_section #layout_load_ui:has(#layout_load_select) {
+  grid-row: 2;
+  align-self: end;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  float: none !important;    /* override Bootstrap's float:left */
+  gap: 4px;
 }
-/* Zero margin-bottom on ALL form-groups in this row — not just the fileInput
-   one. Without this the selectInput column is 15 px taller (Bootstrap default
-   margin) and its control sits 15 px above the button's baseline. */
-#preset_layout_section .form-group {
-  margin-bottom: 0 !important;
+#preset_layout_section #layout_load_ui:has(#layout_load_select) .selectize-input {
+  height: 28px !important;
+  min-height: 28px !important;
 }
-/* Also zero the shiny wrapper divs that uiOutput() and inputPanel() inject
-   around their children — these carry the same 14 px bottom margin from the
-   v3.1 §3 rule that appears later in this file and would otherwise re-open
-   the gap that fix (4) closed. */
-#preset_layout_section .shiny-html-output,
-#preset_layout_section .shiny-input-container {
-  margin-bottom: 0 !important;
-}
+/* Hide the file-input progress bar inside the grid (already hidden
+   globally by marker (3) but selectize/grid sometimes re-show it). */
+#preset_layout_section .shiny-file-input-progress { display: none !important; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
    input's visible bottom (the "No file selected" row) sits at the
-   same baseline as the trash + Download Example buttons. */
-.bs-card > div[style*="align-items: flex-end"] .form-group,
-.bs-card > div[style*="align-items:flex-end"] .form-group {
+   same baseline as the trash + Download Example buttons.
+   .bs-upload-row is a stable class on the wrapper div in app.R
+   (replaces the fragile div[style*="align-items: flex-end"] selector
+   that would silently break on any whitespace change). */
+.bs-upload-row .form-group {
   margin-bottom: 0 !important;
 }
 /* Zero .shiny-html-output/.shiny-input-container margins for the same reason
