@@ -1,6 +1,6 @@
-/* sentinel v7 — remove after merge if alignment is confirmed fixed */
+/* sentinel v8 — remove after merge if alignment is confirmed fixed */
 body::before {
-  content: "css v7 loaded";
+  content: "css v8 loaded";
   position: fixed; top: 2px; right: 2px; z-index: 99999;
   font: 10px/1 monospace; color: #888; background: #fff;
   padding: 1px 4px; border: 1px solid #ddd; border-radius: 2px;
@@ -1079,24 +1079,39 @@ table.bs-report td.num { text-align: right; }
   display: block !important;
 }
 
-/* (4) Tab 2 preset row — three self-contained .preset-col divs.
-   No Bootstrap column() wrappers, no cross-column baseline alignment.
-   Each column is a flex column; its own label + controls stack top-to-
-   bottom. No flattening, no auto-placement, no nth-of-type required. */
-#preset_layout_section .preset-col {
+/* (4) Tab 2 preset row — explicit two-row grid.
+   Row 1: three column labels, sharing one baseline.
+   Row 2: each column's content, free to flow vertically.
+   Labels are hoisted out of Shiny form-groups in app.R so they sit
+   as direct grid children — no nested-wrapper alignment fights. */
+#preset_layout_section.preset-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 20px auto;
+  column-gap: 24px;
+  row-gap: 8px;
+  align-items: start;
+}
+#preset_layout_section .preset-label {
+  grid-row: 1;
+  margin: 0 !important;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--c-ink-2, #475569);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#preset_layout_section .preset-cell {
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-#preset_layout_section .preset-col .control-label {
-  margin: 0 !important;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-}
-#preset_layout_section .preset-col .form-group,
-#preset_layout_section .preset-col .shiny-input-container,
-#preset_layout_section .preset-col .shiny-html-output {
+#preset_layout_section .preset-cell .form-group,
+#preset_layout_section .preset-cell .shiny-input-container,
+#preset_layout_section .preset-cell .shiny-html-output {
   margin: 0 !important;
 }
 #preset_layout_section .selectize-input {
@@ -1112,6 +1127,8 @@ table.bs-report td.num { text-align: right; }
 }
 #preset_layout_section .input-group { height: 32px; }
 #preset_layout_section .shiny-file-input-progress { display: none !important; }
+#preset_layout_section #layout_save,
+#preset_layout_section #layout_load { height: 32px; margin: 0; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
    input's visible bottom (the "No file selected" row) sits at the

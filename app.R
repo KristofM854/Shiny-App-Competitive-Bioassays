@@ -521,32 +521,37 @@ $(function() {
         # Preset plate layouts + layout management
         div(
           id = "preset_layout_section",
+          class = "preset-row",
           style = "background-color: #E8F5E9; padding: 16px; margin: 10px 0; border-left: 4px solid #4CAF50; border-radius: 4px;",
-          div(
-            style = "display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: start;",
-            # Column 1 — Load preset + saved layouts
-            div(class = "preset-col",
-              selectInput("preset_layout", "Load Preset Layout:",
-                         choices = c(
-                           "-- Select Preset --" = "",
-                           "RBA: STX 8 standards (triplicate)" = "rba_stx_triplicate",
-                           "ELISA: Cortisol (Cayman kit, 8-point, duplicate)" = "elisa_cortisol_cayman",
-                           "ELISA: Custom (blank template)" = "elisa_custom_blank"
-                         ),
-                         selected = "", width = "100%"),
-              uiOutput("layout_load_ui")
-            ),
-            # Column 2 — Import layout from file
-            div(class = "preset-col",
-              uiOutput("layout_import_file_ui")
-            ),
-            # Column 3 — Save current layout
-            div(class = "preset-col",
-              tags$label("Save Current Layout", class = "control-label"),
-              actionButton("layout_save", label = "Save Layout",
-                          icon  = icon("save"),
-                          class = "btn btn-success btn-sm", style = "width: 100%;")
-            )
+
+          # === Row 1: three labels, one baseline ===
+          tags$label("Load Preset Layout",        class = "control-label preset-label"),
+          tags$label("Import Layout (CSV/Excel)", class = "control-label preset-label"),
+          tags$label("Save Current Layout",       class = "control-label preset-label"),
+
+          # === Row 2: column 1 content (preset dropdown) ===
+          div(class = "preset-cell",
+            selectInput("preset_layout", label = NULL,
+                        choices = c(
+                          "-- Select Preset --" = "",
+                          "RBA: STX 8 standards (triplicate)" = "rba_stx_triplicate",
+                          "ELISA: Cortisol (Cayman kit, 8-point, duplicate)" = "elisa_cortisol_cayman",
+                          "ELISA: Custom (blank template)" = "elisa_custom_blank"
+                        ),
+                        selected = "", width = "100%")
+          ),
+
+          # === Row 2: column 2 content (file import) ===
+          div(class = "preset-cell",
+            uiOutput("layout_import_file_ui")
+          ),
+
+          # === Row 2: column 3 content (Save button + saved-runs dropdown + Load button) ===
+          div(class = "preset-cell preset-cell-save",
+            actionButton("layout_save", label = "Save Layout",
+                        icon  = icon("save"),
+                        class = "btn btn-success btn-sm", style = "width: 100%;"),
+            uiOutput("layout_load_ui")
           )
         ),
         br(),
