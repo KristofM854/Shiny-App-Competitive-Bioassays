@@ -1089,7 +1089,11 @@ table.bs-report td.num { text-align: right; }
 #preset_layout_section .row {
   display: grid !important;
   grid-template-columns: 3fr 3fr 2fr 2fr;
-  grid-template-rows: 16px 32px;
+  /* row 2 is auto (not a fixed 32px) so the populated col-4 state
+     (selectInput stacked above Load button, ~70px total) can expand
+     the row without overflowing it; other controls use align-self:end
+     to bottom-align within the taller track. */
+  grid-template-rows: 16px auto;
   row-gap: 6px;
   column-gap: 16px;
   align-items: end;
@@ -1099,6 +1103,14 @@ table.bs-report td.num { text-align: right; }
 #preset_layout_section [class*=" col-"] {
   display: contents !important;
   float: none !important;
+}
+/* Flatten the uiOutput (.shiny-html-output) wrappers that Shiny injects
+   for layout_import_file_ui and layout_load_ui so their children become
+   direct grid items and respect grid-row. Without this, inner .form-group
+   and .help-block are plain block children of a block element and ignore
+   all grid-row assignments. */
+#preset_layout_section .shiny-html-output {
+  display: contents !important;
 }
 #preset_layout_section .control-label {
   grid-row: 1;
@@ -1110,10 +1122,13 @@ table.bs-report td.num { text-align: right; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* All visible controls live on row 2, height 32px, no margins. */
+/* All visible controls live on row 2, no margins.
+   .shiny-html-output > .form-group is intentionally absent: with
+   display:contents on both the wrapper and the form-group, their
+   children (.control-label, .selectize-control, .input-group) are
+   direct grid items and carry their own grid-row rules. */
 #preset_layout_section .selectize-control,
 #preset_layout_section .input-group,
-#preset_layout_section .shiny-html-output > .form-group,
 #preset_layout_section #layout_save,
 #preset_layout_section #layout_load,
 #preset_layout_section .help-block {
@@ -1121,7 +1136,7 @@ table.bs-report td.num { text-align: right; }
   align-self: end;
   margin: 0 !important;
 }
-/* The actual visible 32-px-tall element inside selectize. */
+/* The actual visible element inside selectize. */
 #preset_layout_section .selectize-input {
   height: 32px !important;
   min-height: 32px !important;
@@ -1133,34 +1148,35 @@ table.bs-report td.num { text-align: right; }
   display: flex !important;
   align-items: center !important;
 }
-/* Hide the default Shiny form-group label-on-top stack and let the
-   grid handle label placement directly. The form-group itself becomes
-   a row-2 cell containing only the control; the label is hoisted by
-   the grid into row 1 via the rule above.
-   The :has(> .input-group) rule earlier in this file (v3.1 §2, marker 2)
-   has higher specificity than the plain .form-group rule here and would
-   keep display:flex on the fileInput form-group, preventing its children
-   from becoming direct grid items. Override it with !important. */
+/* Flatten form-groups so label + control both become direct grid items.
+   !important overrides the v3.1 §2 rule
+   #preset_layout_section .form-group:has(> .input-group) { display:flex }
+   which has higher specificity (1,2,0) than plain .form-group (1,1,0)
+   and would prevent the fileInput children from entering the grid. */
 #preset_layout_section .form-group {
   display: contents !important;
   margin: 0 !important;
 }
-/* col 4's saved-layouts state stacks selectInput + button. Override
-   the grid-row: 2 rule above with auto so the stack can grow naturally
-   while still bottom-aligning to the button baseline. */
+/* col 4 populated state — layout_load_ui renders a stacked selectInput +
+   Load button. The uiOutput wrapper must be a flex column (not transparent)
+   so the two controls stack inside it; grid-row:2 + align-self:end puts the
+   bottom of the stack at the row baseline. Specificity (3,0,0) beats the
+   general .shiny-html-output display:contents rule at (1,1,0), so even with
+   both carrying !important this rule wins. */
 #preset_layout_section #layout_load_ui:has(#layout_load_select) {
-  grid-row: 2;
-  align-self: end;
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   gap: 4px;
+  grid-row: 2;
+  align-self: end;
+  margin: 0 !important;
 }
 #preset_layout_section #layout_load_ui:has(#layout_load_select) .selectize-input {
   height: 28px !important;
   min-height: 28px !important;
 }
 /* Hide the file-input progress bar inside the grid (already hidden
-   globally by marker (3) but selectize/grid sometimes re-show it). */
+   globally by marker (3) but belt-and-suspenders here). */
 #preset_layout_section .shiny-file-input-progress { display: none !important; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
