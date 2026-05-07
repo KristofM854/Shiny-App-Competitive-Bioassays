@@ -1,6 +1,6 @@
-/* sentinel v6 — remove after merge if alignment is confirmed fixed */
+/* sentinel v7 — remove after merge if alignment is confirmed fixed */
 body::before {
-  content: "css v6 loaded";
+  content: "css v7 loaded";
   position: fixed; top: 2px; right: 2px; z-index: 99999;
   font: 10px/1 monospace; color: #888; background: #fff;
   padding: 1px 4px; border: 1px solid #ddd; border-radius: 2px;
@@ -1079,51 +1079,25 @@ table.bs-report td.num { text-align: right; }
   display: block !important;
 }
 
-/* (4) Tab 2 preset row — per-column flex layout.
-   Previous passes used display:contents to flatten Bootstrap columns
-   into a shared grid, then attempted to re-assign items to the right
-   column via grid-row/grid-column. That was fragile: selectize.js can
-   render .selectize-control outside its input wrapper, and :nth-of-type
-   pinning proved unreliable across browser auto-placement engines.
-   Simpler approach: keep the .row as the grid (4 columns, align-items:end)
-   so each Bootstrap column IS one grid cell, then make each column a
-   flex column so its label + control(s) stack naturally inside it.
-   No flattening, no auto-placement, no nth-of-type. */
-#preset_layout_section .row {
-  display: grid !important;
-  grid-template-columns: 3fr 3fr 2fr 2fr;
-  column-gap: 16px;
-  align-items: end;
-  margin: 0 !important;
-}
-#preset_layout_section [class^="col-"],
-#preset_layout_section [class*=" col-"] {
-  width: auto !important;
-  float: none !important;
-  padding: 0 !important;
+/* (4) Tab 2 preset row — three self-contained .preset-col divs.
+   No Bootstrap column() wrappers, no cross-column baseline alignment.
+   Each column is a flex column; its own label + controls stack top-to-
+   bottom. No flattening, no auto-placement, no nth-of-type required. */
+#preset_layout_section .preset-col {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: 6px;
-  min-height: 54px;
+  gap: 8px;
 }
-#preset_layout_section .control-label {
+#preset_layout_section .preset-col .control-label {
   margin: 0 !important;
-  padding: 0 !important;
   font-size: 12px;
+  font-weight: 600;
   line-height: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  order: -1;
 }
-#preset_layout_section .form-group,
-#preset_layout_section .shiny-input-container,
-#preset_layout_section .shiny-html-output {
+#preset_layout_section .preset-col .form-group,
+#preset_layout_section .preset-col .shiny-input-container,
+#preset_layout_section .preset-col .shiny-html-output {
   margin: 0 !important;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 #preset_layout_section .selectize-input {
   height: 32px !important;
@@ -1137,8 +1111,6 @@ table.bs-report td.num { text-align: right; }
   align-items: center !important;
 }
 #preset_layout_section .input-group { height: 32px; }
-#preset_layout_section #layout_save { height: 32px; margin: 0; }
-#preset_layout_section #layout_load_ui { display: flex; flex-direction: column; gap: 4px; }
 #preset_layout_section .shiny-file-input-progress { display: none !important; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
