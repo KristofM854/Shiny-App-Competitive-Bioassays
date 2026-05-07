@@ -170,13 +170,13 @@ get_translations <- function() {
       # Step 3: Report generation
       report_formats = "Report formats:",
       report_language = "Report language:",
-      generate_report = "Step 3: Generate Report",
+      generate_report = "Generate Report",
       generating_report = "Generating report...",
 
       # Tab 5: Report Output & Notes panels
       report_output_heading = "Report Output",
       notes_feedback_heading = "Notes & Feedback",
-      preflight_heading = "Pre-Flight Check",
+      preflight_heading = "Readiness check",
       format_html = "HTML",
       format_docx = "Word (DOCX)",
       format_pdf = "PDF",
@@ -212,7 +212,7 @@ get_translations <- function() {
       pf_elisa_reps_ok = "ELISA controls have adequate replicates",
       pf_elisa_reps_low = "Low replicates for ELISA control(s): %s (recommend >= 2)",
       pf_tissue_missing = "No tissue weights entered (needed for tissue-normalized ELISA results)",
-      pf_badge_errors = "Blocking issues found — resolve before generating report",
+      pf_badge_errors = "Resolve these issues before generating the report",
       pf_badge_warnings = "Warnings found — report can be generated but review recommended",
       pf_badge_ok = "All checks passed — ready to generate report",
 
@@ -755,13 +755,13 @@ get_translations <- function() {
       # Step 3: Report generation
       report_formats = "Formatos de reporte:",
       report_language = "Idioma del reporte:",
-      generate_report = "Paso 3: Generar Reporte",
+      generate_report = "Generar Reporte",
       generating_report = "Generando reporte...",
 
       # Pestaña 5: Panel de Salida de Reporte y Notas
       report_output_heading = "Salida del Reporte",
       notes_feedback_heading = "Notas y Retroalimentaci\u00F3n",
-      preflight_heading = "Verificaci\u00F3n Previa",
+      preflight_heading = "Verificaci\u00F3n de preparaci\u00F3n", # TODO(i18n): "Readiness check" — verify with native ES speaker,
       format_html = "HTML",
       format_docx = "Word (DOCX)",
       format_pdf = "PDF",
@@ -797,7 +797,7 @@ get_translations <- function() {
       pf_elisa_reps_ok = "Los controles ELISA tienen r\u00E9plicas adecuadas",
       pf_elisa_reps_low = "Pocas r\u00E9plicas para control(es) ELISA: %s (se recomienda >= 2)",
       pf_tissue_missing = "No se ingresaron pesos de tejido (necesarios para resultados ELISA normalizados por tejido)",
-      pf_badge_errors = "Problemas bloqueantes detectados \u2014 res\u00FAelvalos antes de generar el reporte",
+      pf_badge_errors = "Resuelva estos problemas antes de generar el reporte",
       pf_badge_warnings = "Advertencias detectadas \u2014 se puede generar el reporte pero se recomienda revisar",
       pf_badge_ok = "Todas las verificaciones pasaron \u2014 listo para generar el reporte",
 
@@ -1341,13 +1341,13 @@ get_translations <- function() {
       # Step 3: Report generation
       report_formats = "Formats du rapport :",
       report_language = "Langue du rapport :",
-      generate_report = "Étape 3 : Générer le rapport",
+      generate_report = "Générer le rapport",
       generating_report = "Génération du rapport en cours...",
 
       # Tab 5
       report_output_heading = "Sortie du rapport",
       notes_feedback_heading = "Notes & Commentaires",
-      preflight_heading = "Vérification préalable",
+      preflight_heading = "Vérification de préparation",
       format_html = "HTML",
       format_docx = "Word (DOCX)",
       format_pdf = "PDF",
@@ -1383,7 +1383,7 @@ get_translations <- function() {
       pf_elisa_reps_ok = "Les contrôles ELISA ont des réplicats adéquats",
       pf_elisa_reps_low = "Réplicats insuffisants pour le(s) contrôle(s) ELISA : %s (recommandé >= 2)",
       pf_tissue_missing = "Aucune masse de tissu saisie (nécessaire pour les résultats ELISA normalisés par tissu)",
-      pf_badge_errors = "Problèmes bloquants détectés — résolvez-les avant de générer le rapport",
+      pf_badge_errors = "Résolvez ces problèmes avant de générer le rapport",
       pf_badge_warnings = "Avertissements détectés — le rapport peut être généré mais une vérification est recommandée",
       pf_badge_ok = "Toutes les vérifications réussies — prêt à générer le rapport",
 
@@ -1925,13 +1925,13 @@ Format : %s%s",
       # Step 3: Report generation
       report_formats = "Форматы отчётов:",
       report_language = "Язык отчёта:",
-      generate_report = "Шаг 3: Создать отчёт",
+      generate_report = "Создать отчёт",
       generating_report = "Создание отчёта...",
 
       # Tab 5
       report_output_heading = "Вывод отчёта",
       notes_feedback_heading = "Примечания и отзывы",
-      preflight_heading = "Предварительная проверка",
+      preflight_heading = "Проверка готовности", # TODO(i18n): "Readiness check" — verify with native RU speaker,
       format_html = "HTML",
       format_docx = "Word (DOCX)",
       format_pdf = "PDF",
@@ -1967,7 +1967,7 @@ Format : %s%s",
       pf_elisa_reps_ok = "Контроли ELISA имеют достаточное количество повторностей",
       pf_elisa_reps_low = "Мало повторностей для контроля(ей) ELISA: %s (рекомендуется >= 2)",
       pf_tissue_missing = "Масса ткани не введена (необходима для нормализованных по ткани результатов ELISA)",
-      pf_badge_errors = "Обнаружены блокирующие проблемы — устраните их перед созданием отчёта",
+      pf_badge_errors = "Устраните эти проблемы перед созданием отчёта",
       pf_badge_warnings = "Обнаружены предупреждения — отчёт может быть создан, но рекомендуется проверка",
       pf_badge_ok = "Все проверки пройдены — готово к созданию отчёта",
 
@@ -2509,13 +2509,13 @@ Format : %s%s",
       # Step 3: Report generation
       report_formats = "报告格式：",
       report_language = "报告语言：",
-      generate_report = "第3步：生成报告",
+      generate_report = "生成报告",
       generating_report = "正在生成报告...",
 
       # Tab 5
       report_output_heading = "报告输出",
       notes_feedback_heading = "备注与反馈",
-      preflight_heading = "预飞检查",
+      preflight_heading = "准备就绪检查", # TODO(i18n): "Readiness check" — verify with native ZH speaker,
       format_html = "HTML",
       format_docx = "Word (DOCX)",
       format_pdf = "PDF",
@@ -2551,7 +2551,7 @@ Format : %s%s",
       pf_elisa_reps_ok = "ELISA对照有足够的重复数",
       pf_elisa_reps_low = "ELISA对照重复数不足：%s（建议>=2）",
       pf_tissue_missing = "未输入组织重量（组织归一化ELISA结果所需）",
-      pf_badge_errors = "发现阻塞性问题 — 生成报告前请先解决",
+      pf_badge_errors = "请先解决这些问题，再生成报告",
       pf_badge_warnings = "发现警告 — 可以生成报告，但建议检查",
       pf_badge_ok = "所有检查通过 — 可以生成报告",
 

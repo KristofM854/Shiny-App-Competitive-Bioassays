@@ -1,7 +1,7 @@
 # ==============================================================================
 # Competitive Binding Assay Analysis App
 # Authors: Arnold Molina Porras (UCR) & Kristof Moeller (IAEA)
-# Version: 2.0
+# Version: 1.0.0
 #
 # Main Shiny application for RBA and ELISA competitive binding assay analysis.
 # Supports:
@@ -53,6 +53,7 @@ source("server/server_layout.R")
 source("server/server_upload.R")
 source("server/report_pipeline.R")
 source("server/server_report.R")
+source("server/server_analysis.R")
 
 # Auto-generate preset .rds files if they don't exist
 if (!file.exists("presets/rba_stx_triplicate.rds")) {
@@ -152,7 +153,9 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet",
               href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css",
-              href = paste0("style.css?v=", as.numeric(Sys.time())))
+              href = paste0("style.css?v=", as.numeric(Sys.time()))),
+    # CSS sentinel — bump this comment version with each PR (v10, v11, v12...)
+    tags$script(HTML('console.log("[Bioassay Suite] CSS v10 loaded");'))
   ),
 
   div(
@@ -161,7 +164,14 @@ ui <- fluidPage(
       class = "brand",
       div(class = "mono-tile", "B"),
       span(class = "wordmark", "Bioassay Suite"),
-      span(class = "version", "v0.9.0")
+      tags$a(
+        class = "version",
+        href = "https://zenodo.org/records/19691224",
+        target = "_blank",
+        rel = "noopener noreferrer",
+        title = "View this release on Zenodo (DOI)",
+        "v1.0.0"
+      )
     ),
     div(
       class = "actions",
@@ -874,74 +884,103 @@ $(function() {
                     class = "btn btn-primary btn-lg")
       ),
 
-      div(
-        id = "analysis_settings_section",
-        class = "bs-card",
-        style = "max-width: 880px; padding: 20px 24px;",
-        uiOutput("analysis_settings_heading_ui"),
-
-        # Primary setting (always visible)
-        div(
-          class = "bs-drc-weighting",
-          checkboxGroupInput("regression_weight", "DRC regression weighting:",
-                     choices = c("Unweighted" = "none",
-                                 "1/Y (moderate)" = "inv_y",
-                                 "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2",
-                                 "Auto (data-driven)" = "auto"),
-                     selected = "none")
-        ),
-        uiOutput("regression_weight_help_ui"),
-
-        # Advanced Options collapsed behind a disclosure chevron (v3.2 §4)
-        tags$details(
-          class = "bs-advanced",
-          tags$summary(
-            class = "bs-advanced-summary",
-            uiOutput("advanced_options_heading_ui")
-          ),
+      fluidRow(
+        column(
+          width = 7,
           div(
-            class = "bs-advanced-body",
-            uiOutput("advanced_options_intro_ui"),
-
-            fluidRow(
-              column(6,
-                numericInput("quant_range_min", "Lower %B/B0 bound:",
-                            value = 20, min = 5, max = 50, step = 5)
+            id = "analysis_settings_section",
+            class = "bs-card",
+            style = "padding: 20px 24px;",
+            uiOutput("analysis_settings_heading_ui"),
+            div(
+              class = "bs-drc-weighting",
+              checkboxGroupInput("regression_weight", "DRC regression weighting:",
+                         choices = c("Unweighted" = "none",
+                                     "1/Y (moderate)" = "inv_y",
+                                     "1/Y\u00B2 (recommended for immunoassays)" = "inv_y2",
+                                     "Auto (data-driven)" = "auto"),
+                         selected = "none")
+            ),
+            uiOutput("regression_weight_help_ui"),
+            tags$details(
+              class = "bs-advanced",
+              tags$summary(
+                class = "bs-advanced-summary",
+                uiOutput("advanced_options_heading_ui")
               ),
-              column(6,
-                numericInput("quant_range_max", "Upper %B/B0 bound:",
-                            value = 80, min = 50, max = 95, step = 5)
+              div(
+                class = "bs-advanced-body",
+                uiOutput("advanced_options_intro_ui"),
+                fluidRow(
+                  column(6,
+                    numericInput("quant_range_min", "Lower %B/B0 bound:",
+                                value = 20, min = 5, max = 50, step = 5)
+                  ),
+                  column(6,
+                    numericInput("quant_range_max", "Upper %B/B0 bound:",
+                                value = 80, min = 50, max = 95, step = 5)
+                  )
+                ),
+                uiOutput("quant_range_help_ui"),
+                hr(),
+                radioButtons("ci_method", "Confidence interval method:",
+                            choices = c("t-distribution (default)" = "t_dist",
+                                        "Bootstrap (1000 resamples)" = "bootstrap"),
+                            selected = "t_dist", inline = TRUE),
+                checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
+                conditionalPanel(
+                  condition = "input.enable_outlier_detection == true",
+                  numericInput("outlier_min_n", "Minimum replicates for outlier test:",
+                              value = 3, min = 3, max = 10, step = 1),
+                  uiOutput("outlier_help_ui"),
+                  hr(),
+                  radioButtons("normality_assumption", "Normality assumption for outlier detection:",
+                              choices = c("Assume normality (default)" = "assume",
+                                          "Test with Shapiro-Wilk" = "test_shapiro"),
+                              selected = "assume"),
+                  conditionalPanel(
+                    condition = "input.normality_assumption == 'test_shapiro'",
+                    uiOutput("normality_shapiro_help_ui")
+                  )
+                ),
+                hr(),
+                numericInput("cv_limit", "Maximum CV for standards (%):",
+                            value = 30, min = 5, max = 50, step = 5),
+                uiOutput("cv_limit_help_ui")
               )
-            ),
-            uiOutput("quant_range_help_ui"),
-
-            hr(),
-
-            radioButtons("ci_method", "Confidence interval method:",
-                        choices = c("t-distribution (default)" = "t_dist",
-                                    "Bootstrap (1000 resamples)" = "bootstrap"),
-                        selected = "t_dist", inline = TRUE),
-
-            checkboxInput("enable_outlier_detection", "Enable outlier detection", value = FALSE),
-            conditionalPanel(
-              condition = "input.enable_outlier_detection == true",
-              numericInput("outlier_min_n", "Minimum replicates for outlier test:",
-                          value = 3, min = 3, max = 10, step = 1),
-              uiOutput("outlier_help_ui"),
-              hr(),
-              radioButtons("normality_assumption", "Normality assumption for outlier detection:",
-                          choices = c("Assume normality (default)" = "assume",
-                                      "Test with Shapiro-Wilk" = "test_shapiro"),
-                          selected = "assume"),
-              conditionalPanel(
-                condition = "input.normality_assumption == 'test_shapiro'",
-                uiOutput("normality_shapiro_help_ui")
-              )
-            ),
-            hr(),
-            numericInput("cv_limit", "Maximum CV for standards (%):",
-                        value = 30, min = 5, max = 50, step = 5),
-            uiOutput("cv_limit_help_ui")
+            )
+          )
+        ),
+        column(
+          width = 5,
+          div(
+            class = "bs-card",
+            style = "padding: 20px 24px;",
+            h4("Weighting effect preview"),
+            p(class = "bs-card-sub",
+              "How each weighting choice shifts the fitted curve. ",
+              "Synthetic standards — your actual fit may differ."),
+            plotOutput("weighting_preview", height = "280px"),
+            div(
+              class = "bs-weighting-legend",
+              style = paste0("margin-top: 12px; padding-top: 12px; ",
+                             "border-top: 1px solid var(--c-line); ",
+                             "font-size: 12px; color: var(--c-ink-2); ",
+                             "line-height: 1.5;"),
+              tags$p(tags$strong("Unweighted"),
+                     " — equal residual weight across all points; ",
+                     "biases the fit toward high-response points where ",
+                     "absolute variance is largest."),
+              tags$p(tags$strong("1/Y"),
+                     " — down-weights high-response points moderately."),
+              tags$p(tags$strong("1/Y\u00B2"),
+                     " — strongly down-weights high-response points; ",
+                     "recommended when residual variance scales with signal ",
+                     "(typical for immunoassays)."),
+              tags$p(tags$strong("Auto"),
+                     " — picks the weighting whose residuals best meet ",
+                     "homoscedasticity diagnostics for your data.")
+            )
           )
         )
       ),
@@ -968,12 +1007,19 @@ $(function() {
                     class = "btn btn-default btn-lg")
       ),
 
+      # Readiness check sits above the report-output card so the user
+      # sees what is blocking before reaching the Generate button.
+      div(
+        id = "preflight_section",
+        class = "bs-card",
+        style = paste0("padding: 16px 18px; margin-bottom: 16px; ",
+                       "border-left: 4px solid var(--c-info);"),
+        uiOutput("preflight_heading_ui"),
+        div(`aria-live` = "polite", uiOutput("preflight_checks"))
+      ),
+
       fluidRow(
         column(8,
-          # GUI refresh \u00a75.3: convert_section becomes a bs-card. Format /
-          # language checkbox groups receive `format-tiles` /
-          # `lang-tiles` class hooks so the CSS in www/style.css can
-          # style them as tiles without re-architecting the inputs.
           div(
             id = "convert_section",
             class = "bs-card",
@@ -998,14 +1044,12 @@ $(function() {
             br(),
             uiOutput("report_variants_explainer_ui"),
             br(),
-            # btn-primary now maps to navy via the design tokens; drop
-            # the heavy inline overrides (font-weight 700, 12 px radius)
-            # and let the design system drive the look.
             actionButton("convert",
                         label = "Generate Report",
                         icon  = icon("file-arrow-down"),
                         class = "btn btn-primary btn-lg",
-                        style = "width: 100%;"),
+                        style = "width: 100%;",
+                        title = "Resolve readiness-check issues above to enable"),
             br(), br(),
             uiOutput("download_report_ui"),
             uiOutput("download_report_full_ui")
@@ -1023,20 +1067,6 @@ $(function() {
             uiOutput("give_feedback_ui")
           )
         )
-      ),
-      br(),
-
-      # GUI refresh §5.3: pre-flight panel as a quiet bs-card with an
-      # info-soft accent rail instead of the warning-yellow tinted
-      # wellPanel. Status of individual checks (pass / warn / fail) is
-      # already encoded by the renderer's chip-glyphs.
-      div(
-        id = "preflight_section",
-        class = "bs-card",
-        style = paste0("padding: 16px 18px; margin-bottom: 16px; ",
-                       "border-left: 4px solid var(--c-info);"),
-        uiOutput("preflight_heading_ui"),
-        div(`aria-live` = "polite", uiOutput("preflight_checks"))
       ),
       br(),
       div(
@@ -1110,6 +1140,7 @@ server <- function(input, output, session) {
   server_layout(input, output, session, shared)
   server_upload(input, output, session, shared)
   server_report(input, output, session, shared, config_reactives)
+  server_analysis(input, output, session)
   server_common(input, output, session, shared)
 }
 
