@@ -1,6 +1,6 @@
-/* sentinel v5 — remove after merge if alignment is confirmed fixed */
+/* sentinel v6 — remove after merge if alignment is confirmed fixed */
 body::before {
-  content: "css v5 loaded";
+  content: "css v6 loaded";
   position: fixed; top: 2px; right: 2px; z-index: 99999;
   font: 10px/1 monospace; color: #888; background: #fff;
   padding: 1px 4px; border: 1px solid #ddd; border-radius: 2px;
@@ -1079,65 +1079,35 @@ table.bs-report td.num { text-align: right; }
   display: block !important;
 }
 
-/* (4) Tab 2 preset row — CSS Grid replacement.
-   Bootstrap's fluidRow + col system + heterogeneous column contents
-   cannot be aligned with align-items/flex-end alone. Flatten the
-   columns out of the layout via display: contents, then put every
-   label in row 1 and every visible control in row 2 of a 4-column
-   grid. Geometry is deterministic regardless of content. */
-#preset_layout_section > .row,
+/* (4) Tab 2 preset row — per-column flex layout.
+   Previous passes used display:contents to flatten Bootstrap columns
+   into a shared grid, then attempted to re-assign items to the right
+   column via grid-row/grid-column. That was fragile: selectize.js can
+   render .selectize-control outside its input wrapper, and :nth-of-type
+   pinning proved unreliable across browser auto-placement engines.
+   Simpler approach: keep the .row as the grid (4 columns, align-items:end)
+   so each Bootstrap column IS one grid cell, then make each column a
+   flex column so its label + control(s) stack naturally inside it.
+   No flattening, no auto-placement, no nth-of-type. */
 #preset_layout_section .row {
   display: grid !important;
   grid-template-columns: 3fr 3fr 2fr 2fr;
-  /* row 2 is auto (not a fixed 32px) so the populated col-4 state
-     (selectInput stacked above Load button, ~70px total) can expand
-     the row without overflowing it; other controls use align-self:end
-     to bottom-align within the taller track. */
-  grid-template-rows: 16px auto;
-  row-gap: 6px;
   column-gap: 16px;
   align-items: end;
   margin: 0 !important;
 }
 #preset_layout_section [class^="col-"],
 #preset_layout_section [class*=" col-"] {
-  display: contents !important;
+  width: auto !important;
   float: none !important;
-}
-/* Pin each Bootstrap column's content to its own grid column.
-   Without this, display:contents lets the grid auto-place items
-   by DOM order, which breaks when col 4's saved-layouts state
-   renders two elements (selectInput + button) instead of one —
-   the auto-placement algorithm misassigns columns. */
-#preset_layout_section .col-sm-3:nth-of-type(1) > *,
-#preset_layout_section .col-sm-3:nth-of-type(1) .control-label,
-#preset_layout_section .col-sm-3:nth-of-type(1) .selectize-control,
-#preset_layout_section .col-sm-3:nth-of-type(1) .form-group { grid-column: 1; }
-
-#preset_layout_section .col-sm-3:nth-of-type(2) > *,
-#preset_layout_section .col-sm-3:nth-of-type(2) .control-label,
-#preset_layout_section .col-sm-3:nth-of-type(2) .input-group,
-#preset_layout_section .col-sm-3:nth-of-type(2) .form-group { grid-column: 2; }
-
-#preset_layout_section .col-sm-2:nth-of-type(3) > *,
-#preset_layout_section .col-sm-2:nth-of-type(3) #layout_save { grid-column: 3; }
-
-#preset_layout_section .col-sm-2:nth-of-type(4) > *,
-#preset_layout_section .col-sm-2:nth-of-type(4) #layout_load_ui,
-#preset_layout_section .col-sm-2:nth-of-type(4) .selectize-control,
-#preset_layout_section .col-sm-2:nth-of-type(4) #layout_load,
-#preset_layout_section .col-sm-2:nth-of-type(4) .help-block { grid-column: 4; }
-
-/* Flatten the uiOutput (.shiny-html-output) wrappers that Shiny injects
-   for layout_import_file_ui and layout_load_ui so their children become
-   direct grid items and respect grid-row. Without this, inner .form-group
-   and .help-block are plain block children of a block element and ignore
-   all grid-row assignments. */
-#preset_layout_section .shiny-html-output {
-  display: contents !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 54px;
 }
 #preset_layout_section .control-label {
-  grid-row: 1;
   margin: 0 !important;
   padding: 0 !important;
   font-size: 12px;
@@ -1145,22 +1115,16 @@ table.bs-report td.num { text-align: right; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  order: -1;
 }
-/* All visible controls live on row 2, no margins.
-   .shiny-html-output > .form-group is intentionally absent: with
-   display:contents on both the wrapper and the form-group, their
-   children (.control-label, .selectize-control, .input-group) are
-   direct grid items and carry their own grid-row rules. */
-#preset_layout_section .selectize-control,
-#preset_layout_section .input-group,
-#preset_layout_section #layout_save,
-#preset_layout_section #layout_load,
-#preset_layout_section .help-block {
-  grid-row: 2;
-  align-self: end;
+#preset_layout_section .form-group,
+#preset_layout_section .shiny-input-container,
+#preset_layout_section .shiny-html-output {
   margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-/* The actual visible element inside selectize. */
 #preset_layout_section .selectize-input {
   height: 32px !important;
   min-height: 32px !important;
@@ -1172,36 +1136,9 @@ table.bs-report td.num { text-align: right; }
   display: flex !important;
   align-items: center !important;
 }
-/* Flatten form-groups so label + control both become direct grid items.
-   !important overrides the v3.1 §2 rule
-   #preset_layout_section .form-group:has(> .input-group) { display:flex }
-   which has higher specificity (1,2,0) than plain .form-group (1,1,0)
-   and would prevent the fileInput children from entering the grid. */
-#preset_layout_section .form-group {
-  display: contents !important;
-  margin: 0 !important;
-}
-/* col 4 populated state — layout_load_ui renders a stacked selectInput +
-   Load button. The uiOutput wrapper must be a flex column (not transparent)
-   so the two controls stack inside it; grid-row:2 + align-self:end puts the
-   bottom of the stack at the row baseline. Specificity (3,0,0) beats the
-   general .shiny-html-output display:contents rule at (1,1,0), so even with
-   both carrying !important this rule wins. */
-#preset_layout_section #layout_load_ui:has(#layout_load_select) {
-  display: flex !important;
-  flex-direction: column;
-  gap: 4px;
-  grid-row: 2;
-  grid-column: 4;
-  align-self: end;
-  margin: 0 !important;
-}
-#preset_layout_section #layout_load_ui:has(#layout_load_select) .selectize-input {
-  height: 28px !important;
-  min-height: 28px !important;
-}
-/* Hide the file-input progress bar inside the grid (already hidden
-   globally by marker (3) but belt-and-suspenders here). */
+#preset_layout_section .input-group { height: 32px; }
+#preset_layout_section #layout_save { height: 32px; margin: 0; }
+#preset_layout_section #layout_load_ui { display: flex; flex-direction: column; gap: 4px; }
 #preset_layout_section .shiny-file-input-progress { display: none !important; }
 
 /* (5) Tab 3 upload row — kill .form-group bottom margin so the file
