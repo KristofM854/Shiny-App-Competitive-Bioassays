@@ -1136,9 +1136,13 @@ table.bs-report td.num { text-align: right; }
 /* Hide the default Shiny form-group label-on-top stack and let the
    grid handle label placement directly. The form-group itself becomes
    a row-2 cell containing only the control; the label is hoisted by
-   the grid into row 1 via the rule above. */
+   the grid into row 1 via the rule above.
+   The :has(> .input-group) rule earlier in this file (v3.1 §2, marker 2)
+   has higher specificity than the plain .form-group rule here and would
+   keep display:flex on the fileInput form-group, preventing its children
+   from becoming direct grid items. Override it with !important. */
 #preset_layout_section .form-group {
-  display: contents;
+  display: contents !important;
   margin: 0 !important;
 }
 /* col 4's saved-layouts state stacks selectInput + button. Override
