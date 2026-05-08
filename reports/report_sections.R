@@ -328,12 +328,12 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
 
   if (!is.null(ec20) && !is.null(ec80) && !is.na(ec20) && !is.na(ec80)) {
     conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
-    lloq_fmt <- if (isTRUE(is_elisa)) format(ec20, digits = 4, big.mark = ",")
+    low_fmt  <- if (isTRUE(is_elisa)) format(ec20, digits = 4, big.mark = ",")
                 else format(ec20, scientific = TRUE, digits = 3)
-    uloq_fmt <- if (isTRUE(is_elisa)) format(ec80, digits = 4, big.mark = ",")
+    high_fmt <- if (isTRUE(is_elisa)) format(ec80, digits = 4, big.mark = ",")
                 else format(ec80, scientific = TRUE, digits = 3)
-    cat(sprintf("**Quantifiable range:** LLOQ = %s %s | ULOQ = %s %s\n\n",
-                lloq_fmt, conc_unit, uloq_fmt, conc_unit))
+    cat(sprintf("**Calibration range** — low: %s %s / high: %s %s\n\n",
+                low_fmt, conc_unit, high_fmt, conc_unit))
   }
 
   n_sample_wells <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
@@ -548,6 +548,75 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
 # Inputs that may be NA (LLOQ / ULOQ when too few standards pass the
 # accuracy gate) render as an em-dash in the tile so the layout stays
 # stable across runs.
+
+# Combined report header: condensed metadata block (left) + KPI strip (right)
+# in a single flex row.  Replaces the stacked pre-fit executive summary box
+# and the post-fit green-gradient status box.
+render_report_header <- function(R2, RMSE, formal_lloq, formal_uloq,
+                                 assay_config, is_elisa, data_long, lang,
+                                 control_summary = NULL) {
+  if (!is_html_out()) {
+    render_kpi_strip(R2, RMSE, formal_lloq, formal_uloq, assay_config, is_elisa)
+    return(invisible(NULL))
+  }
+
+  n_sample_wells <- sum(data_long$SampleType == "Sample",   na.rm = TRUE)
+  n_std_wells    <- sum(data_long$SampleType == "Standard", na.rm = TRUE)
+  n_qc_wells     <- sum(data_long$SampleType == "QC",       na.rm = TRUE)
+
+  analyte    <- assay_config$analyte %||% assay_config$toxin_standard_label %||% "—"
+  assay_lbl  <- paste0(toupper(assay_config$assay_type %||% ""), " — ", analyte)
+  wells_lbl  <- sprintf("%d samples / %d standards%s",
+                        n_sample_wells, n_std_wells,
+                        if (n_qc_wells > 0) sprintf(" / %d QC", n_qc_wells) else "")
+
+  tile_style <- paste0(
+    "font-family:'IBM Plex Mono',monospace;font-size:13px;",
+    "line-height:1.5;margin-bottom:10px;")
+  lbl_style  <- paste0(
+    "font-size:10px;color:#5b6573;text-transform:uppercase;",
+    "letter-spacing:.06em;display:block;")
+
+  make_tile <- function(label, value) {
+    sprintf(paste0('<div style="%s">',
+                   '<span style="%s">%s</span>',
+                   '<strong>%s</strong></div>'),
+            tile_style, lbl_style, label, value)
+  }
+
+  ctrl_tile <- ""
+  if (isTRUE(is_elisa) && !is.null(control_summary)) {
+    valid     <- isTRUE(control_summary$hierarchy_valid)
+    ctrl_txt  <- if (valid) tr("control_hierarchy_valid",   lang)
+                 else       tr("control_hierarchy_invalid", lang)
+    ctrl_icon <- if (valid) "✅" else "⚠️"
+    ctrl_tile <- make_tile(tr("elisa_controls_title", lang),
+                           paste(ctrl_icon, ctrl_txt))
+  }
+
+  meta_html <- paste0(
+    make_tile(tr("analyst",       lang), Sys.info()[["user"]]),
+    make_tile(tr("analysis_date", lang), format(Sys.Date(), "%Y-%m-%d")),
+    make_tile(tr("assay_type",    lang), assay_lbl),
+    make_tile("Wells",                   wells_lbl),
+    ctrl_tile
+  )
+
+  cat(paste0(
+    '<div style="display:flex;gap:24px;align-items:flex-start;',
+    'margin:16px 0 28px 0;flex-wrap:wrap;">\n',
+    '<div style="flex:0 0 auto;min-width:190px;padding:10px 14px;',
+    'background:#fff;border:1px solid #e3e6ea;border-radius:6px;">\n',
+    meta_html,
+    '</div>\n',
+    '<div style="flex:1;min-width:350px;">\n'
+  ))
+  render_kpi_strip(R2, RMSE, formal_lloq, formal_uloq, assay_config, is_elisa)
+  cat('</div>\n</div>\n\n')
+
+  invisible(NULL)
+}
+
 render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
                              assay_config, is_elisa) {
   fmt_or_dash <- function(x, fn = identity) {

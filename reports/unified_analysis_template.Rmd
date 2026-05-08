@@ -413,15 +413,6 @@ if (isTRUE(is_elisa)) {
 }
 ```
 
-```{r executive-summary, results='asis'}
-# M1.6: render_pre_fit_executive_summary() in reports/report_sections.R
-# emits the pre-fit summary box (assay type, analyte, standards count,
-# sample-well count). Post-fit overall status is rendered later by
-# render_overall_status_box().
-render_pre_fit_executive_summary(assay_config = assay_config,
-                                 data_long    = data_long,
-                                 cv_limit     = cv_limit)
-```
 
 # `r tr(if (isTRUE(is_elisa)) "report_elisa" else "report_rba", lang)` `r tr("analysis_report", lang)`
 
@@ -613,38 +604,20 @@ formal_lloq <- if (!is.null(.lloq_res)) .lloq_res$formal_lloq else NA_real_
 formal_uloq <- if (!is.null(.lloq_res)) .lloq_res$formal_uloq else NA_real_
 ```
 
-```{r kpi-strip, results='asis'}
-# GUI refresh §6.2: 5-tile KPI strip above the executive summary box.
-render_kpi_strip(R2          = R2,
-                 RMSE        = RMSE,
-                 formal_lloq = formal_lloq,
-                 formal_uloq = formal_uloq,
-                 assay_config = assay_config,
-                 is_elisa    = is_elisa)
-```
-
-```{r exec-summary-box, results='asis'}
-# M1.6: post-fit overall-status box (R^2 / RMSE / model / quantifiable
-# range / controls). render_overall_status_box() in
-# reports/report_sections.R returns invisibly without rendering when the
-# fit failed entirely.
-render_overall_status_box(
-  drc_failed_completely = drc_failed_completely,
-  R2                    = R2,
-  RMSE                  = RMSE,
-  assay_config          = assay_config,
-  all_models            = all_models,
-  primary_key           = primary_key,
-  weight_desc           = weight_desc,
-  high_var_standards    = high_var_standards,
-  standards_for_model   = standards_for_model,
-  standards_data        = standards_data,
-  ec20                  = if (exists("ec20")) ec20 else NULL,
-  ec80                  = if (exists("ec80")) ec80 else NULL,
-  is_elisa              = is_elisa,
-  data_long             = data_long,
-  lang                  = lang,
-  control_summary       = if (exists("control_summary")) control_summary else NULL
+```{r report-header, results='asis'}
+# Condensed metadata block (left) + KPI strip (right) in a single flex row.
+# Replaces the former stacked pre-fit executive summary box and post-fit
+# green-gradient overall-status box.
+render_report_header(
+  R2              = R2,
+  RMSE            = RMSE,
+  formal_lloq     = formal_lloq,
+  formal_uloq     = formal_uloq,
+  assay_config    = assay_config,
+  is_elisa        = is_elisa,
+  data_long       = data_long,
+  lang            = lang,
+  control_summary = if (exists("control_summary")) control_summary else NULL
 )
 ```
 
@@ -1044,7 +1017,7 @@ tryCatch({
 })
 ```
 
-`r section_open(tr("drc_analysis", lang))`
+`r section_open(tr("drc_analysis", lang), default_open = TRUE)`
 
 ```{r dose-response-plots, fig.width=12, fig.height=8, fig.cap="Dose-response curve showing fitted 4-parameter logistic model with observed standard concentrations"}
 # Create unified dose-response curve plot
@@ -1110,7 +1083,7 @@ render_plot(drc_plot, tooltip = "text", plotly_layout = list(showlegend = TRUE))
 
 ## `r tr("model_parameters", lang)`
 
-`r section_open(tr("four_pl_coefficients", lang))`
+`r section_open(tr("four_pl_coefficients", lang), default_open = TRUE)`
 
 ```{r model-stats}
 # Extract and display model coefficients with correct parameter order
@@ -1544,7 +1517,7 @@ if (exists("model_stats") && exists("write_json_safe")) {
 
 ## `r tr("detailed_summary", lang)`
 
-`r section_open("Click to expand detailed results table")`
+`r section_open(tr("detailed_summary", lang), default_open = TRUE)`
 
 ```{r summary-results-table}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
@@ -1770,7 +1743,7 @@ if (exists("sample_box") && !is.null(sample_box)) {
 
 ## `r tr("heatmap_title", lang)`
 
-`r section_open("Click to expand plate heatmap")`
+`r section_open(tr("heatmap_title", lang), default_open = TRUE)`
 
 ```{r plate-heatmap, fig.width=10, fig.height=6, results='asis', warning=FALSE, message=FALSE}
 tryCatch({
@@ -1833,7 +1806,7 @@ section_end()
 
 ## `r tr("drc_with_samples", lang)`
 
-`r section_open("Click to expand dose-response curve with sample estimates")`
+`r section_open(tr("drc_with_samples", lang), default_open = TRUE)`
 
 ```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
