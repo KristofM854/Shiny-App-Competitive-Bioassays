@@ -1086,6 +1086,12 @@ table.bs-report td.num { text-align: right; }
   column-gap: 24px;
   row-gap: 8px;
   align-items: start;
+  /* v12 §1: neutral background replacing the old green inline style */
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  padding: var(--s-4);
+  margin: 10px 0;
 }
 #preset_layout_section .preset-label {
   grid-row: 1;
@@ -1713,4 +1719,57 @@ table.bs-report td.num { text-align: right; }
   min-width: 140px;
   max-width: 280px;
   width: auto !important;
+}
+
+/* ============================================
+   v12 §1 — Language globe popover (PR 3 — 3.5)
+   ============================================ */
+.bs-lang-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.bs-lang-btn {
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: var(--r-1);
+}
+.bs-lang-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.bs-lang-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  box-shadow: 0 4px 12px rgba(15, 23, 34, 0.12);
+  z-index: 200;
+  padding: 4px 0;
+  flex-direction: column;
+}
+.bs-lang-popover.is-open {
+  display: flex;
+}
+.bs-lang-opt {
+  display: block;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-family: var(--ff-sans);
+  color: var(--c-ink-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.bs-lang-opt:hover {
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+  text-decoration: none;
+}
+.bs-lang-opt.is-active {
+  font-weight: 600;
+  color: var(--c-accent);
 }
