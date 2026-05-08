@@ -63,14 +63,16 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL)
 
 #' Emit a collapsible section start (cat-based, for use inside R chunks)
 #'
-#' HTML  -> <details><summary>title</summary>
+#' HTML  -> <details><summary>title</summary>  (or <details open> when default_open=TRUE)
 #' DOCX / PDF -> ### title (plain markdown heading)
 #'
 #' @param title Section title text
 #' @param heading_level Markdown heading level for non-HTML (default "###")
-section_start <- function(title, heading_level = "###") {
+#' @param default_open If TRUE, render <details open> so the section starts expanded
+section_start <- function(title, heading_level = "###", default_open = FALSE) {
   if (is_html_out()) {
-    cat(sprintf('\n<details>\n<summary>%s</summary>\n\n', title))
+    open_attr <- if (isTRUE(default_open)) " open" else ""
+    cat(sprintf('\n<details%s>\n<summary>%s</summary>\n\n', open_attr, title))
   } else {
     cat(sprintf('\n%s %s\n\n', heading_level, title))
   }
@@ -90,10 +92,12 @@ section_end <- function() {
 #'
 #' @param title Section title text
 #' @param heading_level Markdown heading level for non-HTML (default "###")
+#' @param default_open If TRUE, render <details open> so the section starts expanded
 #' @return A character string (HTML or markdown)
-section_open <- function(title, heading_level = "###") {
+section_open <- function(title, heading_level = "###", default_open = FALSE) {
   if (is_html_out()) {
-    sprintf('<details>\n<summary>%s</summary>', title)
+    open_attr <- if (isTRUE(default_open)) " open" else ""
+    sprintf('<details%s>\n<summary>%s</summary>', open_attr, title)
   } else {
     sprintf('%s %s', heading_level, title)
   }
@@ -163,15 +167,17 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 #' @return Formatted table (HTML or Word/PDF)
 render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits) {
 
-  tbl <- if (is.null(col_names)) {
-    knitr::kable(data, caption = caption, digits = digits, row.names = FALSE)
-  } else {
-    knitr::kable(data, caption = caption, col.names = col_names, digits = digits, row.names = FALSE)
-  }
-
   ncols <- ncol(data)
 
   if (knitr::is_html_output()) {
+    tbl <- if (is.null(col_names)) {
+      knitr::kable(data, format = "html", caption = caption, digits = digits,
+                   row.names = FALSE, escape = TRUE)
+    } else {
+      knitr::kable(data, format = "html", caption = caption, col.names = col_names,
+                   digits = digits, row.names = FALSE, escape = TRUE)
+    }
+
     # For wide tables use full page width; narrower tables stay centered.
     # Every cell gets white-space:nowrap + a per-column min-width so content
     # can never be squeezed below a readable size.
@@ -190,15 +196,31 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
       )
 
   } else if (is_docx_out()) {
-    # Word output: kableExtra functions (kable_styling, column_spec) do not
-    # work reliably with pandoc pipe tables.  Return the plain kable output
-    # which pandoc converts into a native Word table.
-    tbl
+    # Word output: sanitize | in character columns (pipe tables would otherwise
+    # misparse | as a column separator, breaking the rendered table).
+    sanitize <- function(x) gsub("|", "│", x, fixed = TRUE)
+    data <- dplyr::mutate(data, dplyr::across(where(is.character), sanitize))
+    if (!is.null(col_names)) col_names <- sanitize(col_names)
+
+    # Return plain kable (no kableExtra): pandoc converts to a native Word table.
+    if (is.null(col_names)) {
+      knitr::kable(data, caption = caption, digits = digits, row.names = FALSE)
+    } else {
+      knitr::kable(data, caption = caption, col.names = col_names,
+                   digits = digits, row.names = FALSE)
+    }
 
   } else {
     # PDF (LaTeX) output:
     # kableExtra::kable_styling(full_width = TRUE) stretches the table and
     # column_spec() with width = "Xcm" sets guaranteed minimum widths.
+    tbl <- if (is.null(col_names)) {
+      knitr::kable(data, caption = caption, digits = digits, row.names = FALSE)
+    } else {
+      knitr::kable(data, caption = caption, col.names = col_names,
+                   digits = digits, row.names = FALSE)
+    }
+
     styled <- tbl %>%
       kableExtra::kable_styling(full_width = TRUE)
 
