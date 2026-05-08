@@ -57,3 +57,59 @@ td:last-child {
   border-bottom: 2px solid #1976D2;
   font-weight: 600;
 }
+
+/* Author metadata header (item 12) */
+.bs-report-meta {
+  margin: 10px 0 22px 0;
+  font-size: 12px;
+  border-top: 1px solid #e3e6ea;
+  padding-top: 10px;
+}
+.bs-report-meta .meta-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.bs-report-meta .label {
+  min-width: 80px;
+  font-weight: 600;
+  color: #8a93a0;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.bs-report-meta .value {
+  color: #2a3340;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+}
+
+/* Abbreviations block (item 11) */
+.bs-abbreviations {
+  margin: 20px 0 12px 0;
+  font-size: 13px;
+}
+.bs-abbreviations > summary {
+  font-weight: 500;
+  color: #2a3340;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.bs-abbreviations dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 18px;
+  margin: 0;
+}
+.bs-abbreviations dt {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  color: #2a3340;
+}
+.bs-abbreviations dd {
+  margin: 0;
+  color: #5b6573;
+}

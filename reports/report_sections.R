@@ -531,6 +531,119 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
 
 
 # =============================================================================
+# Sub-pass A: expanded Methods section (item 10) and Abbreviations block (item 11)
+# =============================================================================
+
+# Render a structured Methods section covering curve model, weighting, LLOQ/ULOQ
+# derivation criteria, CI method, outlier rule, and software versions.
+# Replaces the former single-sentence chunk in the Rmd.
+render_methods_section <- function(analysis_config, assay_config, is_elisa, lang) {
+  tryCatch({
+    drc_ver <- tryCatch(as.character(packageVersion("drc")), error = function(e) "?")
+    qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
+
+    # -- Curve model -----------------------------------------------------------
+    cat(sprintf(
+      "**Curve model:** Four-parameter log-logistic (LL.4) as implemented in the [drc](https://CRAN.R-project.org/package=drc) package (v%s; Ritz et al. 2015). If LL.4 fails to converge a three-parameter model (LL.3, fixed lower asymptote = 0) is attempted; if neither converges, linear interpolation is used as a fallback.\n\n",
+      drc_ver))
+
+    # -- Weighting -------------------------------------------------------------
+    selected_weights <- analysis_config$regression_weight %||% "none"
+    if (length(selected_weights) == 0) selected_weights <- "none"
+    primary_weight <- selected_weights[[1]]
+    weight_full <- switch(primary_weight,
+      none   = "Unweighted (ordinary least squares)",
+      inv_y  = "1/Y (moderate heteroscedasticity correction)",
+      inv_y2 = "1/Y² (strongly recommended for immunoassays where variance scales with signal)",
+      auto   = "Auto-selected by Brown-Forsythe test of residual heteroscedasticity",
+      primary_weight)
+    cat(sprintf("**Weighting:** %s.\n\n", weight_full))
+
+    # -- LLOQ / ULOQ -----------------------------------------------------------
+    cat(sprintf(
+      "**LLOQ / ULOQ derivation:** Standard concentrations are back-calculated from the fitted curve. A level passes if mean recovery is %d–%d%% and CV < %d%%. The lowest and highest passing concentrations define the LLOQ and ULOQ. Samples with estimated concentrations outside this range are flagged as `<LLOQ` or `>ULOQ`.\n\n",
+      qc_profile$recovery_range[1],
+      qc_profile$recovery_range[2],
+      qc_profile$cv_limit))
+
+    # -- CI method -------------------------------------------------------------
+    ci_method <- analysis_config$ci_method %||% "t_dist"
+    if (ci_method == "bootstrap") {
+      boot_n <- STATS_CONFIG$bootstrap_iterations %||% 2000
+      cat(sprintf(
+        "**Confidence intervals:** Per-well inverse predictions use the delta method (propagated from the 4PL covariance matrix). Replicate-group 95%% CIs are estimated by percentile bootstrap (%d resamples). Lower bounds truncated to 0 when negative.\n\n",
+        boot_n))
+    } else {
+      cat("**Confidence intervals:** Per-well inverse predictions use the delta method (propagated from the 4PL covariance matrix). Replicate-group 95% CIs use Student's t-distribution (df = n − 1). When the lower bound is negative it is truncated to zero.\n\n")
+    }
+
+    # -- Outlier detection -----------------------------------------------------
+    if (isTRUE(analysis_config$enable_outlier_detection)) {
+      min_n <- analysis_config$outlier_min_n %||% 3
+      if (isTRUE(analysis_config$normality_assumption == "test_shapiro")) {
+        ol_desc <- sprintf(
+          "Applied to groups with n ≥ %d. A Shapiro-Wilk pre-test (α = 0.05) selects the method: groups passing normality use Grubbs' test; others use MAD (median absolute deviation). Flagged observations are excluded from group statistics but retained in the raw CSV.",
+          min_n)
+      } else {
+        ol_desc <- sprintf(
+          "Applied to groups with n ≥ %d using Grubbs' test (α = 0.05). Flagged observations are excluded from group statistics but retained in the raw CSV.",
+          min_n)
+      }
+      cat(sprintf("**Outlier detection:** %s\n\n", ol_desc))
+    } else {
+      cat("**Outlier detection:** Not applied; all replicates included in group statistics.\n\n")
+    }
+
+    # -- Software --------------------------------------------------------------
+    app_ver <- if (exists("REPORT_INFO")) REPORT_INFO$version %||% "?" else "?"
+    cat(sprintf("**Software:** Bioassay Analysis App v%s · %s · drc v%s\n\n",
+                app_ver, R.version.string, drc_ver))
+
+  }, error = function(e) {
+    cat(sprintf("*Methods section could not be generated: %s*\n\n", e$message))
+  })
+  invisible(NULL)
+}
+
+
+# Render a collapsed Abbreviations block near the report footer (item 11).
+# HTML: <details class="bs-abbreviations"> with a <dl> grid.
+# Non-HTML: a compact inline list.
+render_abbreviations_block <- function() {
+  if (is_html_out()) {
+    abbrevs <- list(
+      c("RBA",    "Radioligand Binding Assay"),
+      c("ELISA",  "Enzyme-Linked Immunosorbent Assay"),
+      c("LL.4",   "Four-parameter log-logistic dose-response function"),
+      c("IC50",   "Half-maximal inhibitory concentration"),
+      c("EC20",   "Concentration producing 20% of maximal response"),
+      c("EC80",   "Concentration producing 80% of maximal response"),
+      c("%B/B0",  "Percent bound relative to maximum specific binding (B0)"),
+      c("B0",     "Maximum specific binding (zero-standard well)"),
+      c("NSB",    "Non-specific binding"),
+      c("LLOQ",   "Lower Limit of Quantification"),
+      c("ULOQ",   "Upper Limit of Quantification"),
+      c("CV",     "Coefficient of Variation (SD / mean × 100%)"),
+      c("SD",     "Standard Deviation"),
+      c("SE",     "Standard Error of the Mean"),
+      c("CI",     "Confidence Interval")
+    )
+    dl_items <- paste(
+      sapply(abbrevs, function(a) sprintf("<dt>%s</dt><dd>%s</dd>", a[1], a[2])),
+      collapse = "\n")
+    cat(paste0(
+      '<details class="bs-abbreviations">\n',
+      '<summary>Abbreviations</summary>\n\n',
+      '<dl>\n', dl_items, '\n</dl>\n',
+      '</details>\n\n'))
+  } else {
+    cat("**Abbreviations:** RBA = Radioligand Binding Assay; ELISA = Enzyme-Linked Immunosorbent Assay; LL.4 = four-parameter log-logistic; IC50 = half-maximal inhibitory concentration; EC20/EC80 = 20%/80% response concentrations; %B/B0 = percent bound relative to B0; LLOQ/ULOQ = Lower/Upper Limit of Quantification; CV = Coefficient of Variation; SD/SE = Standard Deviation/Error; CI = Confidence Interval.\n\n")
+  }
+  invisible(NULL)
+}
+
+
+# =============================================================================
 # GUI refresh §6.2: KPI strip
 # =============================================================================
 
