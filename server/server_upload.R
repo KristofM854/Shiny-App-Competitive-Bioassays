@@ -708,9 +708,10 @@ server_upload <- function(input, output, session, shared) {
   # Upload preview
   output$upload_summary <- renderUI({
     plate <- shared$matrix_measresults()
-    info <- base::attr(plate, "import_info")  # Use base R attr() to avoid xfun warning
 
-    if (is.null(info)) {
+    # Detect actual data — visual selector plates carry no import_info attribute
+    has_data <- !is.null(plate) && any(!is.na(as.numeric(unlist(plate))))
+    if (!has_data) {
       return(HTML(paste0(
         '<div class="bs-empty-state">',
         '<span class="icon">&#128203;</span>',
@@ -719,17 +720,18 @@ server_upload <- function(input, output, session, shared) {
       )))
     }
 
-    # Check actual data - count non-NA wells
+    info <- base::attr(plate, "import_info")
     actual_wells <- sum(!is.na(plate))
-    is_partial <- actual_wells < 96  # True partial plate check
+    is_partial <- actual_wells < 96
 
     lang <- input$app_language %||% "en"
     partial_text <- if (is_partial) tr("yes_label", lang) else tr("no_label", lang)
+    format_text <- if (!is.null(info)) info$format else "Visual selector"
     tags$table(
       class = "bs-report",
       tags$tbody(
         tags$tr(tags$td(tr("format_label", lang)),
-                tags$td(class = "num", info$format)),
+                tags$td(class = "num", format_text)),
         tags$tr(tags$td(tr("wells_label", lang)),
                 tags$td(class = "num",
                         sprintf("%d / 96", actual_wells))),
@@ -741,8 +743,10 @@ server_upload <- function(input, output, session, shared) {
 
   output$meas_preview <- renderUI({
     meas_mat <- shared$matrix_measresults()
-    info <- base::attr(meas_mat, "import_info")
-    if (is.null(info)) {
+
+    # Detect actual data — visual selector plates carry no import_info attribute
+    has_data <- !is.null(meas_mat) && any(!is.na(as.numeric(unlist(meas_mat))))
+    if (!has_data) {
       return(HTML(paste0(
         '<div class="bs-empty-state">',
         '<span class="icon">&#9638;</span>',

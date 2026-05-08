@@ -437,10 +437,14 @@ server_common <- function(input, output, session, shared) {
                    style = "width: 100%; margin-top: 8px;")
   })
 
+  # Addition C: hide both download buttons until a report is generated
+  shinyjs::hide("download_report_ui")
+  shinyjs::hide("download_report_full_ui")
+
   output$give_feedback_ui <- renderUI({
     lang <- input$app_language %||% "en"
     tags$a(href = "https://forms.office.com/e/q8eqJfp4QM",
-           target = "_blank", class = "btn btn-info btn-block",
+           target = "_blank", class = "btn btn-primary btn-block",
            icon("comment"), " ", tr("give_feedback", lang))
   })
 

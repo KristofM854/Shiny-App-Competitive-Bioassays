@@ -464,6 +464,10 @@ server_report <- function(input, output, session, shared, config_reactives) {
       )
 
       incProgress(1, detail = "Done!")
+
+      # Addition C: reveal download buttons — only reached on successful completion
+      shinyjs::show("download_report_ui")
+      shinyjs::show("download_report_full_ui")
     })
   })
 
