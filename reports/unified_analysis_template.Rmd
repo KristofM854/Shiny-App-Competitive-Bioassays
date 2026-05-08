@@ -1,6 +1,5 @@
 ---
 title: "Bioassay Analysis Report"
-author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
 output:
   html_document:
     df_print: paged
@@ -416,14 +415,50 @@ if (isTRUE(is_elisa)) {
 
 # `r tr(if (isTRUE(is_elisa)) "report_elisa" else "report_rba", lang)` `r tr("analysis_report", lang)`
 
-**`r tr("assay_type", lang)`** `r toupper(assay_config$assay_type)`
-**`r tr("analysis_date", lang)`** `r Sys.Date()`
-**`r tr("analyst", lang)`** `r Sys.info()[["user"]]`
+```{r report-meta, results='asis'}
+# Item 12: replace the former <h4 class="author"> + inline bold lines with a
+# muted two-column metadata header.  HTML gets the styled .bs-report-meta
+# block; DOCX/PDF falls back to compact bold lines.
+.drc_ver_meta <- tryCatch(as.character(packageVersion("drc")), error = function(e) "?")
+.assay_lbl    <- paste0(toupper(assay_config$assay_type %||% ""),
+                        " — ",
+                        assay_config$analyte %||%
+                          assay_config$toxin_standard_label %||% "")
+.app_ver_meta <- REPORT_INFO$version %||% "?"
 
-```{r software-version-info, results='asis'}
-cat(sprintf("**Software:** Bioassay Analysis App v%s  \n", REPORT_INFO$version))
-cat(sprintf("**R version:** %s  \n", R.version.string))
-cat(sprintf("**drc package:** v%s  \n\n", as.character(packageVersion("drc"))))
+if (is_html_out()) {
+  cat(paste0(
+    '<header class="bs-report-meta">\n',
+    '<div class="meta-row">',
+      '<span class="label">Authors</span>',
+      '<span class="value">Kristof Moeller (IAEA, Monaco)',
+        ' · Arnold Molina Porras (Universidad de Costa Rica)</span>',
+    '</div>\n',
+    '<div class="meta-row">',
+      '<span class="label">Generated</span>',
+      sprintf('<span class="value">%s · %s</span>',
+              format(Sys.Date(), "%Y-%m-%d"), Sys.info()[["user"]]),
+    '</div>\n',
+    '<div class="meta-row">',
+      '<span class="label">Assay</span>',
+      sprintf('<span class="value">%s</span>', .assay_lbl),
+    '</div>\n',
+    '<div class="meta-row">',
+      '<span class="label">Software</span>',
+      sprintf('<span class="value">Bioassay Analysis App v%s · %s · drc v%s</span>',
+              .app_ver_meta, R.version.string, .drc_ver_meta),
+    '</div>\n',
+    '</header>\n\n'
+  ))
+} else {
+  cat(paste0(
+    "**Authors:** Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)  \n",
+    sprintf("**Generated:** %s · %s  \n", format(Sys.Date(), "%Y-%m-%d"), Sys.info()[["user"]]),
+    sprintf("**Assay:** %s  \n", .assay_lbl),
+    sprintf("**Software:** Bioassay Analysis App v%s · %s · drc v%s  \n\n",
+            .app_ver_meta, R.version.string, .drc_ver_meta)
+  ))
+}
 ```
 
 ```{r dynamic-description, results='asis'}
@@ -487,25 +522,15 @@ render_table(
 ## `r tr("methods_title", lang)`
 
 ```{r methods-section, results='asis'}
-cat(tr("methods_drc_citation", lang))
-
-# Describe the regression weighting used by the primary model
-selected_weights <- analysis_config$regression_weight
-if (is.null(selected_weights) || length(selected_weights) == 0) selected_weights <- "none"
-weight_options_labels <- list(none = tr("weight_unweighted", lang), inv_y = paste0(tr("weight_unweighted", lang), " 1/Y"), inv_y2 = paste0(tr("weight_unweighted", lang), " 1/Y\u00B2"))
-primary_weight_key <- selected_weights[[1]]
-weight_label <- weight_options_labels[[primary_weight_key]] %||% primary_weight_key
-cat(sprintf("4-parameter log-logistic model (LL.4) fitted with %s %s. ", weight_label, tr("regression_label", lang)))
-
-if (isTRUE(analysis_config$enable_outlier_detection)) {
-  cat(tr("methods_outlier_citation", lang))
-}
-
-use_shapiro_methods <- isTRUE(analysis_config$normality_assumption == "test_shapiro")
-if (use_shapiro_methods) {
-  cat(tr("outlier_method_mad", lang), " ")
-}
-cat("\n\n")
+# Item 10: expanded Methods section covering model, weighting, LLOQ/ULOQ
+# criteria, CI method, outlier rule, and software. Replaces the former single
+# sentence. render_methods_section() lives in reports/report_sections.R.
+render_methods_section(
+  analysis_config = analysis_config,
+  assay_config    = assay_config,
+  is_elisa        = is_elisa,
+  lang            = lang
+)
 ```
 
 ## `r tr("drc_analysis", lang)`
@@ -1521,8 +1546,26 @@ if (exists("model_stats") && exists("write_json_safe")) {
 
 ```{r summary-results-table}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
-  
-  # Format the summary table for display
+
+  # Item 9: compute row-highlight indices BEFORE formatting (need raw numerics)
+  .amber_rows <- which(
+    (if ("range_flag" %in% names(replicate_summary))
+       !is.na(replicate_summary$range_flag) &
+       replicate_summary$range_flag %in% c(">ULOQ", "<LLOQ")
+     else rep(FALSE, nrow(replicate_summary))) |
+    (if ("quant_status" %in% names(replicate_summary))
+       !is.na(replicate_summary$quant_status) &
+       replicate_summary$quant_status %in% c("Extrapolated (above)", "Extrapolated (below)")
+     else rep(FALSE, nrow(replicate_summary)))
+  )
+  .red_rows <- if ("cv_percent" %in% names(replicate_summary)) {
+    which(!is.na(replicate_summary$cv_percent) &
+          as.numeric(replicate_summary$cv_percent) > 30)
+  } else {
+    integer(0)
+  }
+
+  # Item 18: format columns; collapse SD + SE into a single "SD \u00b1 SE" column
   summary_display <- replicate_summary %>%
     dplyr::mutate(
       mean_concentration = if (isTRUE(is_elisa)) {
@@ -1530,87 +1573,123 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       } else {
         format(as.numeric(mean_concentration), scientific = TRUE, digits = 3)
       },
-      std_dev = if (isTRUE(is_elisa)) {
-        ifelse(is.na(std_dev), "\u2014", format(as.numeric(std_dev), digits = 3, nsmall = 1))
+      sd_se = if (isTRUE(is_elisa)) {
+        paste0(
+          ifelse(is.na(std_dev),   "\u2014",
+                 format(as.numeric(std_dev),   digits = 3, nsmall = 1)),
+          " \u00b1 ",
+          ifelse(is.na(std_error), "\u2014",
+                 format(as.numeric(std_error), digits = 3, nsmall = 1)))
       } else {
-        ifelse(is.na(std_dev), "\u2014", format(as.numeric(std_dev), scientific = TRUE, digits = 2))
-      },
-      std_error = if (isTRUE(is_elisa)) {
-        ifelse(is.na(std_error), "\u2014", format(as.numeric(std_error), digits = 3, nsmall = 1))
-      } else {
-        ifelse(is.na(std_error), "\u2014", format(as.numeric(std_error), scientific = TRUE, digits = 2))
+        paste0(
+          ifelse(is.na(std_dev),   "\u2014",
+                 format(as.numeric(std_dev),   scientific = TRUE, digits = 2)),
+          " \u00b1 ",
+          ifelse(is.na(std_error), "\u2014",
+                 format(as.numeric(std_error), scientific = TRUE, digits = 2)))
       },
       ci_95 = if (isTRUE(is_elisa)) {
-        paste0("[", format(as.numeric(ci_lower_95), digits = 3, nsmall = 1), " \u2013 ", 
-               format(as.numeric(ci_upper_95), digits = 3, nsmall = 1), "]")
+        paste0("[", format(as.numeric(ci_lower_95), digits = 3, nsmall = 1), " \u2013 ",
+               format(as.numeric(ci_upper_95),      digits = 3, nsmall = 1), "]")
       } else {
-        paste0("[", format(as.numeric(ci_lower_95), scientific = TRUE, digits = 2), " \u2013 ", 
-               format(as.numeric(ci_upper_95), scientific = TRUE, digits = 2), "]")
+        paste0("[", format(as.numeric(ci_lower_95), scientific = TRUE, digits = 2), " \u2013 ",
+               format(as.numeric(ci_upper_95),      scientific = TRUE, digits = 2), "]")
       },
-      cv_percent = ifelse(is.na(cv_percent), "\u2014", format(as.numeric(cv_percent), digits = 3, nsmall = 1)),
+      cv_percent = ifelse(is.na(cv_percent), "\u2014",
+                          format(as.numeric(cv_percent), digits = 3, nsmall = 1)),
       range_flag_display = if ("range_flag" %in% names(.)) {
         ifelse(is.na(range_flag) | range_flag == "", "\u2705", range_flag)
       } else {
         "\u2705"
       },
       mean_bb0 = if ("mean_response" %in% names(.)) {
-        ifelse(is.na(mean_response), "\u2014", paste0(round(as.numeric(mean_response), 2), "%"))
+        ifelse(is.na(mean_response), "\u2014",
+               paste0(round(as.numeric(mean_response), 2), "%"))
       } else {
         NULL
       }
     ) %>%
-    dplyr::select(-ci_lower_95, -ci_upper_95,
+    # Drop CI raw bounds, separate SD/SE (replaced by sd_se), and internal cols
+    dplyr::select(-ci_lower_95, -ci_upper_95, -std_dev, -std_error,
                   -any_of(c("within_range", "range_flag", "mean_response",
-                            "ci_lower_model", "ci_upper_model",
-                            "ci_lower_replicate", "ci_upper_replicate",
-                            "ci_lower_raw", "ci_upper_raw", "ci_truncated"))) %>%
-    dplyr::relocate(ci_95, .before = cv_percent) %>%
-    dplyr::relocate(range_flag_display, .after = cv_percent) %>%
-    { if ("mean_bb0" %in% names(.)) dplyr::relocate(., mean_bb0, .before = range_flag_display) else . } %>%
+                            "ci_lower_model",      "ci_upper_model",
+                            "ci_lower_replicate",  "ci_upper_replicate",
+                            "ci_lower_raw",        "ci_upper_raw",
+                            "ci_truncated"))) %>%
+    dplyr::relocate(sd_se,              .after  = mean_concentration) %>%
+    dplyr::relocate(ci_95,              .before = cv_percent) %>%
+    dplyr::relocate(range_flag_display, .after  = cv_percent) %>%
+    { if ("mean_bb0"    %in% names(.)) dplyr::relocate(., mean_bb0,    .before = range_flag_display) else . } %>%
     { if ("quant_status" %in% names(.)) dplyr::relocate(., quant_status, .after = range_flag_display) else . }
 
-  # Set column names
-  conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
-
-  # Build column name vector dynamically based on available columns
-  base_names <- c("Replicate Group", "Sample IDs", "Sample Type", "n",
-                  paste0("Mean (", conc_unit, ")"),
-                  paste0("SD (", conc_unit, ")"),
-                  paste0("SE (", conc_unit, ")"),
-                  "Conservative Combined 95% CI", "CV [%]")
-
-  # Add %B/B0 and range flag columns
-  if ("mean_bb0" %in% names(summary_display)) {
-    base_names <- c(base_names, "%B/B0")
+  # Item 18 (HTML only): merge Sample IDs + n as a small grey line inside the
+  # Group cell; drop those columns so they don't appear as separate columns.
+  if (is_html_out()) {
+    .has_n <- "n_replicates" %in% names(summary_display)
+    summary_display <- summary_display %>%
+      dplyr::mutate(
+        Replicate = if (.has_n) {
+          paste0(Replicate,
+                 '<br><small style="color:#8a93a0;font-size:10px;font-weight:400;">',
+                 if ("sampleID" %in% names(.)) sampleID else "",
+                 ' \u00b7 n=', n_replicates, '</small>')
+        } else {
+          paste0(Replicate,
+                 '<br><small style="color:#8a93a0;font-size:10px;font-weight:400;">',
+                 if ("sampleID" %in% names(.)) sampleID else "",
+                 '</small>')
+        }
+      ) %>%
+      dplyr::select(-any_of(c("sampleID", "n_replicates")))
+  } else {
+    # DOCX/PDF: drop n; keep sampleID as its own column (no HTML tags)
+    summary_display <- summary_display %>%
+      dplyr::select(-any_of("n_replicates"))
   }
+
+  # Build column names dynamically based on output format and available columns
+  conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
+
+  if (is_html_out()) {
+    base_names <- c("Group", "Sample Type",
+                    paste0("Mean (", conc_unit, ")"),
+                    paste0("SD \u00b1 SE (", conc_unit, ")"),
+                    "95% CI", "CV [%]")
+  } else {
+    base_names <- c("Group", "Sample IDs", "Sample Type",
+                    paste0("Mean (", conc_unit, ")"),
+                    paste0("SD \u00b1 SE (", conc_unit, ")"),
+                    "95% CI", "CV [%]")
+  }
+
+  if ("mean_bb0"     %in% names(summary_display)) base_names <- c(base_names, "%B/B0")
   base_names <- c(base_names, "Range")
+  if ("quant_status" %in% names(summary_display)) base_names <- c(base_names, "Status")
 
-  # Status column (Interpolated / Extrapolated) if present. Explicitly named so
-  # it does not appear as an unnamed orphan column beside Range.
-  if ("quant_status" %in% names(summary_display)) {
-    base_names <- c(base_names, "Status")
-  }
-
-  # Add tissue concentration columns if present
+  # Tissue concentration columns if present
   if ("TissueWeight_mg" %in% names(summary_display)) {
     summary_display <- summary_display %>%
       dplyr::mutate(
-        TissueWeight_mg = ifelse(is.na(TissueWeight_mg), "\u2014",
-                                  format(TissueWeight_mg, digits = 4, nsmall = 1)),
-        concentration_pg_per_g = ifelse(is.na(concentration_pg_per_g), "\u2014",
-                                         format(concentration_pg_per_g, digits = 4, nsmall = 1, big.mark = ","))
+        TissueWeight_mg = ifelse(
+          is.na(TissueWeight_mg), "\u2014",
+          format(TissueWeight_mg, digits = 4, nsmall = 1)),
+        concentration_pg_per_g = ifelse(
+          is.na(concentration_pg_per_g), "\u2014",
+          format(concentration_pg_per_g, digits = 4, nsmall = 1, big.mark = ","))
       )
     base_names <- c(base_names, "Tissue Mass [mg]", "Conc. (pg/g)")
   }
 
-  # Remove extra columns that aren't in our name mapping
   summary_display <- summary_display %>%
-    dplyr::select(-any_of(c("total_amount_pg")))
+    dplyr::select(-any_of("total_amount_pg"))
 
   names(summary_display) <- base_names[1:ncol(summary_display)]
-  
+
+  # Item 9: row_highlight wires amber/red-left treatments via render_table()
   render_table(summary_display,
-              caption = tr("detailed_caption", lang))
+               caption      = tr("detailed_caption", lang),
+               row_highlight = list(amber_rows    = .amber_rows,
+                                    red_left_rows = .red_rows))
 }
 ```
 
@@ -2098,6 +2177,11 @@ render_exclusion_audit_section(
 ```
 
 `r section_close()`
+
+```{r abbreviations, results='asis'}
+# Item 11: collapsed Abbreviations block above the report footer.
+render_abbreviations_block()
+```
 
 ---
 
