@@ -331,19 +331,36 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
         result$statistic <- bf_result$statistic
         result$p_value <- bf_result$p_value
 
+        stat <- bf_result$statistic
+        # Cap degenerate F (zero within-group variance → F → Inf / astronomically large)
+        if (is.null(stat) || !is.finite(stat) || stat > 1e6) {
+          vr_str <- if (!is.null(result$variance_ratio) &&
+                         !is.na(result$variance_ratio) &&
+                         is.finite(result$variance_ratio))
+            sprintf("%.1f", result$variance_ratio) else "N/A"
+          result$statistic <- if (isTRUE(is.finite(stat) && stat > 1e6)) 1e6 else NA_real_
+          result$interpretation <- sprintf(
+            "F > 1×10⁶ — at least one replicate group has zero within-group variance, so the test is degenerate. Reported variance ratio (max/min, %s) is the more reliable indicator of heteroscedasticity.",
+            vr_str)
+          result$recommendation <- "Weighted regression (1/Y or 1/Y²) is recommended to account for unequal variance."
+          return(result)
+        }
+
+        fmt_p <- function(p) {
+          if (is.null(p) || is.na(p)) return("N/A")
+          if (p < 1e-4) formatC(p, format = "e", digits = 2) else sprintf("%.4f", p)
+        }
+        f_str <- if (stat >= 1e5) formatC(stat, format = "e", digits = 2) else sprintf("%.2f", stat)
+
         if (!is.na(bf_result$p_value) && bf_result$p_value < 0.05) {
-          f_str <- if (abs(bf_result$statistic) >= 1e5) formatC(bf_result$statistic, format = "e", digits = 2) else sprintf("%.2f", bf_result$statistic)
-          p_str <- if (bf_result$p_value < 1e-4) formatC(bf_result$p_value, format = "e", digits = 2) else sprintf("%.4f", bf_result$p_value)
           result$interpretation <- sprintf(
             "Significant heteroscedasticity detected (F = %s, p = %s). Residual variance differs across concentration levels.",
-            f_str, p_str)
-          result$recommendation <- "Weighted regression (1/Y or 1/Y^2) is recommended to account for unequal variance."
+            f_str, fmt_p(bf_result$p_value))
+          result$recommendation <- "Weighted regression (1/Y or 1/Y²) is recommended to account for unequal variance."
         } else {
-          f_str <- if (abs(bf_result$statistic) >= 1e5) formatC(bf_result$statistic, format = "e", digits = 2) else sprintf("%.2f", bf_result$statistic)
-          p_str <- if (bf_result$p_value < 1e-4) formatC(bf_result$p_value, format = "e", digits = 2) else sprintf("%.4f", bf_result$p_value)
           result$interpretation <- sprintf(
             "No significant heteroscedasticity detected (F = %s, p = %s). Residual variance is approximately constant.",
-            f_str, p_str)
+            f_str, fmt_p(bf_result$p_value))
           result$recommendation <- "Unweighted regression is appropriate for these data."
         }
         return(result)
