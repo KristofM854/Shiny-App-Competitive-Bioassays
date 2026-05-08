@@ -165,7 +165,8 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 #' @param col_names Custom column names (optional)
 #' @param digits Number of decimal places
 #' @return Formatted table (HTML or Word/PDF)
-render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits) {
+render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits,
+                         row_highlight = NULL) {
 
   ncols <- ncol(data)
 
@@ -184,7 +185,7 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
     use_full_width <- ncols > 8
     col_min_px <- if (ncols > 10) "65px" else "75px"
 
-    tbl %>%
+    result <- tbl %>%
       kableExtra::kable_styling(
         bootstrap_options = c("striped", "hover", "responsive"),
         full_width = use_full_width,
@@ -194,6 +195,31 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
         1:ncols,
         extra_css = paste0("white-space: nowrap; min-width: ", col_min_px, ";")
       )
+
+    # Row highlighting: amber background for extrapolated/out-of-range rows,
+    # red left-border for high-CV rows. Overlapping rows get both treatments.
+    if (!is.null(row_highlight)) {
+      amber_rows   <- row_highlight$amber_rows   %||% integer(0)
+      red_left_rows <- row_highlight$red_left_rows %||% integer(0)
+
+      both_rows  <- intersect(amber_rows, red_left_rows)
+      only_amber <- setdiff(amber_rows, red_left_rows)
+      only_red   <- setdiff(red_left_rows, amber_rows)
+
+      if (length(both_rows) > 0)
+        result <- result %>%
+          kableExtra::row_spec(both_rows, background = "#FFF8E1",
+                               extra_css = "border-left: 3px solid #E57373;")
+      if (length(only_amber) > 0)
+        result <- result %>%
+          kableExtra::row_spec(only_amber, background = "#FFF8E1")
+      if (length(only_red) > 0)
+        result <- result %>%
+          kableExtra::row_spec(only_red,
+                               extra_css = "border-left: 3px solid #E57373;")
+    }
+
+    result
 
   } else if (is_docx_out()) {
     # Word output: sanitize | in character columns (pipe tables would otherwise
