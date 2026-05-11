@@ -94,7 +94,11 @@ if (!knitr::is_html_output()) {
   )
 }
 
-# Load required libraries
+# Load required libraries.
+# kableExtra guard: install if missing so the Rmd is self-healing in
+# environments where global.R's install step was skipped or failed.
+if (!requireNamespace("kableExtra", quietly = TRUE))
+  install.packages("kableExtra", repos = "https://cloud.r-project.org", quiet = TRUE)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
