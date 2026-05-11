@@ -35,6 +35,14 @@ required_pkgs <- c(
   "stringr", "tibble", "tidyr"
 )
 
+# Repositories: Posit Package Manager is listed first because it provides
+# pre-built Windows/Linux binaries for new R versions (e.g. 4.6.x) faster
+# than CRAN mirrors.  cloud.r-project.org is kept as a fallback.
+.pkg_repos <- c(
+  RSPM = "https://packagemanager.posit.co/cran/latest",
+  CRAN = "https://cloud.r-project.org"
+)
+
 # Remove stale lock directories that block reinstallation after interrupted installs.
 for (.lp in .libPaths()) {
   .locks <- list.dirs(.lp, recursive = FALSE, full.names = TRUE)
@@ -62,14 +70,36 @@ if (length(missing_pkgs) > 0L) {
   install_call  <- list(
     pkgs         = missing_pkgs,
     dependencies = TRUE,
-    repos        = "https://cloud.r-project.org"
+    repos        = .pkg_repos
   )
   if (length(writable_libs) > 0L) install_call$lib <- writable_libs[1L]
   do.call(install.packages, install_call)
   rm(writable_libs, install_call)
 
-  # Verify every package actually installed; fail loudly if any are still missing
-  # so the problem surfaces at startup rather than silently later during render.
+  # GitHub fallback: some packages have no CRAN/RSPM binary for a brand-new R
+  # version immediately after release.  Try the GitHub source for known cases.
+  .gh_sources <- c(kableExtra = "haozhu233/kableExtra")
+  still_missing <- missing_pkgs[
+    !vapply(missing_pkgs, requireNamespace, logical(1L), quietly = TRUE)
+  ]
+  .needs_gh <- still_missing[still_missing %in% names(.gh_sources)]
+  if (length(.needs_gh) > 0L) {
+    message("Binary install incomplete for: ", paste(.needs_gh, collapse = ", "),
+            " — trying GitHub source...")
+    if (!requireNamespace("remotes", quietly = TRUE))
+      install.packages("remotes", repos = .pkg_repos)
+    for (.p in .needs_gh) {
+      tryCatch(
+        remotes::install_github(.gh_sources[[.p]]),
+        error = function(e) message("GitHub install failed for ", .p, ": ", e$message)
+      )
+    }
+    rm(.p)
+  }
+  rm(.gh_sources, .needs_gh)
+
+  # Final verification — abort loudly if still missing after all attempts so
+  # the problem surfaces at startup rather than silently later during render.
   still_missing <- missing_pkgs[
     !vapply(missing_pkgs, requireNamespace, logical(1L), quietly = TRUE)
   ]
@@ -83,6 +113,7 @@ if (length(missing_pkgs) > 0L) {
     )
   }
 }
+rm(.pkg_repos)
 
 # Suppress startup messages
 suppressPackageStartupMessages({
