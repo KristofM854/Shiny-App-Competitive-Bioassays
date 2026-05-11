@@ -43,14 +43,24 @@ is_docx_out <- function() {
 #'         For DOCX/PDF: invisible NULL (static plot is a side-effect of print()).
 render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL) {
   if (is_html_out()) {
+    # Strip the ggplot title before conversion: plotly renders it inside the
+    # figure frame which clashes with the surrounding Rmd section heading.
+    gg <- gg + ggplot2::labs(title = NULL)
+
     p <- if (!is.null(tooltip)) {
       plotly::ggplotly(gg, tooltip = tooltip, height = height)
     } else {
       plotly::ggplotly(gg, height = height)
     }
-    if (!is.null(plotly_layout)) {
-      p <- do.call(plotly::layout, c(list(p), plotly_layout))
-    }
+
+    # Apply default plotly layout: tighter top margin, consistent legend
+    default_layout <- list(
+      margin = list(t = 30, r = 20, b = 50, l = 60),
+      legend = list(orientation = "h", x = 0, y = 1.08)
+    )
+    combined_layout <- utils::modifyList(default_layout, plotly_layout %||% list())
+    p <- do.call(plotly::layout, c(list(p), combined_layout))
+
     # Return the tagList — knitr's knit_print dispatches on the visible
     # return value, which correctly handles widget HTML + JS dependencies
     # in both results='asis' and default chunk modes.
@@ -208,11 +218,12 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
 
       if (length(both_rows) > 0)
         result <- result %>%
-          kableExtra::row_spec(both_rows, background = "#FFF8E1",
-                               extra_css = "border-left: 3px solid #E57373;")
+          kableExtra::row_spec(both_rows,
+                               extra_css = "background: var(--c-warn-soft); border-left: 3px solid #E57373;")
       if (length(only_amber) > 0)
         result <- result %>%
-          kableExtra::row_spec(only_amber, background = "#FFF8E1")
+          kableExtra::row_spec(only_amber,
+                               extra_css = "background: var(--c-warn-soft);")
       if (length(only_red) > 0)
         result <- result %>%
           kableExtra::row_spec(only_red,
