@@ -275,7 +275,7 @@ render_reports <- function(params, session) {
     if (requireNamespace(.pkg, quietly = TRUE))
       suppressPackageStartupMessages(library(.pkg, character.only = TRUE, warn.conflicts = FALSE))
   }
-  rm(.rmd_pkgs, .missing, .pkg)  For DOCX we use an explicit
+  rm(.rmd_pkgs, .missing, .pkg)  
   # rmarkdown::word_document() call so we can guarantee fig_caption, PNG
   # device, and high-DPI figures even if the YAML header is overridden.
   ref_docx_path <- file.path(
