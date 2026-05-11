@@ -257,6 +257,27 @@ save_analysis_artifacts <- function(df_normalized, config, session) {
 #' @return Named list of successfully rendered output paths
 render_reports <- function(params, session) {
 
+  # Ensure packages used inside the Rmd templates are installed and loaded.
+  # Defence-in-depth alongside global.R: if the global install guard was
+  # skipped or failed silently (e.g. no CRAN access on first run), the
+  # library() calls inside the knit session would still fail.  local() scopes
+  # the loop variables so they never leak into render_reports()'s environment.
+  local({
+    rmd_pkgs <- c("kableExtra", "car", "glue", "htmltools", "htmlwidgets")
+    missing  <- rmd_pkgs[!vapply(rmd_pkgs, requireNamespace, logical(1L), quietly = TRUE)]
+    if (length(missing) > 0L) {
+      showNotification(
+        paste("Installing report packages:", paste(missing, collapse = ", ")),
+        type = "message", duration = 8
+      )
+      install.packages(missing, dependencies = TRUE, repos = "https://cloud.r-project.org")
+    }
+    for (pkg in rmd_pkgs) {
+      if (requireNamespace(pkg, quietly = TRUE))
+        suppressPackageStartupMessages(library(pkg, character.only = TRUE, warn.conflicts = FALSE))
+    }
+  })
+
   # Build format specifications.  For DOCX we use an explicit
   # rmarkdown::word_document() call so we can guarantee fig_caption, PNG
   # device, and high-DPI figures even if the YAML header is overridden.
