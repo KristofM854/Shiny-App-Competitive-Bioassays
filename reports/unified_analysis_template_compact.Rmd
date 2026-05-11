@@ -1,6 +1,5 @@
 ---
 title: "Bioassay Analysis Report (Compact)"
-author: ""
 output:
   html_document:
     df_print: paged
