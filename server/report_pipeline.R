@@ -257,25 +257,7 @@ save_analysis_artifacts <- function(df_normalized, config, session) {
 #' @return Named list of successfully rendered output paths
 render_reports <- function(params, session) {
 
-  # Ensure packages used inside the Rmd templates are installed and attached
-  # before rmarkdown::render() is called. This guard runs in the same R process
-  # as Shiny, so packages loaded here are already on the search path when the
-  # Rmd's library() calls execute — making those calls no-ops rather than
-  # potential failures on environments where global.R didn't install them.
-  .rmd_pkgs <- c("kableExtra", "car", "glue", "htmltools", "htmlwidgets")
-  .missing   <- .rmd_pkgs[!vapply(.rmd_pkgs, requireNamespace, logical(1L), quietly = TRUE)]
-  if (length(.missing) > 0L) {
-    showNotification(
-      paste("Installing report packages:", paste(.missing, collapse = ", ")),
-      type = "message", duration = 8
-    )
-    install.packages(.missing, dependencies = TRUE, repos = "https://cloud.r-project.org")
-  }
-  for (.pkg in .rmd_pkgs) {
-    if (requireNamespace(.pkg, quietly = TRUE))
-      suppressPackageStartupMessages(library(.pkg, character.only = TRUE, warn.conflicts = FALSE))
-  }
-  rm(.rmd_pkgs, .missing, .pkg)  For DOCX we use an explicit
+  # Build format specifications.  For DOCX we use an explicit
   # rmarkdown::word_document() call so we can guarantee fig_caption, PNG
   # device, and high-DPI figures even if the YAML header is overridden.
   ref_docx_path <- file.path(
