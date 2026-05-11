@@ -28,10 +28,17 @@ required_pkgs <- c(
   "shiny", "shinyjs", "shinyFeedback", "rintrojs", "rhandsontable", "shinycssloaders",
   "dplyr", "tidyr", "tibble", "stringr", "purrr", "readr",
   "ggplot2", "ggrepel", "ggthemes", "ggtext", "plotly", "scales", "patchwork",
-  "drc", "readxl", "jsonlite", "knitr", "rmarkdown", "digest"
+  "drc", "readxl", "jsonlite", "knitr", "rmarkdown", "digest", "kableExtra"
 )
 
-# Suppress startup messages
+# Install any missing packages
+missing_pkgs <- required_pkgs[!required_pkgs %in% rownames(installed.packages())]
+if (length(missing_pkgs) > 0) {
+  message("Installing missing packages: ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs, dependencies = TRUE)
+}
+
+# Load all packages
 suppressPackageStartupMessages({
   invisible(lapply(required_pkgs, library, character.only = TRUE, warn.conflicts = FALSE))
 })
