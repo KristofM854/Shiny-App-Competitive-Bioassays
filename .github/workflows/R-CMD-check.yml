@@ -26,17 +26,36 @@ jobs:
             any::shinytest2
             any::chromote
           extra-packages: |
-            any::shiny
-            any::drc
-            any::readxl
-            any::rmarkdown
-            any::knitr
+            any::car
+            any::digest
             any::dplyr
+            any::drc
             any::ggplot2
-            any::plotly
+            any::ggrepel
+            any::ggtext
+            any::ggthemes
+            any::glue
+            any::htmltools
+            any::htmlwidgets
             any::jsonlite
-            any::rhandsontable
             any::kableExtra
+            any::knitr
+            any::patchwork
+            any::plotly
+            any::purrr
+            any::readr
+            any::readxl
+            any::rhandsontable
+            any::rintrojs
+            any::rmarkdown
+            any::scales
+            any::shiny
+            any::shinyFeedback
+            any::shinycssloaders
+            any::shinyjs
+            any::stringr
+            any::tibble
+            any::tidyr
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
       - name: Run tests
