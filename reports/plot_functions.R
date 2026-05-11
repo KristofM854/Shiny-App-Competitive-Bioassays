@@ -53,8 +53,11 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL)
       plotly::ggplotly(gg, height = height)
     }
 
-    # Apply default plotly layout: tighter top margin, consistent legend
+    # Apply default plotly layout: tighter top margin, consistent legend,
+    # and explicit empty title to prevent ggplotly from preserving any
+    # residual title text from the ggplot object.
     default_layout <- list(
+      title  = list(text = ""),
       margin = list(t = 30, r = 20, b = 50, l = 60),
       legend = list(orientation = "h", x = 0, y = 1.08)
     )
@@ -169,6 +172,38 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 # TABLE FUNCTIONS
 # ==============================================================================
 
+# Post-process kable HTML to inject CSS classes onto <tr> elements in <tbody>.
+# Putting classes on <tr> (rather than inline styles on every <td>) means CSS
+# can target tr.is-extrapolated > td and tr.is-high-cv > td:first-child
+# independently — the red border only appears on the left edge of the row.
+.inject_row_classes <- function(kbl, amber_rows, red_rows) {
+  if (length(amber_rows) == 0 && length(red_rows) == 0) return(kbl)
+  html     <- as.character(kbl)
+  tbody_at <- regexpr("<tbody>", html, fixed = TRUE)
+  if (tbody_at[1L] < 0L) return(kbl)
+
+  pre  <- substr(html, 1L, tbody_at[1L] + 6L)          # up to and including <tbody>
+  body <- substr(html, tbody_at[1L] + 7L, nchar(html))  # everything after
+
+  parts  <- strsplit(body, "(?=<tr\\b)", perl = TRUE)[[1L]]
+  tr_idx <- 0L
+  parts  <- vapply(parts, function(p) {
+    if (!grepl("^<tr\\b", p, perl = TRUE)) return(p)
+    tr_idx <<- tr_idx + 1L
+    cls <- c(
+      if (tr_idx %in% amber_rows) "is-extrapolated" else character(0L),
+      if (tr_idx %in% red_rows)   "is-high-cv"      else character(0L)
+    )
+    if (length(cls) > 0L)
+      sub("<tr\\b", sprintf('<tr class="%s"', paste(cls, collapse = " ")), p, perl = TRUE)
+    else
+      p
+  }, character(1L), USE.NAMES = FALSE)
+
+  new_html <- paste0(pre, paste(parts, collapse = ""))
+  structure(new_html, class = class(kbl), format = attr(kbl, "format"))
+}
+
 #' Render table with consistent styling
 #' @param data Data frame to display
 #' @param caption Table caption
@@ -206,28 +241,15 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
         extra_css = paste0("white-space: nowrap; min-width: ", col_min_px, ";")
       )
 
-    # Row highlighting: amber background for extrapolated/out-of-range rows,
-    # red left-border for high-CV rows. Overlapping rows get both treatments.
+    # Row highlighting: inject CSS classes onto <tr> elements so that
+    # tr.is-extrapolated > td and tr.is-high-cv > td:first-child in
+    # report_style.css can apply background and border independently.
     if (!is.null(row_highlight)) {
-      amber_rows   <- row_highlight$amber_rows   %||% integer(0)
-      red_left_rows <- row_highlight$red_left_rows %||% integer(0)
-
-      both_rows  <- intersect(amber_rows, red_left_rows)
-      only_amber <- setdiff(amber_rows, red_left_rows)
-      only_red   <- setdiff(red_left_rows, amber_rows)
-
-      if (length(both_rows) > 0)
-        result <- result %>%
-          kableExtra::row_spec(both_rows,
-                               extra_css = "background: var(--c-warn-soft); border-left: 3px solid #E57373;")
-      if (length(only_amber) > 0)
-        result <- result %>%
-          kableExtra::row_spec(only_amber,
-                               extra_css = "background: var(--c-warn-soft);")
-      if (length(only_red) > 0)
-        result <- result %>%
-          kableExtra::row_spec(only_red,
-                               extra_css = "border-left: 3px solid #E57373;")
+      result <- .inject_row_classes(
+        result,
+        amber_rows = row_highlight$amber_rows    %||% integer(0),
+        red_rows   = row_highlight$red_left_rows %||% integer(0)
+      )
     }
 
     result
@@ -235,7 +257,13 @@ render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$
   } else if (is_docx_out()) {
     # Word output: sanitize | in character columns (pipe tables would otherwise
     # misparse | as a column separator, breaking the rendered table).
-    sanitize <- function(x) gsub("|", "│", x, fixed = TRUE)
+    # Also strip HTML tags so any HTML-formatted cells (e.g. status pills
+    # when escape=FALSE is used for HTML output) render as plain text in Word.
+    sanitize <- function(x) {
+      x <- gsub("|",        "│", x, fixed = TRUE)  # pipe  -> │
+      x <- gsub("<[^>]+>",  "",       x, perl  = TRUE)  # strip HTML tags
+      x
+    }
     data <- dplyr::mutate(data, dplyr::across(where(is.character), sanitize))
     if (!is.null(col_names)) col_names <- sanitize(col_names)
 
@@ -395,7 +423,6 @@ create_dose_response_plot <- function(standards_data, model_fits, assay_config, 
       labels = scales::scientific_format(digits = 2)
     ) +
     ylab(labels$y_label) +
-    ggtitle(tr("plot_drc_title", lang)) +
     theme
 }
 
@@ -437,11 +464,7 @@ create_standards_boxplot <- function(standards_data, assay_config, response_var 
       breaks = PLOT_CONFIG$x_breaks,
       labels = scales::scientific_format(digits = 2)
     ) +
-    labs(
-      x = labels$x_label,
-      y = labels$y_unit,
-      title = tr("plot_std_variability", lang)
-    ) +
+    labs(x = labels$x_label, y = labels$y_unit) +
     theme
 }
 
@@ -458,11 +481,7 @@ create_residuals_plot <- function(fitted_vals, residuals_vals, lang = "en") {
       "Residuals: ", round(residuals, digits = 2)
     )), color = "darkblue") +
     geom_hline(yintercept = 0, linetype = "dashed") +
-    labs(
-      x = tr("col_fitted_values", lang),
-      y = tr("col_residuals", lang),
-      title = tr("plot_fitted_residuals", lang)
-    ) +
+    labs(x = tr("col_fitted_values", lang), y = tr("col_residuals", lang)) +
     theme_classic() +
     theme(
       axis.title.x = ggtext::element_markdown(size = 12),
@@ -561,11 +580,7 @@ create_combined_drc_plot <- function(model_fits, unknown_results, assay_config, 
       breaks = PLOT_CONFIG$x_breaks,
       labels = scales::scientific_format(digits = 2)
     ) +
-    labs(
-      x = labels$x_label,
-      y = labels$y_label,
-      title = "Dose-Response Curve with Unknown Samples"
-    ) +
+    labs(x = labels$x_label, y = labels$y_label) +
     get_plot_theme(assay_config)
 }
 

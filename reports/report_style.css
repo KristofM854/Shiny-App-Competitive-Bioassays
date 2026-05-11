@@ -54,6 +54,12 @@ td:last-child {
   white-space: nowrap;
 }
 
+/* Row-level QC highlighting: apply background/border via <tr> classes
+   so the red border appears only on the left edge (first-child), not on
+   every cell. kableExtra injects these classes via post-processing. */
+tr.is-extrapolated > td              { background: var(--c-warn-soft); }
+tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
+
 /* Replicate-group sub-line: sample IDs + n shown below the group label */
 .bs-replicate-meta {
   display: block;
