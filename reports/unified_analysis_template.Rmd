@@ -1910,9 +1910,14 @@ if (!is.null(positional)) {
   }
   row_display <- positional$row_stats
   row_display$Mean <- round(row_display$Mean, 3)
-  row_display$SD <- round(row_display$SD, 3)
+  row_display$SD   <- round(row_display$SD,   3)
+  # Empty-flag cells: show a pass pill for HTML, blank for DOCX/PDF
+  if (is_html_out())
+    row_display$Flag <- ifelse(row_display$Flag == "",
+                               '<span class="bs-status-pill is-pass">OK</span>',
+                               row_display$Flag)
   names(row_display) <- c("Row", "Mean Response", "SD", "Flag")
-  render_table(row_display, caption = "Response by Row")
+  render_table(row_display, caption = "Response by Row", escape = !is_html_out())
 }
 section_end()
 ```
