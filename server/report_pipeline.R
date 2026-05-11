@@ -263,14 +263,25 @@ render_reports <- function(params, session) {
   # library() calls inside the knit session would still fail.  local() scopes
   # the loop variables so they never leak into render_reports()'s environment.
   local({
-    rmd_pkgs <- c("kableExtra", "car", "glue", "htmltools", "htmlwidgets")
-    missing  <- rmd_pkgs[!vapply(rmd_pkgs, requireNamespace, logical(1L), quietly = TRUE)]
+    rmd_pkgs  <- c("kableExtra", "car", "glue", "htmltools", "htmlwidgets")
+    missing   <- rmd_pkgs[!vapply(rmd_pkgs, requireNamespace, logical(1L), quietly = TRUE)]
+    # RSPM first: provides binaries for new R versions faster than CRAN mirrors.
+    rmd_repos <- c("https://packagemanager.posit.co/cran/latest",
+                   "https://cloud.r-project.org")
     if (length(missing) > 0L) {
       showNotification(
         paste("Installing report packages:", paste(missing, collapse = ", ")),
         type = "message", duration = 8
       )
-      install.packages(missing, dependencies = TRUE, repos = "https://cloud.r-project.org")
+      install.packages(missing, dependencies = TRUE, repos = rmd_repos)
+      # GitHub fallback for kableExtra when no CRAN/RSPM binary exists yet
+      # for the current R version (happens briefly after a new R release).
+      if (!requireNamespace("kableExtra", quietly = TRUE) && "kableExtra" %in% missing) {
+        if (!requireNamespace("remotes", quietly = TRUE))
+          install.packages("remotes", repos = rmd_repos)
+        tryCatch(remotes::install_github("haozhu233/kableExtra"),
+                 error = function(e) NULL)
+      }
     }
     for (pkg in rmd_pkgs) {
       if (requireNamespace(pkg, quietly = TRUE))
