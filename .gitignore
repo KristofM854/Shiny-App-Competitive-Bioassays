@@ -10,6 +10,9 @@
 # explicit device; not part of the test corpus).
 tests/testthat/Rplots.pdf
 
+# Generated report output (standalone mode runs)
+reports/runs/
+
 # OS files
 .DS_Store
 Thumbs.db
