@@ -25,10 +25,14 @@ if (getRversion() < "4.2.0") {
 
 # --- Package Loading ----------------------------------------------------------
 required_pkgs <- c(
-  "shiny", "shinyjs", "shinyFeedback", "rintrojs", "rhandsontable", "shinycssloaders",
-  "dplyr", "tidyr", "tibble", "stringr", "purrr", "readr",
-  "ggplot2", "ggrepel", "ggthemes", "ggtext", "plotly", "scales", "patchwork",
-  "drc", "readxl", "jsonlite", "knitr", "rmarkdown", "digest"
+  "car", "digest", "dplyr", "drc",
+  "ggplot2", "ggrepel", "ggtext", "ggthemes", "glue",
+  "htmltools", "htmlwidgets",
+  "jsonlite", "kableExtra", "knitr",
+  "patchwork", "plotly", "purrr",
+  "readr", "readxl", "rhandsontable", "rintrojs", "rmarkdown",
+  "scales", "shiny", "shinyFeedback", "shinycssloaders", "shinyjs",
+  "stringr", "tibble", "tidyr"
 )
 
 # Suppress startup messages
