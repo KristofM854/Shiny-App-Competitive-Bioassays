@@ -1637,25 +1637,32 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
   # Item 18 (HTML only): merge Sample IDs + n as a small grey line inside the
   # Group cell; drop those columns so they don't appear as separate columns.
+  # NOTE: analysis_pipeline.R renames Replicate\u2192replicate_group and
+  #       sampleID\u2192sample_ids; use those actual column names here.
   if (is_html_out()) {
-    .has_n <- "n_replicates" %in% names(summary_display)
+    .has_n   <- "n_replicates" %in% names(summary_display)
+    .has_sid <- "sample_ids"   %in% names(summary_display)
+    # Pre-extract outside mutate to avoid data-masking lookup issues.
+    .sids    <- if (.has_sid) summary_display[["sample_ids"]]
+                else          character(nrow(summary_display))
     summary_display <- summary_display %>%
       dplyr::mutate(
-        Replicate = if (.has_n) {
-          paste0(Replicate,
+        replicate_group = if (.has_n) {
+          paste0(replicate_group,
                  '<br><small style="color:#8a93a0;font-size:10px;font-weight:400;">',
-                 if ("sampleID" %in% names(.)) sampleID else "",
+                 .sids,
                  ' \u00b7 n=', n_replicates, '</small>')
         } else {
-          paste0(Replicate,
+          paste0(replicate_group,
                  '<br><small style="color:#8a93a0;font-size:10px;font-weight:400;">',
-                 if ("sampleID" %in% names(.)) sampleID else "",
+                 .sids,
                  '</small>')
         }
       ) %>%
-      dplyr::select(-any_of(c("sampleID", "n_replicates")))
+      dplyr::select(-any_of(c("sample_ids", "n_replicates")))
+    rm(.has_n, .has_sid, .sids)
   } else {
-    # DOCX/PDF: drop n; keep sampleID as its own column (no HTML tags)
+    # DOCX/PDF: drop n; keep sample_ids as its own column (no HTML tags)
     summary_display <- summary_display %>%
       dplyr::select(-any_of("n_replicates"))
   }
