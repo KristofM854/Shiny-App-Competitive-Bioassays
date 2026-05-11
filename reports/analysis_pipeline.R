@@ -51,7 +51,7 @@ assess_plate_positional <- function(data_long) {
   plate_mean <- mean(plate_data$MeasurementValue, na.rm = TRUE)
   plate_sd   <- sd(plate_data$MeasurementValue,   na.rm = TRUE)
 
-  flag_char <- "⚠"
+  flag_char <- '<span class="bs-status-pill is-warn">!</span>'
 
   row_stats <- plate_data %>%
     dplyr::group_by(.data$Row) %>%
