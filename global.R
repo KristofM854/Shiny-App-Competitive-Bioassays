@@ -35,14 +35,18 @@ required_pkgs <- c(
   "stringr", "tibble", "tidyr"
 )
 
-# Install any missing packages
-missing_pkgs <- required_pkgs[!required_pkgs %in% rownames(installed.packages())]
-if (length(missing_pkgs) > 0) {
+# Install any packages that are missing from the local library.
+# This covers shiny::runApp() and shiny::runGitHub() launches where no
+# external installer (run_local.R, renv, DESCRIPTION) has run first.
+missing_pkgs <- required_pkgs[
+  !vapply(required_pkgs, requireNamespace, logical(1L), quietly = TRUE)
+]
+if (length(missing_pkgs) > 0L) {
   message("Installing missing packages: ", paste(missing_pkgs, collapse = ", "))
-  install.packages(missing_pkgs, dependencies = TRUE)
+  install.packages(missing_pkgs, dependencies = TRUE, repos = "https://cloud.r-project.org")
 }
 
-# Load all packages
+# Suppress startup messages
 suppressPackageStartupMessages({
   invisible(lapply(required_pkgs, library, character.only = TRUE, warn.conflicts = FALSE))
 })
