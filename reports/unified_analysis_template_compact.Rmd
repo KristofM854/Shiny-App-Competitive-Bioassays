@@ -1,6 +1,6 @@
 ---
 title: "Bioassay Analysis Report (Compact)"
-author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+author: ""
 output:
   html_document:
     df_print: paged
