@@ -68,69 +68,16 @@ standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
                     Sys.getenv("RBA_STANDALONE") == "1")
 
 if (standalone_mode) {
-  # In standalone mode (runGitHub), let user pick their output folder.
-  # Try native folder picker; fall back to Documents folder.
-  app_root <- NULL
-
-  # Try RStudio dialog
-  if (is.null(app_root) && requireNamespace("rstudioapi", quietly = TRUE)) {
-    app_root <- tryCatch(
-      rstudioapi::selectDirectory(
-        caption = "Select output folder for reports",
-        label = "Select"
-      ),
-      error = function(e) NULL
-    )
-  }
-
-  # Try Windows folder picker (base R)
-  if (is.null(app_root) && .Platform$OS.type == "windows") {
-    app_root <- tryCatch(
-      utils::choose.dir(
-        default = path.expand("~/Documents"),
-        caption = "Select output folder for reports"
-      ),
-      error = function(e) NULL
-    )
-  }
-
-  # Fall back to ~/Documents/App Competitive Bioassays
-  if (is.null(app_root) || is.na(app_root)) {
-    app_root <- file.path(path.expand("~"), "Documents", "App Competitive Bioassays")
-    dir.create(app_root, showWarnings = FALSE, recursive = TRUE)
-    message("Using default output location: ", app_root)
-  }
-
-  base_name <- format(Sys.Date(), "%Y-%m-%d")
-  base_output_dir <- file.path(app_root, base_name)
-
-  # Always create a unique directory - never reuse an existing one.
-  # Check if the base dir or any suffixed variant already exists.
-  if (!dir.exists(base_output_dir)) {
-    output_dir <- base_output_dir
-  } else {
-    # Find next available suffix by scanning existing directories
-    suffix <- 1
-    repeat {
-      candidate <- paste0(base_output_dir, "_", sprintf("%02d", suffix))
-      if (!dir.exists(candidate)) {
-        output_dir <- candidate
-        break
-      }
-      suffix <- suffix + 1
-      if (suffix > 999) {
-        output_dir <- paste0(base_output_dir, "_", format(Sys.time(), "%H%M%S"))
-        break
-      }
-    }
-  }
-
+  # Each run gets its own timestamped subdirectory under reports/runs/ so
+  # output is co-located with the source code and never collides across runs.
+  output_dir <- file.path(getwd(), "reports", "runs",
+                          format(Sys.time(), "%Y%m%d_%H%M%S"))
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
   csv_path <- file.path(output_dir, "long_data_output.csv")
   Sys.setenv(RBA_OUTPUT_DIR = output_dir)
-  Sys.setenv(RBA_CSV_PATH = normalizePath(csv_path, winslash = "/", mustWork = FALSE))
-  Sys.setenv(RBA_FMT_JSON = normalizePath(file.path(output_dir, "selected_formats.json"), winslash = "/", mustWork = FALSE))
-  Sys.setenv(RBA_NOTES_FILE = normalizePath(file.path(output_dir, "notes.json"), winslash = "/", mustWork = FALSE))
+  Sys.setenv(RBA_CSV_PATH   = normalizePath(csv_path, winslash = "/", mustWork = FALSE))
+  Sys.setenv(RBA_FMT_JSON   = normalizePath(file.path(output_dir, "selected_formats.json"), winslash = "/", mustWork = FALSE))
+  Sys.setenv(RBA_NOTES_FILE = normalizePath(file.path(output_dir, "notes.json"),             winslash = "/", mustWork = FALSE))
   Sys.setenv(RBA_STANDALONE = "1")
   message("Standalone mode - output directory: ", output_dir)
 }
