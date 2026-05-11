@@ -54,6 +54,16 @@ td:last-child {
   white-space: nowrap;
 }
 
+/* Replicate-group sub-line: sample IDs + n shown below the group label */
+.bs-replicate-meta {
+  display: block;
+  color: #8a93a0;
+  font-size: 10px;
+  font-weight: 400;
+  font-family: 'IBM Plex Mono', monospace;
+  margin-top: 2px;
+}
+
 /* ============================================================
    ITEM 20 — TOC sidebar: 220px, sub-items 13px, navy active pill
    ============================================================ */

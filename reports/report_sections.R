@@ -779,8 +779,8 @@ render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
 
   tile("R² · curve fit", fmt_r2, "")
   tile("RMSE",                      fmt_rmse, "")
-  tile("LLOQ",                      fmt_lloq, conc_unit)
-  tile("ULOQ",                      fmt_uloq, conc_unit)
+  tile("Cal. low",                   fmt_lloq, conc_unit)
+  tile("Cal. high",                  fmt_uloq, conc_unit)
 
   # Status tile: .bs-status-pill instead of emoji dot
   tile_cls  <- if (nzchar(overall_role)) paste0("bs-kpi-tile is-", overall_role) else "bs-kpi-tile"
