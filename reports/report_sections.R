@@ -258,13 +258,16 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
   exec_warnings <- character(0)
   if (R2 >= 0.99) {
     overall_status <- "Pass"
-    status_icon <- "\U0001F7E2"
+    status_icon    <- "\U0001F7E2"
+    overall_role   <- "pass"
   } else if (R2 >= qc_profile$r2_threshold) {
     overall_status <- "Qualified Pass"
-    status_icon <- "\U0001F7E1"
+    status_icon    <- "\U0001F7E1"
+    overall_role   <- "warn"
   } else {
     overall_status <- "Review Required"
-    status_icon <- "\U0001F534"
+    status_icon    <- "\U0001F534"
+    overall_role   <- "fail"
     # overall_status kept as English key for comparisons below
     exec_warnings <- c(exec_warnings,
                        sprintf("R² below threshold (%.4f < %.2f)",
@@ -277,7 +280,8 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
     exec_warnings <- c(exec_warnings, "Standard errors could not be computed")
     if (overall_status == "Pass") {
       overall_status <- "Qualified Pass"
-      status_icon <- "\U0001F7E1"
+      status_icon    <- "\U0001F7E1"
+      overall_role   <- "warn"
     }
   }
   if (!is.null(primary_model_entry$lack_of_fit) &&
@@ -288,7 +292,8 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
                                primary_model_entry$lack_of_fit$p_value))
     if (overall_status == "Pass") {
       overall_status <- "Qualified Pass"
-      status_icon <- "\U0001F7E1"
+      status_icon    <- "\U0001F7E1"
+      overall_role   <- "warn"
     }
   }
   if (nrow(high_var_standards) > 0) {
@@ -298,9 +303,7 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
   }
 
   if (is_html_out()) {
-    cat('<div style="background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%); ',
-        'padding: 16px 20px; border-radius: 8px; border-left: 4px solid #4CAF50; ',
-        'margin: 15px 0 25px 0; font-size: 14px;">\n\n')
+    cat(sprintf('<div class="bs-status-banner is-%s">\n\n', overall_role))
   } else {
     cat("---\n\n")
   }
@@ -310,7 +313,12 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
     "Qualified Pass"   = tr("qc_qualified", lang),
     "Review Required"  = tr("qc_review", lang),
     overall_status)
-  cat(sprintf("**Overall status:** %s %s\n\n", status_icon, overall_status_display))
+  if (is_html_out()) {
+    cat(sprintf('**Overall status:** <span class="bs-status-pill is-%s">%s</span>\n\n',
+                overall_role, overall_status_display))
+  } else {
+    cat(sprintf("**Overall status:** %s %s\n\n", status_icon, overall_status_display))
+  }
   cat(sprintf("**Assay:** %s — %s | **Model:** %s\n\n",
               toupper(assay_config$assay_type %||% "Unknown"),
               assay_config$analyte %||%
@@ -508,12 +516,18 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
                                        amber = tr("qc_amber", lang),
                                        red = tr("qc_red", lang), "?")
 
+    qc_statuses <- sapply(qc_items, function(x) x$status)
     qc_df <- data.frame(
       Metric = sapply(qc_items, function(x) x$metric),
       Value  = sapply(qc_items, function(x) as.character(x$value)),
-      Status = sapply(qc_items,
-                      function(x) paste(status_icon(x$status),
-                                        status_label(x$status))),
+      Status = if (is_html_out()) {
+        sapply(qc_statuses, function(s) {
+          cls <- switch(s, green = "is-pass", amber = "is-warn", red = "is-fail", "")
+          sprintf('<span class="bs-status-pill %s">%s</span>', cls, status_label(s))
+        })
+      } else {
+        sapply(qc_statuses, function(s) paste(status_icon(s), status_label(s)))
+      },
       stringsAsFactors = FALSE
     )
     names(qc_df) <- c(tr("qc_metric", lang), tr("qc_value", lang),
@@ -521,7 +535,8 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
 
     emit_heading(tr("qc_card_title", lang), 4)
     cat(sprintf("*%s: %s*\n\n", tr("regression_label", lang), weight_desc))
-    render_table(qc_df, caption = tr("qc_card_title", lang))
+    render_table(qc_df, caption = tr("qc_card_title", lang),
+                 escape = !is_html_out())
   }, error = function(e) {
     cat("\n\n*QC summary could not be generated.*\n\n")
   })
@@ -683,28 +698,20 @@ render_report_header <- function(R2, RMSE, formal_lloq, formal_uloq,
                         n_sample_wells, n_std_wells,
                         if (n_qc_wells > 0) sprintf(" / %d QC", n_qc_wells) else "")
 
-  tile_style <- paste0(
-    "font-family:'IBM Plex Mono',monospace;font-size:13px;",
-    "line-height:1.5;margin-bottom:10px;")
-  lbl_style  <- paste0(
-    "font-size:10px;color:#5b6573;text-transform:uppercase;",
-    "letter-spacing:.06em;display:block;")
-
   make_tile <- function(label, value) {
-    sprintf(paste0('<div style="%s">',
-                   '<span style="%s">%s</span>',
-                   '<strong>%s</strong></div>'),
-            tile_style, lbl_style, label, value)
+    sprintf('<div class="bs-meta-tile"><span class="bs-meta-label">%s</span><strong>%s</strong></div>',
+            label, value)
   }
 
   ctrl_tile <- ""
   if (isTRUE(is_elisa) && !is.null(control_summary)) {
-    valid     <- isTRUE(control_summary$hierarchy_valid)
-    ctrl_txt  <- if (valid) tr("control_hierarchy_valid",   lang)
-                 else       tr("control_hierarchy_invalid", lang)
-    ctrl_icon <- if (valid) "✅" else "⚠️"
-    ctrl_tile <- make_tile(tr("elisa_controls_title", lang),
-                           paste(ctrl_icon, ctrl_txt))
+    valid         <- isTRUE(control_summary$hierarchy_valid)
+    ctrl_txt      <- if (valid) tr("control_hierarchy_valid",   lang)
+                     else       tr("control_hierarchy_invalid", lang)
+    ctrl_pill_cls <- if (valid) "is-pass" else "is-warn"
+    ctrl_tile     <- make_tile(tr("elisa_controls_title", lang),
+                               sprintf('<span class="bs-status-pill %s">%s</span>',
+                                       ctrl_pill_cls, ctrl_txt))
   }
 
   meta_html <- paste0(
@@ -716,13 +723,11 @@ render_report_header <- function(R2, RMSE, formal_lloq, formal_uloq,
   )
 
   cat(paste0(
-    '<div style="display:flex;gap:24px;align-items:flex-start;',
-    'margin:16px 0 28px 0;flex-wrap:wrap;">\n',
-    '<div style="flex:0 0 auto;min-width:190px;padding:10px 14px;',
-    'background:#fff;border:1px solid #e3e6ea;border-radius:6px;">\n',
+    '<div class="bs-header-flex">\n',
+    '<div class="bs-meta-container">\n',
     meta_html,
     '</div>\n',
-    '<div style="flex:1;min-width:350px;">\n'
+    '<div class="bs-kpi-container">\n'
   ))
   render_kpi_strip(R2, RMSE, formal_lloq, formal_uloq, assay_config, is_elisa)
   cat('</div>\n</div>\n\n')
@@ -749,7 +754,7 @@ render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
 
   qc_profile <- get_qc_profile(assay_config$assay_type %||% "rba")
   if (is.null(R2) || is.na(R2)) {
-    overall_word <- "Unknown"; overall_role <- "ink-3"
+    overall_word <- "Unknown"; overall_role <- ""
   } else if (R2 >= 0.99) {
     overall_word <- "Pass"; overall_role <- "pass"
   } else if (R2 >= qc_profile$r2_threshold) {
@@ -758,53 +763,31 @@ render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
     overall_word <- "Review"; overall_role <- "fail"
   }
 
-  # HTML strip: 5 tiles in a flex row. CSS (var(--c-pass) etc.) lives
-  # in www/style.css; for the report's stand-alone HTML the colors are
-  # also re-declared inline so the strip looks right when emailed or
-  # printed without the app stylesheet.
-  cat('<div class="bs-kpi-strip" style="display: flex; gap: 12px; margin: 14px 0 22px 0; flex-wrap: wrap;">\n')
+  # HTML strip: 5 tiles in a flex row. Colors come from CSS custom properties
+  # declared in report_style.css (--c-pass, --c-warn, --c-fail).
+  cat('<div class="bs-kpi-strip">\n')
 
   tile <- function(label, value, unit = "", color_role = NULL) {
-    border_left <- if (!is.null(color_role)) {
-      sprintf("border-left: 4px solid var(--c-%s, #5b6573);", color_role)
-    } else {
-      ""
-    }
-    cat(sprintf(paste0(
-      '<div class="bs-kpi-tile" style="flex: 1; min-width: 140px;',
-      ' background: #fff; border: 1px solid #e3e6ea; %s',
-      ' border-radius: 6px; padding: 10px 14px;">',
-      '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px;',
-      ' color: #5b6573; text-transform: uppercase; letter-spacing: 0.04em;">%s</div>',
-      '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 22px;',
-      ' font-weight: 500; color: #0f1722; margin-top: 2px;">%s</div>'),
-      border_left, label, value))
-    if (nzchar(unit)) {
-      cat(sprintf(paste0(
-        '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px;',
-        ' color: #8a93a0;">%s</div>'), unit))
-    }
+    tile_cls <- paste0("bs-kpi-tile",
+                       if (!is.null(color_role)) paste0(" is-", color_role) else "")
+    cat(sprintf('<div class="%s">', tile_cls))
+    cat(sprintf('<div class="bs-kpi-label">%s</div>', label))
+    cat(sprintf('<div class="bs-kpi-value">%s</div>', value))
+    if (nzchar(unit)) cat(sprintf('<div class="bs-kpi-unit">%s</div>', unit))
     cat('</div>\n')
   }
 
   tile("R² · curve fit", fmt_r2, "")
-  tile("RMSE",                     fmt_rmse, "")
-  tile("LLOQ",                     fmt_lloq, conc_unit)
-  tile("ULOQ",                     fmt_uloq, conc_unit)
+  tile("RMSE",                      fmt_rmse, "")
+  tile("LLOQ",                      fmt_lloq, conc_unit)
+  tile("ULOQ",                      fmt_uloq, conc_unit)
 
-  # Status tile: colored dot + word
-  dot_color <- switch(overall_role,
-                      pass = "#009e73", warn = "#e69f00",
-                      fail = "#d55e00", "#5b6573")
-  cat(sprintf(paste0(
-    '<div class="bs-kpi-tile" style="flex: 1; min-width: 140px;',
-    ' background: #fff; border: 1px solid #e3e6ea;',
-    ' border-left: 4px solid %s; border-radius: 6px; padding: 10px 14px;">',
-    '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px;',
-    ' color: #5b6573; text-transform: uppercase; letter-spacing: 0.04em;">Overall</div>',
-    '<div style="font-size: 18px; font-weight: 500; color: #0f1722; margin-top: 2px;">',
-    '<span style="color: %s;">●</span> %s</div></div>\n'),
-    dot_color, dot_color, overall_word))
+  # Status tile: .bs-status-pill instead of emoji dot
+  tile_cls  <- if (nzchar(overall_role)) paste0("bs-kpi-tile is-", overall_role) else "bs-kpi-tile"
+  pill_cls  <- if (nzchar(overall_role)) paste0("bs-status-pill is-", overall_role) else "bs-status-pill"
+  cat(sprintf(
+    '<div class="%s"><div class="bs-kpi-label">Overall</div><div style="margin-top:4px;"><span class="%s">%s</span></div></div>\n',
+    tile_cls, pill_cls, overall_word))
 
   cat('</div>\n')
 

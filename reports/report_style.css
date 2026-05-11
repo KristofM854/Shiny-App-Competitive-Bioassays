@@ -1,5 +1,19 @@
 /* Report-specific overrides */
 
+/* ============================================================
+   ITEM 19 — Four-token colour palette
+   ============================================================ */
+:root {
+  --c-pass:      #009E73;
+  --c-pass-soft: #E8F5E9;
+  --c-warn:      #E5A700;
+  --c-warn-soft: #FFF8E1;
+  --c-fail:      #C0392B;
+  --c-fail-soft: #FDECEA;
+  --c-info:      #1F3A5F;
+  --c-info-soft: #E8EEF6;
+}
+
 body {
   max-width: 1100px;
   margin: 0 auto;
@@ -9,36 +23,61 @@ body {
 
 /* Executive summary box */
 .exec-summary {
-  background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%);
+  background: var(--c-pass-soft);
   padding: 16px 20px;
   border-radius: 8px;
-  border-left: 4px solid #4CAF50;
+  border-left: 4px solid var(--c-pass);
   margin: 15px 0 25px 0;
 }
 
-/* Table styling */
+/* ITEM 13 — Tabular numerals for all table cells */
 table {
   font-size: 13px;
+}
+
+td, th {
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Numeric columns: monospace alignment (first column stays in body font) */
+td:not(:first-child) {
+  font-family: 'IBM Plex Mono', monospace;
+  font-feature-settings: 'tnum' 1;
 }
 
 .table-striped > tbody > tr:nth-child(odd) {
   background-color: #F8FAFB;
 }
 
-/* QC traffic light emojis: ensure they render at proper size */
+/* Status pills: ensure proper sizing in last column */
 td:last-child {
   white-space: nowrap;
 }
 
-/* TOC styling */
+/* ============================================================
+   ITEM 20 — TOC sidebar: 220px, sub-items 13px, navy active pill
+   ============================================================ */
 .tocify {
   border: none;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  width: 220px !important;
 }
 
 .tocify-header {
   font-size: 13px;
+  line-height: 1.5;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tocify-item.active {
+  background: transparent !important;
+  border-left: 3px solid var(--c-info);
+  font-weight: 500;
 }
 
 /* Plot captions */
@@ -58,7 +97,7 @@ td:last-child {
   font-weight: 600;
 }
 
-/* Author metadata header (item 12) */
+/* Author metadata header */
 .bs-report-meta {
   margin: 10px 0 22px 0;
   font-size: 12px;
@@ -87,7 +126,7 @@ td:last-child {
   font-size: 12px;
 }
 
-/* Abbreviations block (item 11) */
+/* Abbreviations block */
 .bs-abbreviations {
   margin: 20px 0 12px 0;
   font-size: 13px;
@@ -112,4 +151,184 @@ td:last-child {
 .bs-abbreviations dd {
   margin: 0;
   color: #5b6573;
+}
+
+/* ============================================================
+   ITEM 14 — Status pills (.bs-status-pill)
+   ============================================================ */
+.bs-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+.bs-status-pill::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+.bs-status-pill.is-pass {
+  color: var(--c-pass);
+  background: var(--c-pass-soft);
+}
+.bs-status-pill.is-warn {
+  color: var(--c-warn);
+  background: var(--c-warn-soft);
+}
+.bs-status-pill.is-fail {
+  color: var(--c-fail);
+  background: var(--c-fail-soft);
+}
+
+/* ============================================================
+   ITEM 15 — KPI strip classes
+   ============================================================ */
+.bs-kpi-strip {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0 22px 0;
+  flex-wrap: wrap;
+}
+
+.bs-kpi-tile {
+  flex: 1;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #e3e6ea;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.bs-kpi-tile.is-pass { border-left: 4px solid var(--c-pass); }
+.bs-kpi-tile.is-warn { border-left: 4px solid var(--c-warn); }
+.bs-kpi-tile.is-fail { border-left: 4px solid var(--c-fail); }
+
+.bs-kpi-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #5b6573;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-feature-settings: 'tnum' 0;
+}
+
+.bs-kpi-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 22px;
+  font-weight: 500;
+  color: #0f1722;
+  margin-top: 2px;
+  font-feature-settings: 'tnum' 1;
+}
+
+.bs-kpi-unit {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #8a93a0;
+  font-feature-settings: 'tnum' 0;
+}
+
+/* Overall status box (replaces green-gradient inline style) */
+.bs-status-banner {
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin: 15px 0 25px 0;
+  font-size: 14px;
+  background: var(--c-pass-soft);
+  border-left: 4px solid var(--c-pass);
+}
+.bs-status-banner.is-warn {
+  background: var(--c-warn-soft);
+  border-left-color: var(--c-warn);
+}
+.bs-status-banner.is-fail {
+  background: var(--c-fail-soft);
+  border-left-color: var(--c-fail);
+}
+
+/* Report header flex layout */
+.bs-header-flex {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  margin: 16px 0 28px 0;
+  flex-wrap: wrap;
+}
+.bs-meta-container {
+  flex: 0 0 auto;
+  min-width: 190px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e3e6ea;
+  border-radius: 6px;
+}
+.bs-kpi-container {
+  flex: 1;
+  min-width: 350px;
+}
+.bs-meta-tile {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.bs-meta-label {
+  font-size: 10px;
+  color: #5b6573;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  font-family: inherit;
+  font-feature-settings: 'tnum' 0;
+}
+
+/* ============================================================
+   ITEM 17 — Narrow kable tables: left-align at ~50%
+   ============================================================ */
+table[style*="width: auto !important"] {
+  max-width: 50% !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+/* ============================================================
+   ITEM 16 — Print stylesheet
+   ============================================================ */
+@media print {
+  /* Hide TOC sidebar */
+  #TOC,
+  .tocify,
+  .tocify-wrapper { display: none !important; }
+
+  /* Force all <details> sections open */
+  details { display: block !important; }
+  details > summary { display: none !important; }
+  details > * { display: block !important; }
+
+  /* Typography */
+  body { font-size: 10pt; max-width: none; }
+  table { font-size: 9pt; }
+
+  /* No gradients in print */
+  .exec-summary,
+  .bs-status-banner {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    border-left-width: 4px !important;
+  }
+
+  /* Page-break hints */
+  h2, h3 { page-break-after: avoid; }
+  table { page-break-inside: avoid; }
+  figure { page-break-inside: avoid; }
+
+  .bs-kpi-strip { flex-wrap: wrap; }
 }

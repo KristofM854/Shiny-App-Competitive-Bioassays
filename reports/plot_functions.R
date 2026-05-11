@@ -166,17 +166,17 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 #' @param digits Number of decimal places
 #' @return Formatted table (HTML or Word/PDF)
 render_table <- function(data, caption, col_names = NULL, digits = TABLE_CONFIG$digits,
-                         row_highlight = NULL) {
+                         row_highlight = NULL, escape = TRUE) {
 
   ncols <- ncol(data)
 
   if (knitr::is_html_output()) {
     tbl <- if (is.null(col_names)) {
       knitr::kable(data, format = "html", caption = caption, digits = digits,
-                   row.names = FALSE, escape = TRUE)
+                   row.names = FALSE, escape = escape)
     } else {
       knitr::kable(data, format = "html", caption = caption, col.names = col_names,
-                   digits = digits, row.names = FALSE, escape = TRUE)
+                   digits = digits, row.names = FALSE, escape = escape)
     }
 
     # For wide tables use full page width; narrower tables stay centered.
