@@ -35,7 +35,14 @@ required_pkgs <- c(
   "stringr", "tibble", "tidyr"
 )
 
-# Suppress startup messages
+# Install any missing packages
+missing_pkgs <- required_pkgs[!required_pkgs %in% rownames(installed.packages())]
+if (length(missing_pkgs) > 0) {
+  message("Installing missing packages: ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs, dependencies = TRUE)
+}
+
+# Load all packages
 suppressPackageStartupMessages({
   invisible(lapply(required_pkgs, library, character.only = TRUE, warn.conflicts = FALSE))
 })
