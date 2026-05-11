@@ -35,6 +35,17 @@ required_pkgs <- c(
   "stringr", "tibble", "tidyr"
 )
 
+# Remove stale lock directories that block reinstallation after interrupted installs.
+for (.lp in .libPaths()) {
+  .locks <- list.dirs(.lp, recursive = FALSE, full.names = TRUE)
+  .locks <- .locks[grepl("00LOCK-", basename(.locks))]
+  if (length(.locks) > 0L) {
+    message("Removing stale lock dirs: ", paste(basename(.locks), collapse = ", "))
+    unlink(.locks, recursive = TRUE)
+  }
+}
+rm(.lp, .locks)
+
 # Install any packages that are missing from the local library.
 # This covers shiny::runApp() and shiny::runGitHub() launches where no
 # external installer (run_local.R, renv, DESCRIPTION) has run first.
@@ -43,7 +54,34 @@ missing_pkgs <- required_pkgs[
 ]
 if (length(missing_pkgs) > 0L) {
   message("Installing missing packages: ", paste(missing_pkgs, collapse = ", "))
-  install.packages(missing_pkgs, dependencies = TRUE, repos = "https://cloud.r-project.org")
+
+  # Use the first writable library path. In non-interactive sessions (Shiny
+  # Server, Docker) the system library is often read-only; without an explicit
+  # lib= R silently skips the install rather than creating a user library.
+  writable_libs <- Filter(function(p) file.access(p, 2L) == 0L, .libPaths())
+  install_call  <- list(
+    pkgs         = missing_pkgs,
+    dependencies = TRUE,
+    repos        = "https://cloud.r-project.org"
+  )
+  if (length(writable_libs) > 0L) install_call$lib <- writable_libs[1L]
+  do.call(install.packages, install_call)
+  rm(writable_libs, install_call)
+
+  # Verify every package actually installed; fail loudly if any are still missing
+  # so the problem surfaces at startup rather than silently later during render.
+  still_missing <- missing_pkgs[
+    !vapply(missing_pkgs, requireNamespace, logical(1L), quietly = TRUE)
+  ]
+  if (length(still_missing) > 0L) {
+    stop(
+      "Required packages failed to install: ",
+      paste(still_missing, collapse = ", "),
+      "\nPlease install them manually:\n  install.packages(c(",
+      paste0('"', still_missing, '"', collapse = ", "), "))",
+      call. = FALSE
+    )
+  }
 }
 
 # Suppress startup messages

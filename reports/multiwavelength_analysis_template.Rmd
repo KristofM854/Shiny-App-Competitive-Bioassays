@@ -34,6 +34,8 @@ if (!knitr::is_html_output()) {
   )
 }
 
+if (!requireNamespace("kableExtra", quietly = TRUE))
+  install.packages("kableExtra", repos = "https://cloud.r-project.org", quiet = TRUE)
 library(dplyr)
 library(knitr)
 library(kableExtra)

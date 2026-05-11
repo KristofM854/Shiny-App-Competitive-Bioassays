@@ -1,0 +1,50 @@
+Package: RBAElisaApp
+Title: RBA and ELISA Competitive Binding Assay Analysis Suite
+Version: 2.0.0
+Authors@R: c(
+    person("Kristof", "Moeller",
+           email = "kr.moeller@iaea.org",
+           role  = c("aut", "cre")),
+    person("Arnold", "Molina Porras",
+           role  = "aut")
+  )
+Description: Shiny application for radioligand binding assay (RBA) and
+    enzyme-linked immunosorbent assay (ELISA) analysis. Provides 96-well
+    plate layout configuration, smart file import, 4-parameter logistic
+    dose-response curve fitting, QC checks, outlier detection, and
+    automated HTML/DOCX report generation.
+License: MIT
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.0.0
+Imports:
+    car,
+    digest,
+    dplyr,
+    drc,
+    ggplot2,
+    ggrepel,
+    ggtext,
+    ggthemes,
+    glue,
+    htmltools,
+    htmlwidgets,
+    jsonlite,
+    kableExtra,
+    knitr,
+    patchwork,
+    plotly,
+    purrr,
+    readr,
+    readxl,
+    rhandsontable,
+    rintrojs,
+    rmarkdown,
+    scales,
+    shiny,
+    shinyFeedback,
+    shinycssloaders,
+    shinyjs,
+    stringr,
+    tibble,
+    tidyr
