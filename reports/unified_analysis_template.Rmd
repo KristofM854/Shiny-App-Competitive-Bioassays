@@ -786,8 +786,7 @@ if (multi_weight_mode && length(all_models) > 1) {
     theme_classic() +
     theme(legend.position = "top",
           axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(x = labels$x_label, y = labels$y_label,
-         title = tr("weight_comparison_title", lang))
+    labs(x = labels$x_label, y = labels$y_label)
 
   if (isTRUE(is_elisa)) {
     cmp_plot <- cmp_plot +
@@ -1578,6 +1577,10 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
     integer(0)
   }
 
+  # B4: pre-extract flag/status columns before the mutate to avoid data-masking issues
+  .rf_col <- if ("range_flag"   %in% names(replicate_summary)) replicate_summary[["range_flag"]]   else rep(NA_character_, nrow(replicate_summary))
+  .qs_col <- if ("quant_status" %in% names(replicate_summary)) replicate_summary[["quant_status"]] else rep(NA_character_, nrow(replicate_summary))
+
   # Item 18: format columns; collapse SD + SE into a single "SD \u00b1 SE" column
   summary_display <- replicate_summary %>%
     dplyr::mutate(
@@ -1610,11 +1613,11 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       },
       cv_percent = ifelse(is.na(cv_percent), "\u2014",
                           format(as.numeric(cv_percent), digits = 3, nsmall = 1)),
-      range_flag_display = if ("range_flag" %in% names(.)) {
-        ifelse(is.na(range_flag) | range_flag == "", "\u2705", range_flag)
-      } else {
-        "\u2705"
-      },
+      status_combined = dplyr::case_when(
+        !is.na(.rf_col) & .rf_col != ""                                        ~ .rf_col,
+        !is.na(.qs_col) & !(.qs_col %in% c("Quantified", "Within Range", "")) ~ .qs_col,
+        TRUE                                                                    ~ "OK"
+      ),
       mean_bb0 = if ("mean_response" %in% names(.)) {
         ifelse(is.na(mean_response), "\u2014",
                paste0(round(as.numeric(mean_response), 2), "%"))
@@ -1624,16 +1627,15 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
     ) %>%
     # Drop CI raw bounds, separate SD/SE (replaced by sd_se), and internal cols
     dplyr::select(-ci_lower_95, -ci_upper_95, -std_dev, -std_error,
-                  -any_of(c("within_range", "range_flag", "mean_response",
+                  -any_of(c("within_range", "range_flag", "quant_status", "mean_response",
                             "ci_lower_model",      "ci_upper_model",
                             "ci_lower_replicate",  "ci_upper_replicate",
                             "ci_lower_raw",        "ci_upper_raw",
                             "ci_truncated"))) %>%
-    dplyr::relocate(sd_se,              .after  = mean_concentration) %>%
-    dplyr::relocate(ci_95,              .before = cv_percent) %>%
-    dplyr::relocate(range_flag_display, .after  = cv_percent) %>%
-    { if ("mean_bb0"    %in% names(.)) dplyr::relocate(., mean_bb0,    .before = range_flag_display) else . } %>%
-    { if ("quant_status" %in% names(.)) dplyr::relocate(., quant_status, .after = range_flag_display) else . }
+    dplyr::relocate(sd_se,           .after  = mean_concentration) %>%
+    dplyr::relocate(ci_95,           .before = cv_percent) %>%
+    dplyr::relocate(status_combined, .after  = cv_percent) %>%
+    { if ("mean_bb0" %in% names(.)) dplyr::relocate(., mean_bb0, .before = status_combined) else . }
 
   # Item 18 (HTML only): merge Sample IDs + n as a small grey line inside the
   # Group cell; drop those columns so they don't appear as separate columns.
@@ -1649,18 +1651,29 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       dplyr::mutate(
         replicate_group = if (.has_n) {
           paste0(replicate_group,
-                 '<br><small style="color:#8a93a0;font-size:10px;font-weight:400;">',
+                 '<br><span class="bs-replicate-meta">',
                  .sids,
-                 ' \u00b7 n=', n_replicates, '</small>')
+                 ' \u00b7 n=', n_replicates, '</span>')
         } else {
           paste0(replicate_group,
-                 '<br><small style="color:#8a93a0;font-size:10px;font-weight:400;">',
+                 '<br><span class="bs-replicate-meta">',
                  .sids,
-                 '</small>')
+                 '</span>')
         }
       ) %>%
       dplyr::select(-any_of(c("sample_ids", "n_replicates")))
     rm(.has_n, .has_sid, .sids)
+
+    # B4: convert status_combined to .bs-status-pill HTML spans
+    summary_display <- summary_display %>%
+      dplyr::mutate(
+        status_combined = dplyr::case_when(
+          status_combined == ">ULOQ" ~ '<span class="bs-status-pill is-warn">&gt;Cal.&nbsp;high</span>',
+          status_combined == "<LLOQ" ~ '<span class="bs-status-pill is-warn">&lt;Cal.&nbsp;low</span>',
+          status_combined == "OK"    ~ '<span class="bs-status-pill is-pass">OK</span>',
+          TRUE                       ~ paste0('<span class="bs-status-pill is-warn">', status_combined, '</span>')
+        )
+      )
   } else {
     # DOCX/PDF: drop n; keep sample_ids as its own column (no HTML tags)
     summary_display <- summary_display %>%
@@ -1682,9 +1695,8 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
                     "95% CI", "CV [%]")
   }
 
-  if ("mean_bb0"     %in% names(summary_display)) base_names <- c(base_names, "%B/B0")
-  base_names <- c(base_names, "Range")
-  if ("quant_status" %in% names(summary_display)) base_names <- c(base_names, "Status")
+  if ("mean_bb0"        %in% names(summary_display)) base_names <- c(base_names, "%B/B0")
+  if ("status_combined" %in% names(summary_display)) base_names <- c(base_names, "Status")
 
   # Tissue concentration columns if present
   if ("TissueWeight_mg" %in% names(summary_display)) {
@@ -1706,8 +1718,10 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
   names(summary_display) <- base_names[1:ncol(summary_display)]
 
   # Item 9: row_highlight wires amber/red-left treatments via render_table()
+  # escape=FALSE is required so the HTML span injected into replicate_group renders
   render_table(summary_display,
-               caption      = tr("detailed_caption", lang),
+               caption       = tr("detailed_caption", lang),
+               escape        = !is_html_out(),
                row_highlight = list(amber_rows    = .amber_rows,
                                     red_left_rows = .red_rows))
 }
@@ -1998,8 +2012,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         legend.box       = "vertical",
         axis.text.x      = element_text(angle = 45, hjust = 1)
       ) +
-      labs(x = labels$x_label, y = labels$y_label,
-           title = tr("drc_combined_title", lang))
+      labs(x = labels$x_label, y = labels$y_label)
     
     if (isTRUE(is_elisa)) {
       combined_drc <- combined_drc + 
