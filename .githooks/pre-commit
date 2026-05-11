@@ -1,0 +1,9 @@
+#!/bin/sh
+# Block curly/smart quote characters (U+201C U+201D U+2018 U+2019)
+# French typographic apostrophes in i18n.R are intentional, but accidental
+# introduction in code or templates should be caught early.
+if git diff --cached | grep -qP '[\x{201C}\x{201D}\x{2018}\x{2019}]'; then
+  echo "ERROR: Smart/curly quotes detected in staged changes. Use straight ASCII quotes."
+  echo "       (French typographic apostrophes in i18n.R are exempt by team convention.)"
+  exit 1
+fi
