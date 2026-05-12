@@ -27,6 +27,7 @@ params:
   output_dir: NULL
   lang: "en"
   compact: true
+  stats_env: !r new.env(parent = emptyenv())
 ---
 
 <!--
