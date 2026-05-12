@@ -348,3 +348,23 @@ table[style*="width: auto !important"] {
 
   .bs-kpi-strip { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   BS-TABLE-LEGEND — "How to read this table" callout
+   ============================================================ */
+.bs-table-legend {
+  background: var(--c-surface-1, #F7F8FA);
+  border-left: 3px solid var(--c-info, #1F3A5F);
+  padding: 12px 16px;
+  margin: 16px 0 12px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.bs-table-legend h5 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-ink-1);
+}
+.bs-table-legend ul { margin: 4px 0 0 0; padding-left: 18px; }
+.bs-table-legend li + li { margin-top: 2px; }

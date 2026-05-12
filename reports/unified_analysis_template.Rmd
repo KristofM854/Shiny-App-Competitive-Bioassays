@@ -1556,6 +1556,10 @@ if (exists("model_stats") && exists("write_json_safe")) {
 
 `r section_open(tr("detailed_summary", lang), default_open = TRUE)`
 
+```{r table-legend, results='asis'}
+render_table_legend()
+```
+
 ```{r summary-results-table}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
 
