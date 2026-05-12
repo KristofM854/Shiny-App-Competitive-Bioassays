@@ -428,7 +428,20 @@ server_common <- function(input, output, session, shared) {
 
   observeEvent(input$open_report_folder, {
     lang <- input$app_language %||% "en"
-    ok <- open_folder_in_os(shared$rv$last_report_dir)
+    dir  <- shared$rv$last_report_dir
+    ok <- tryCatch({
+      if (is.null(dir) || !nzchar(dir)) stop("no path")
+      norm    <- normalizePath(dir, mustWork = TRUE)
+      sysname <- Sys.info()[["sysname"]]
+      if (sysname == "Windows") {
+        shell.exec(norm)
+      } else if (sysname == "Darwin") {
+        system2("open", shQuote(norm), wait = FALSE)
+      } else {
+        system2("xdg-open", shQuote(norm), wait = FALSE)
+      }
+      TRUE
+    }, error = function(e) FALSE)
     if (!ok) {
       showNotification(tr("open_folder_failed", lang),
                        type = "warning", duration = 8)
