@@ -398,39 +398,48 @@ server_common <- function(input, output, session, shared) {
   })
 
   # Result panel: shown after successful report generation.
-  # Replaces the old compact-checkbox + two download buttons.
+  # Shows the output folder path with Open Folder + Copy Path actions.
   output$report_results_panel <- renderUI({
-    paths <- shared$rv$last_render_paths
-    if (is.null(paths) || length(paths) == 0) return(NULL)
+    dir <- shared$rv$last_report_dir
+    if (is.null(dir) || !nzchar(dir)) return(NULL)
     lang <- input$app_language %||% "en"
 
-    has_compact <- any(grepl("-compact-", names(paths)))
-    has_full    <- any(grepl("-full-",    names(paths)))
-
-    make_card <- function(variant_key, label, desc, btn_id, btn_class) {
-      if (!variant_key) return(NULL)
-      tags$div(
-        class = "bs-result-card",
-        tags$div(class = "bs-result-card-name", label),
-        tags$div(class = "bs-result-card-desc", desc),
-        downloadButton(btn_id, tr("download_last_report", lang),
-                       class = paste("btn btn-sm", btn_class))
-      )
-    }
-
     tags$div(
-      class = "bs-result-panel",
-      tags$div(class = "bs-result-panel-title", tr("result_panel_title", lang)),
+      class = "bs-report-result",
+      style = "margin-top: 16px;",
       tags$div(
-        class = "bs-result-cards",
-        make_card(has_compact, tr("download_last_report_compact", lang),
-                  tr("result_panel_compact_desc", lang),
-                  "download_report", "btn-success"),
-        make_card(has_full, tr("download_last_report_full", lang),
-                  tr("result_panel_full_desc", lang),
-                  "download_report_full", "btn-default")
+        class = "bs-report-result-meta",
+        tags$strong(tr("reports_generated", lang)),
+        tags$small(class = "bs-report-result-path", title = dir, dir)
+      ),
+      tags$div(
+        class = "bs-report-result-actions",
+        actionButton("open_report_folder",
+                     tr("open_report_folder", lang),
+                     icon  = icon("folder-open"),
+                     class = "btn btn-success btn-sm"),
+        actionButton("copy_report_path",
+                     tr("copy_path", lang),
+                     icon  = icon("copy"),
+                     class = "btn btn-default btn-sm")
       )
     )
+  })
+
+  observeEvent(input$open_report_folder, {
+    lang <- input$app_language %||% "en"
+    ok <- open_folder_in_os(shared$rv$last_report_dir)
+    if (!ok) {
+      showNotification(tr("open_folder_failed", lang),
+                       type = "warning", duration = 8)
+    }
+  })
+
+  observeEvent(input$copy_report_path, {
+    lang <- input$app_language %||% "en"
+    session$sendCustomMessage("bs:copy_to_clipboard",
+                              shared$rv$last_report_dir %||% "")
+    showNotification(tr("path_copied", lang), type = "message", duration = 3)
   })
 
   output$give_feedback_ui <- renderUI({
