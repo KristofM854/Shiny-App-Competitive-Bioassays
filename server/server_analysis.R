@@ -1,4 +1,90 @@
-server_analysis <- function(input, output, session) {
+server_analysis <- function(input, output, session, shared) {
+
+  # --------------------------------------------------------------------------
+  # A4 — KPI strip reactive on last_model_stats (populated after render)
+  # --------------------------------------------------------------------------
+  output$analysis_kpi_strip <- renderUI({
+    lang  <- input$app_language %||% "en"
+    stats <- shared$rv$last_model_stats
+
+    # Helper: format value or dash
+    fmt_or_dash <- function(x, fn = identity) {
+      if (is.null(x) || length(x) != 1L || !is.numeric(x) || is.na(x) || !is.finite(x)) return("—")
+      tryCatch(fn(x), error = function(e) "—")
+    }
+
+    # Helper: QC classification for R2
+    r2_role <- function(r2) {
+      if (is.null(r2) || length(r2) != 1L || !is.numeric(r2) || is.na(r2) || !is.finite(r2)) return(NULL)
+      if (r2 >= 0.99) "pass" else if (r2 >= 0.95) "warn" else "fail"
+    }
+
+    kpi_tile <- function(label, value, unit = "", role = NULL, empty = FALSE) {
+      tile_cls <- paste0("bs-kpi-tile",
+                         if (!is.null(role)) paste0(" is-", role) else "",
+                         if (empty) " is-empty" else "")
+      tags$div(
+        class = tile_cls,
+        tags$div(class = "bs-kpi-label", label),
+        tags$div(class = "bs-kpi-value", value),
+        if (nzchar(unit)) tags$div(class = "bs-kpi-unit", unit)
+      )
+    }
+
+    if (is.null(stats)) {
+      # Placeholder strip — no fit yet
+      hint_tile <- tags$div(
+        class = "bs-kpi-tile is-empty",
+        style = "font-size: 12px; color: var(--c-ink-3); align-self: center; padding: 12px 14px; font-style: italic;",
+        tr("kpi_run_hint", lang)
+      )
+      return(tags$div(
+        class = "bs-kpi-strip",
+        kpi_tile("R² · curve fit", "—", empty = TRUE),
+        kpi_tile("RMSE",     "—", empty = TRUE),
+        kpi_tile("Cal. low", "—", empty = TRUE),
+        kpi_tile("Cal. high", "—", empty = TRUE),
+        kpi_tile("Overall",  "—", empty = TRUE),
+        hint_tile
+      ))
+    }
+
+    r2   <- stats$r_squared
+    rmse <- stats$rmse
+    role <- r2_role(r2)
+    fmt_r2   <- fmt_or_dash(r2,   function(v) sprintf("%.4f", v))
+    fmt_rmse <- fmt_or_dash(rmse, function(v) sprintf("%.3f", v))
+
+    # Cal. low / Cal. high from stored std range
+    std_range <- shared$rv$last_std_range
+    fmt_low  <- if (!is.null(std_range)) format(std_range$min, scientific = TRUE, digits = 3) else "—"
+    fmt_high <- if (!is.null(std_range)) format(std_range$max, scientific = TRUE, digits = 3) else "—"
+    conc_unit <- if (isTRUE(input$assay_type == "elisa")) {
+      input$elisa_units %||% "pg/mL"
+    } else {
+      "mol/L"
+    }
+
+    overall_word <- switch(role %||% "",
+      pass = "Pass", warn = "Qualified", fail = "Review", "Unknown")
+    overall_role <- role
+
+    tags$div(
+      class = "bs-kpi-strip",
+      kpi_tile("R² · curve fit", fmt_r2),
+      kpi_tile("RMSE",     fmt_rmse),
+      kpi_tile("Cal. low",  fmt_low,  conc_unit),
+      kpi_tile("Cal. high", fmt_high, conc_unit),
+      tags$div(
+        class = paste0("bs-kpi-tile", if (!is.null(overall_role)) paste0(" is-", overall_role) else ""),
+        tags$div(class = "bs-kpi-label", "Overall"),
+        tags$div(style = "margin-top: 4px;",
+                 tags$span(class = paste0("bs-status-pill",
+                                          if (!is.null(overall_role)) paste0(" is-", overall_role) else ""),
+                           overall_word))
+      )
+    )
+  })
 
   output$weighting_preview <- renderPlot({
     weights <- input$regression_weight
