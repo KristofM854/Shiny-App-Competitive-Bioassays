@@ -118,7 +118,8 @@ ui <- fluidPage(
         rel = "noopener noreferrer",
         title = "View this release on Zenodo (DOI)",
         "v1.0.0"
-      )
+      ),
+      uiOutput("analysis_state_pill", inline = TRUE)
     ),
     div(
       class = "actions",
@@ -706,7 +707,10 @@ $(function() {
                   type = 6, color = "#1f3a5f")
               )
             )
-          )
+          ),
+
+          # ---- Third pane: live plate preview (A1) ----
+          uiOutput("layout_preview_plate")
         ),
         br(),
 
@@ -900,6 +904,9 @@ $(function() {
       "Analysis Settings",
       value = "tab_analysis",
       br(),
+
+      # A4: KPI strip above the analysis card
+      uiOutput("analysis_kpi_strip"),
 
       fluidRow(
         column(
@@ -1114,11 +1121,14 @@ server <- function(input, output, session) {
     # Molecular weight (RBA only)
     mw_g_mol = reactiveVal(299.29),
 
-    # Multi-wavelength state
+    # Multi-wavelength state + PR-A analysis state
     rv = reactiveValues(
       is_multiwavelength = FALSE,
       wavelengths = NULL,
-      wavelength_plates = NULL
+      wavelength_plates = NULL,
+      analysis_state   = "idle",    # idle | ready | running | done | failed
+      last_model_stats = NULL,      # populated after successful render
+      last_std_range   = NULL       # list(min, max) of configured std concs
     ),
 
     # Tissue weights (ELISA only)
@@ -1150,7 +1160,7 @@ server <- function(input, output, session) {
   server_layout(input, output, session, shared)
   server_upload(input, output, session, shared)
   server_report(input, output, session, shared, config_reactives)
-  server_analysis(input, output, session)
+  server_analysis(input, output, session, shared)
   server_common(input, output, session, shared)
 }
 
