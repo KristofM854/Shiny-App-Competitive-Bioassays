@@ -599,9 +599,24 @@ get_translations <- function() {
       x_label_mol_l             = "Standard concentration (mol/L)",
       x_label_conc              = "Concentration",
       weighting_suitability_title = "Weighting Suitability Assessment",
-      beta_warning         = ""
+      beta_warning         = "",
+
+      # PR-A new strings
+      plate_preview_title   = "Plate overview",
+      upload_std_pill       = "Standards: %d",
+      upload_smp_pill       = "Samples: %d",
+      analysis_state_ready  = "Ready",
+      analysis_state_running = "Rendering...",
+      analysis_state_done   = "Done",
+      analysis_state_failed = "Failed",
+      rendering_report_btn  = "Rendering report...",
+      notif_validating      = "Validating data...",
+      notif_fitting         = "Fitting curve...",
+      notif_quantifying     = "Quantifying samples...",
+      notif_rendering       = "Rendering report...",
+      kpi_run_hint          = "Generate a report to see fit statistics"
     ),
-    
+
     es = list(
       # App title and metadata
       app_title = "An\u00E1lisis RBA \u2013 Procesamiento de Microplacas y Ajuste de Curvas",
@@ -1185,7 +1200,22 @@ get_translations <- function() {
       x_label_mol_l             = "Concentración estándar (mol/L)",
       x_label_conc              = "Concentración",
       weighting_suitability_title = "Evaluación de Idoneidad de Ponderación",
-      beta_warning         = ""
+      beta_warning         = "",
+
+      # PR-A new strings  # TODO i18n-es
+      plate_preview_title   = "Vista general del plato",
+      upload_std_pill       = "Estándares: %d",
+      upload_smp_pill       = "Muestras: %d",
+      analysis_state_ready  = "Listo",
+      analysis_state_running = "Procesando...",
+      analysis_state_done   = "Listo",
+      analysis_state_failed = "Error",
+      rendering_report_btn  = "Generando informe...",
+      notif_validating      = "Validando datos...",
+      notif_fitting         = "Ajustando curva...",
+      notif_quantifying     = "Cuantificando muestras...",
+      notif_rendering       = "Generando informe...",
+      kpi_run_hint          = "Genera un informe para ver las estadísticas"
     ),
 
 
@@ -1769,7 +1799,22 @@ Format : %s%s",
       x_label_mol_l             = "Concentration standard (mol/L)",
       x_label_conc              = "Concentration",
       weighting_suitability_title = "Évaluation de l'Adéquation de la Pondération",
-      beta_warning         = ""
+      beta_warning         = "",
+
+      # PR-A new strings (fr mirrors en)
+      plate_preview_title   = "Aperçu de la plaque",
+      upload_std_pill       = "Standards: %d",
+      upload_smp_pill       = "Échantillons: %d",
+      analysis_state_ready  = "Prêt",
+      analysis_state_running = "Rendu...",
+      analysis_state_done   = "Terminé",
+      analysis_state_failed = "Échec",
+      rendering_report_btn  = "Rendu du rapport...",
+      notif_validating      = "Validation des données...",
+      notif_fitting         = "Ajustement de la courbe...",
+      notif_quantifying     = "Quantification des échantillons...",
+      notif_rendering       = "Rendu du rapport...",
+      kpi_run_hint          = "Générez un rapport pour voir les statistiques"
     ),
 
 
@@ -2353,7 +2398,22 @@ Format : %s%s",
       x_label_mol_l             = "Концентрация стандарта (моль/л)",
       x_label_conc              = "Концентрация",
       weighting_suitability_title = "Оценка пригодности взвешивания",
-      beta_warning         = "Этот перевод сгенерирован машиной и может содержать ошибки. Проверяйте критические значения по английской версии."
+      beta_warning         = "Этот перевод сгенерирован машиной и может содержать ошибки. Проверяйте критические значения по английской версии.",
+
+      # PR-A new strings (ru mirrors en)
+      plate_preview_title   = "Обзор планшета",
+      upload_std_pill       = "Стандарты: %d",
+      upload_smp_pill       = "Образцы: %d",
+      analysis_state_ready  = "Готово",
+      analysis_state_running = "Рендеринг...",
+      analysis_state_done   = "Выполнено",
+      analysis_state_failed = "Ошибка",
+      rendering_report_btn  = "Создание отчёта...",
+      notif_validating      = "Проверка данных...",
+      notif_fitting         = "Подгонка кривой...",
+      notif_quantifying     = "Количественный анализ...",
+      notif_rendering       = "Создание отчёта...",
+      kpi_run_hint          = "Сгенерируйте отчёт для просмотра статистики"
     ),
 
 
@@ -2937,7 +2997,22 @@ Format : %s%s",
       x_label_mol_l             = "标准品浓度 (mol/L)",
       x_label_conc              = "浓度",
       weighting_suitability_title = "加权适用性评估",
-      beta_warning         = "此翻译由机器生成，可能包含错误。请对照英文版本核对关键数值。"
+      beta_warning         = "此翻译由机器生成，可能包含错误。请对照英文版本核对关键数值。",
+
+      # PR-A new strings (zh mirrors en)
+      plate_preview_title   = "培养板概览",
+      upload_std_pill       = "标准品: %d",
+      upload_smp_pill       = "样品: %d",
+      analysis_state_ready  = "就绪",
+      analysis_state_running = "渲染中...",
+      analysis_state_done   = "完成",
+      analysis_state_failed = "失败",
+      rendering_report_btn  = "正在生成报告...",
+      notif_validating      = "正在验证数据...",
+      notif_fitting         = "正在拟合曲线...",
+      notif_quantifying     = "正在定量样品...",
+      notif_rendering       = "正在渲染报告...",
+      kpi_run_hint          = "生成报告以查看拟合统计"
     )
   )
 }

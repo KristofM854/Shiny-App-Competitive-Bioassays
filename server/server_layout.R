@@ -609,4 +609,58 @@ server_layout <- function(input, output, session, shared) {
     }
     shared$tissue_weights_rv(tw)
   })
+
+  # --------------------------------------------------------------------------
+  # A1 — Live plate preview (pure-HTML 8×12 grid, role-colour coded)
+  # --------------------------------------------------------------------------
+
+  output$layout_preview_plate <- renderUI({
+    lang <- input$app_language %||% "en"
+    type_mat <- shared$matrix_type()
+
+    row_lbl <- c("A","B","C","D","E","F","G","H")
+    col_lbl <- as.character(1:12)
+
+    # Build the grid cells: row 1 = column labels, rows 2-9 = wells
+    cells <- vector("list", (8 + 1) * (12 + 1))
+    idx <- 1L
+
+    # Top-left corner spacer
+    cells[[idx]] <- tags$div(class = "bs-plate-col-label", "")
+    idx <- idx + 1L
+
+    # Column number labels
+    for (ci in seq_len(12)) {
+      cells[[idx]] <- tags$div(class = "bs-plate-col-label", col_lbl[ci])
+      idx <- idx + 1L
+    }
+
+    for (ri in seq_len(8)) {
+      # Row letter label
+      cells[[idx]] <- tags$div(class = "bs-plate-row-label", row_lbl[ri])
+      idx <- idx + 1L
+
+      for (ci in seq_len(12)) {
+        role_val <- if (!is.null(type_mat) && !is.na(type_mat[ri, ci])) {
+          as.character(type_mat[ri, ci])
+        } else {
+          "Empty"
+        }
+        safe_role <- gsub("[^A-Za-z0-9]", "", role_val)
+        well_cls  <- paste0("bs-well role-", safe_role)
+        tip       <- paste0(row_lbl[ri], col_lbl[ci], ": ", role_val)
+        cells[[idx]] <- tags$div(class = well_cls, title = tip)
+        idx <- idx + 1L
+      }
+    }
+
+    tagList(
+      tags$div(
+        class = "bs-plate-preview",
+        tags$p(class = "bs-plate-preview-title",
+               tr("plate_preview_title", lang)),
+        do.call(tags$div, c(list(class = "bs-plate-grid-wrap"), cells))
+      )
+    )
+  })
 }

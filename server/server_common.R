@@ -1008,4 +1008,50 @@ server_common <- function(input, output, session, shared) {
               onbeforechange = readCallback("switchTabs")
             ))
   })
+
+  # --------------------------------------------------------------------------
+  # A2 — Analysis-state observer: idle → ready based on plate data presence
+  # "running" / "done" / "failed" transitions are set in server_report.R
+  # --------------------------------------------------------------------------
+  observe({
+    plate <- shared$matrix_measresults()
+    has_data <- !is.null(plate) && any(!is.na(as.numeric(unlist(plate))))
+    current <- isolate(shared$rv$analysis_state)
+    if (!has_data && current == "idle") return()
+    if (!has_data) {
+      shared$rv$analysis_state <- "idle"
+    } else if (current %in% c("idle")) {
+      shared$rv$analysis_state <- "ready"
+    }
+  })
+
+  # A2 — Render the topbar analysis-state pill
+  output$analysis_state_pill <- renderUI({
+    lang  <- input$app_language %||% "en"
+    state <- shared$rv$analysis_state
+
+    if (state == "idle") return(NULL)
+
+    pill_class <- switch(state,
+      ready   = "bs-status-pill is-info",
+      running = "bs-status-pill is-running",
+      done    = "bs-status-pill is-pass",
+      failed  = "bs-status-pill is-fail",
+      "bs-status-pill is-info"
+    )
+    label <- switch(state,
+      ready   = tr("analysis_state_ready",   lang),
+      running = tr("analysis_state_running", lang),
+      done    = tr("analysis_state_done",    lang),
+      failed  = tr("analysis_state_failed",  lang),
+      ""
+    )
+    if (state == "running") {
+      tags$span(class = pill_class,
+                tags$span(class = "pill-dot"),
+                label)
+    } else {
+      tags$span(class = pill_class, label)
+    }
+  })
 }
