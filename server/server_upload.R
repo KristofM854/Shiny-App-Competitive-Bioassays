@@ -727,16 +727,37 @@ server_upload <- function(input, output, session, shared) {
     lang <- input$app_language %||% "en"
     partial_text <- if (is_partial) tr("yes_label", lang) else tr("no_label", lang)
     format_text <- if (!is.null(info)) info$format else "Visual selector"
-    tags$table(
-      class = "bs-report",
-      tags$tbody(
-        tags$tr(tags$td(tr("format_label", lang)),
-                tags$td(class = "num", format_text)),
-        tags$tr(tags$td(tr("wells_label", lang)),
-                tags$td(class = "num",
-                        sprintf("%d / 96", actual_wells))),
-        tags$tr(tags$td(tr("partial_label", lang)),
-                tags$td(class = "num", partial_text))
+
+    # A2: count pills from type matrix
+    type_mat <- shared$matrix_type()
+    n_std <- if (!is.null(type_mat)) {
+      sum(unlist(type_mat) == "Standard", na.rm = TRUE)
+    } else 0L
+    n_smp <- if (!is.null(type_mat)) {
+      sum(unlist(type_mat) == "Sample", na.rm = TRUE)
+    } else 0L
+    std_pill_cls <- if (n_std == 0) "bs-status-pill is-warn" else "bs-status-pill is-pass"
+    smp_pill_cls <- if (n_smp == 0) "bs-status-pill is-warn" else "bs-status-pill is-pass"
+
+    tagList(
+      tags$table(
+        class = "bs-report",
+        tags$tbody(
+          tags$tr(tags$td(tr("format_label", lang)),
+                  tags$td(class = "num", format_text)),
+          tags$tr(tags$td(tr("wells_label", lang)),
+                  tags$td(class = "num",
+                          sprintf("%d / 96", actual_wells))),
+          tags$tr(tags$td(tr("partial_label", lang)),
+                  tags$td(class = "num", partial_text))
+        )
+      ),
+      tags$div(
+        style = "display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;",
+        tags$span(class = std_pill_cls,
+                  tr("upload_std_pill", lang, n_std)),
+        tags$span(class = smp_pill_cls,
+                  tr("upload_smp_pill", lang, n_smp))
       )
     )
   })

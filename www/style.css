@@ -250,7 +250,7 @@ code, kbd, samp, pre { font-family: var(--ff-mono); }
    ============================================ */
 .bs-layout-shell {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px 1fr 320px;
   gap: var(--s-5);
 }
 .bs-layer-switcher {
@@ -639,6 +639,10 @@ table.bs-report td.num { text-align: right; }
 /* ============================================
    Responsive
    ============================================ */
+@media (max-width: 1200px) {
+  .bs-layout-shell  { grid-template-columns: 240px 1fr; }
+  .bs-plate-preview { display: none; }
+}
 @media (max-width: 1100px) {
   .bs-quickstart    { grid-template-columns: 1fr; }
   .bs-layout-shell  { grid-template-columns: 1fr; }
@@ -1772,4 +1776,166 @@ table.bs-report td.num { text-align: right; }
 .bs-lang-opt.is-active {
   font-weight: 600;
   color: var(--c-accent);
+}
+
+/* ============================================
+   §A — Status pills, KPI tiles, plate preview
+   (PR-A additions — do not interleave with existing sections)
+   ============================================ */
+
+/* --- §A.1 Status pills (ported from reports/report_style.css, extended) --- */
+.bs-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: 12px;
+  line-height: 1.6;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.bs-status-pill::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+.bs-status-pill.is-pass { color: var(--c-pass); background: var(--c-pass-soft); }
+.bs-status-pill.is-warn { color: var(--c-warn); background: var(--c-warn-soft); }
+.bs-status-pill.is-fail { color: var(--c-fail); background: var(--c-fail-soft); }
+.bs-status-pill.is-info { color: var(--c-info); background: var(--c-info-soft); }
+
+/* Spinning dot for is-running state */
+.bs-status-pill .pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  display: none;
+}
+.bs-status-pill.is-running {
+  color: var(--c-warn);
+  background: var(--c-warn-soft);
+}
+.bs-status-pill.is-running::before { display: none; }
+.bs-status-pill.is-running .pill-dot {
+  display: inline-block;
+  animation: pill-pulse 1s ease-in-out infinite;
+}
+@keyframes pill-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.65); }
+}
+
+/* --- §A.2 KPI strip (ported from reports/report_style.css) --- */
+.bs-kpi-strip {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 16px 0;
+  flex-wrap: wrap;
+}
+.bs-kpi-tile {
+  flex: 1;
+  min-width: 110px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-left-width: 4px;
+  border-left-color: var(--c-line);
+  border-radius: var(--r-2);
+  padding: 9px 13px;
+}
+.bs-kpi-tile.is-pass { border-left-color: var(--c-pass); }
+.bs-kpi-tile.is-warn { border-left-color: var(--c-warn); }
+.bs-kpi-tile.is-fail { border-left-color: var(--c-fail); }
+.bs-kpi-tile.is-empty {
+  opacity: 0.55;
+  background: var(--c-surface-2);
+  border-left-color: var(--c-line);
+}
+.bs-kpi-label {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--c-ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-feature-settings: 'tnum' 0;
+}
+.bs-kpi-value {
+  font-family: var(--ff-mono);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--c-ink);
+  margin-top: 2px;
+  font-feature-settings: 'tnum' 1;
+}
+.bs-kpi-unit {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--c-ink-4);
+  font-feature-settings: 'tnum' 0;
+}
+
+/* --- §A.3 Plate preview --- */
+.bs-plate-preview {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  padding: 10px 12px;
+  align-self: start;
+}
+.bs-plate-preview-title {
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-ink-4);
+  margin: 0 0 8px;
+}
+.bs-plate-grid-wrap {
+  display: grid;
+  grid-template-columns: 14px repeat(12, 20px);
+  grid-template-rows: 14px repeat(8, 20px);
+  gap: 2px;
+}
+.bs-plate-col-label,
+.bs-plate-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-mono);
+  font-size: 8.5px;
+  color: var(--c-ink-4);
+  line-height: 1;
+}
+.bs-well {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface-2);
+  box-sizing: border-box;
+  cursor: default;
+}
+.bs-well.role-Standard     { background: var(--c-info-soft);   border: 1px solid var(--c-info); }
+.bs-well.role-Sample       { background: var(--c-pass-soft);   border: 1px solid var(--c-pass); }
+.bs-well.role-Blank        { background: #fafafa;              border: 1px dashed #9aa0a6; }
+.bs-well.role-NSB          { background: var(--c-warn-soft);   border: 1px solid var(--c-warn); }
+.bs-well.role-B0           { background: var(--c-fail-soft);   border: 1px solid var(--c-fail); }
+.bs-well.role-QC           { background: var(--c-accent-soft); border: 1px solid var(--c-accent); }
+.bs-well.role-TotalActivity { background: #f0e8f8;             border: 1px solid #9966cc; }
+.bs-well.role-Other        { background: var(--c-surface-2);   border: 1px solid #bcc2c9; }
+.bs-well.role-Excluded {
+  background: #fdecea;
+  border: 1px solid var(--c-fail);
+  background-image: repeating-linear-gradient(
+    45deg, transparent, transparent 3px,
+    rgba(213, 94, 0, 0.18) 3px, rgba(213, 94, 0, 0.18) 4px
+  );
 }
