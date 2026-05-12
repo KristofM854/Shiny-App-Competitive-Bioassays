@@ -407,6 +407,9 @@ render_reports <- function(params, session) {
           render_params <- list(output_dir = out_dir_abs,
                                 lang = lang_code)
           if (is_mw) render_params$wavelengths <- params$wavelengths
+          # Pass stats_env when supplied — the Rmd assigns model_stats into it
+          # directly so the host can read back results without a file round-trip.
+          if (!is.null(params$stats_env)) render_params$stats_env <- params$stats_env
 
           # H4 split: each variant has its own entry-point template; the
           # compact param now lives in the compact template's YAML
@@ -453,6 +456,7 @@ render_reports <- function(params, session) {
           html_ok <- tryCatch({
             render_params <- list(output_dir = out_dir_abs, lang = lang_code)
             if (is_mw) render_params$wavelengths <- params$wavelengths
+            if (!is.null(params$stats_env)) render_params$stats_env <- params$stats_env
             # Match the variant -> template selection from the primary
             # render path so the fallback writes to the correct file.
             this_template <- if (is_compact_variant) report_template_compact

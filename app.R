@@ -101,8 +101,9 @@ ui <- fluidPage(
               href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css",
               href = paste0("style.css?v=", as.numeric(Sys.time()))),
+    tags$script(src = "js/bs-handlers.js"),
     # CSS sentinel — bump this comment version with each PR (v10, v11, v12...)
-    tags$script(HTML('console.log("[Bioassay Suite] CSS v12 loaded");'))
+    tags$script(HTML('console.log("[Bioassay Suite] CSS v13 loaded");'))
   ),
 
   div(
@@ -1121,7 +1122,8 @@ server <- function(input, output, session) {
       analysis_state   = "idle",    # idle | ready | running | done | failed
       last_model_stats = NULL,      # populated after successful render
       last_std_range   = NULL,      # list(min, max) of configured std concs
-      last_render_paths = NULL      # named list of rendered file paths from render_reports()
+      last_render_paths = NULL,     # named list of rendered file paths from render_reports()
+      last_report_dir   = NULL      # output folder of the last successful run
     ),
 
     # Tissue weights (ELISA only)
