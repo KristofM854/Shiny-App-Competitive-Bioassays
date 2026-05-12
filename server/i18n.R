@@ -24,7 +24,7 @@ get_translations <- function() {
     en = list(
       # App title and metadata
       app_title = "RBA Analysis \u2013 Microplate Processing & Curve Fitting",
-      start_tour = "\U0001F680 Start Guided Tour",
+      start_tour = "Start Guided Tour",
       
       # Step 0: Assay Configuration
       step0_title = "Step 1: Assay Configuration",
@@ -633,7 +633,7 @@ get_translations <- function() {
     es = list(
       # App title and metadata
       app_title = "An\u00E1lisis RBA \u2013 Procesamiento de Microplacas y Ajuste de Curvas",
-      start_tour = "\U0001F680 Iniciar Gu\u00EDa Interactiva",
+      start_tour = "Iniciar Gu\u00EDa Interactiva",
       
       # Step 0: Assay Configuration
       step0_title = "Paso 1: Configuraci\u00F3n del Ensayo",
@@ -1244,7 +1244,7 @@ get_translations <- function() {
     fr = list(
       # App title and metadata
       app_title = "Analyse RBA – Traitement de Microplaques & Ajustement de Courbes",
-      start_tour = "🚀 Démarrer la visite guidée",
+      start_tour = "Démarrer la visite guidée",
       
       # Step 0: Assay Configuration
       step0_title = "Étape 1 : Configuration du dosage",
@@ -1852,7 +1852,7 @@ Format : %s%s",
     ru = list(
       # App title and metadata
       app_title = "Анализ RBA — обработка микропланшетов и подгонка кривых",
-      start_tour = "🚀 Начать интерактивный тур",
+      start_tour = "Начать интерактивный тур",
       
       # Step 0: Assay Configuration
       step0_title = "Шаг 1: Настройка анализа",
@@ -2460,7 +2460,7 @@ Format : %s%s",
     zh = list(
       # App title and metadata
       app_title = "RBA分析 — 微量板处理与曲线拟合",
-      start_tour = "🚀 开始引导之旅",
+      start_tour = "开始引导之旅",
       
       # Step 0: Assay Configuration
       step0_title = "第1步：检测配置",

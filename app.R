@@ -843,7 +843,8 @@ $(function() {
               uiOutput("visual_selector_intro_ui"),
               uiOutput("visual_file_preview"),
               uiOutput("visual_plate_selections"),
-              uiOutput("visual_well_exclusion")
+              uiOutput("visual_well_exclusion"),
+              uiOutput("visual_confirm_bar")
             )
           ),
 
