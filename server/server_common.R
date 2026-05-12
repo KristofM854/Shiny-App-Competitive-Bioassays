@@ -386,28 +386,6 @@ server_common <- function(input, output, session, shared) {
                tr("report_languages_help", lang))
   })
 
-  # #3: compact-vs-detailed explainer block, sits above the Generate button
-  output$report_variants_explainer_ui <- renderUI({
-    lang <- input$app_language %||% "en"
-    div(
-      style = paste0(
-        "background: #f5f7fa; border-left: 4px solid #1f77b4; ",
-        "padding: 10px 14px; margin: 8px 0; border-radius: 4px; ",
-        "font-size: 13px; line-height: 1.5;"
-      ),
-      tags$div(
-        style = "font-weight: 600; margin-bottom: 6px;",
-        tr("report_variants_explainer_title", lang)
-      ),
-      tags$div(
-        style = "margin-bottom: 4px;",
-        HTML(tr("report_variants_explainer_compact", lang))
-      ),
-      tags$div(
-        HTML(tr("report_variants_explainer_full", lang))
-      )
-    )
-  })
 
   output$notes_feedback_heading_ui <- renderUI({
     lang <- input$app_language %||% "en"
@@ -419,27 +397,41 @@ server_common <- function(input, output, session, shared) {
     h5(style = "margin-top: 0;", tr("preflight_heading", lang))
   })
 
-  # H4: compact download (default / recommended)
-  output$download_report_ui <- renderUI({
+  # Result panel: shown after successful report generation.
+  # Replaces the old compact-checkbox + two download buttons.
+  output$report_results_panel <- renderUI({
+    paths <- shared$rv$last_render_paths
+    if (is.null(paths) || length(paths) == 0) return(NULL)
     lang <- input$app_language %||% "en"
-    downloadButton("download_report",
-                   tr("download_last_report_compact", lang),
-                   class = "btn btn-success btn-lg",
-                   style = "width: 100%;")
-  })
 
-  # H4: full / detailed download (full audit report)
-  output$download_report_full_ui <- renderUI({
-    lang <- input$app_language %||% "en"
-    downloadButton("download_report_full",
-                   tr("download_last_report_full", lang),
-                   class = "btn btn-default btn-lg",
-                   style = "width: 100%; margin-top: 8px;")
-  })
+    has_compact <- any(grepl("-compact-", names(paths)))
+    has_full    <- any(grepl("-full-",    names(paths)))
 
-  # Addition C: hide both download buttons until a report is generated
-  shinyjs::hide("download_report_ui")
-  shinyjs::hide("download_report_full_ui")
+    make_card <- function(variant_key, label, desc, btn_id, btn_class) {
+      if (!variant_key) return(NULL)
+      tags$div(
+        class = "bs-result-card",
+        tags$div(class = "bs-result-card-name", label),
+        tags$div(class = "bs-result-card-desc", desc),
+        downloadButton(btn_id, tr("download_last_report", lang),
+                       class = paste("btn btn-sm", btn_class))
+      )
+    }
+
+    tags$div(
+      class = "bs-result-panel",
+      tags$div(class = "bs-result-panel-title", tr("result_panel_title", lang)),
+      tags$div(
+        class = "bs-result-cards",
+        make_card(has_compact, tr("download_last_report_compact", lang),
+                  tr("result_panel_compact_desc", lang),
+                  "download_report", "btn-success"),
+        make_card(has_full, tr("download_last_report_full", lang),
+                  tr("result_panel_full_desc", lang),
+                  "download_report_full", "btn-default")
+      )
+    )
+  })
 
   output$give_feedback_ui <- renderUI({
     lang <- input$app_language %||% "en"
@@ -752,8 +744,6 @@ server_common <- function(input, output, session, shared) {
                                c("html", "docx", "pdf"),
                                c("format_html", "format_docx", "format_pdf"), lang),
                              selected = input$export_formats %||% "html")
-    updateCheckboxInput(session, "generate_compact",
-                        label = tr("generate_compact_label", lang))
     updateCheckboxGroupInput(session, "report_languages",
                              label = tr("report_languages_label", lang),
                              choices = c("English" = "en", "Español" = "es",
