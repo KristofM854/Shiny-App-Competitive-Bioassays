@@ -13,10 +13,14 @@
 #   tr("key_with_%s", lang, value) -> formatted string via sprintf
 # ==============================================================================
 
+# Module-level cache — built once when i18n.R is sourced, reused forever.
+.TRANSLATIONS_CACHE <- NULL
+
 #' Get all UI and report translations
 #' @return Named list with "en", "es", "fr", "ru", "zh" sub-lists
 get_translations <- function() {
-  list(
+  if (!is.null(.TRANSLATIONS_CACHE)) return(.TRANSLATIONS_CACHE)
+  .TRANSLATIONS_CACHE <<- list(
     en = list(
       # App title and metadata
       app_title = "RBA Analysis \u2013 Microplate Processing & Curve Fitting",
@@ -3060,6 +3064,7 @@ Format : %s%s",
       kpi_run_hint          = "生成报告以查看拟合统计"
     )
   )
+  .TRANSLATIONS_CACHE
 }
 
 #' Get translation for a specific key
