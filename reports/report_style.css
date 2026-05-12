@@ -216,8 +216,9 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
 }
 
 .bs-kpi-tile {
-  flex: 1;
-  min-width: 140px;
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid #e3e6ea;
   border-radius: 6px;
@@ -294,7 +295,14 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
   font-family: 'IBM Plex Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
-  margin-bottom: 10px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e3e6ea;
+}
+.bs-meta-tile:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 .bs-meta-label {
   font-size: 10px;
