@@ -357,6 +357,10 @@ server_report <- function(input, output, session, shared, config_reactives) {
     # A3: single persistent notification, updated through pipeline stages
     .notif_id <- "report_progress"
 
+    # Initialised here so they remain accessible after withProgress exits (Item 5)
+    .render_paths    <- list()
+    .final_output_dir <- NULL
+
     tryCatch({
       withProgress(message = tr("generating_report", lang), value = 0, {
 
@@ -484,9 +488,9 @@ server_report <- function(input, output, session, shared, config_reactives) {
         showNotification(tr("notif_rendering", lang),
                          id = .notif_id, duration = NULL, type = "message")
 
-        # Stage 5: Render reports (H4: compact + detailed when the user leaves
-        # generate_compact checked; #4: across each ticked language).
-        render_reports(
+        # Stage 5: Render reports (always generate both compact + detailed).
+        # Capture returned paths for the result panel (Item 3).
+        .render_paths <- render_reports(
           params = list(
             output_dir         = session$userData$output_dir,
             report_langs       = if (length(input$report_languages) > 0)
@@ -494,7 +498,7 @@ server_report <- function(input, output, session, shared, config_reactives) {
             is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
             wavelengths        = shared$rv$wavelengths,
             selected_formats   = input$export_formats,
-            generate_compact   = isTRUE(input$generate_compact),
+            generate_compact   = TRUE,
             csv_path           = session$userData$csv_path
           ),
           session = session
@@ -503,21 +507,21 @@ server_report <- function(input, output, session, shared, config_reactives) {
         incProgress(1)
         removeNotification(.notif_id)
 
-        # A3 / A4: read model_stats.json to populate the KPI strip
-        .stats_path <- file.path(session$userData$output_dir, "model_stats.json")
-        if (file.exists(.stats_path)) {
-          shared$rv$last_model_stats <- tryCatch(
-            jsonlite::fromJSON(.stats_path, simplifyVector = TRUE),
-            error = function(e) NULL
-          )
-        }
-
-        shared$rv$analysis_state <- "done"
-
-        # Addition C: reveal download buttons — only reached on successful completion
-        shinyjs::show("download_report_ui")
-        shinyjs::show("download_report_full_ui")
+        # Capture output_dir for post-withProgress reactive assignments (Item 5).
+        .final_output_dir <- session$userData$output_dir
       })
+
+      # Item 3/5: set reactive state AFTER withProgress exits so the reactive
+      # graph invalidates cleanly (avoids any withProgress context quirks).
+      .stats_path <- file.path(.final_output_dir, "model_stats.json")
+      if (file.exists(.stats_path)) {
+        shared$rv$last_model_stats <- tryCatch(
+          jsonlite::fromJSON(.stats_path, simplifyVector = TRUE),
+          error = function(e) NULL
+        )
+      }
+      shared$rv$last_render_paths <- .render_paths
+      shared$rv$analysis_state    <- "done"
 
     }, error = function(e) {
       removeNotification(.notif_id)

@@ -1056,21 +1056,13 @@ $(function() {
                                   selected = "en",
                                   inline = TRUE)),
             uiOutput("report_languages_help_ui"),
-            checkboxInput("generate_compact",
-                          "Generate compact report",
-                          value = TRUE),
-            br(),
-            uiOutput("report_variants_explainer_ui"),
-            br(),
             actionButton("convert",
                         label = "Generate Report",
                         icon  = icon("file-arrow-down"),
                         class = "btn btn-primary btn-lg",
                         style = "width: 100%;",
                         title = "Resolve readiness-check issues above to enable"),
-            br(), br(),
-            uiOutput("download_report_ui"),
-            uiOutput("download_report_full_ui")
+            uiOutput("report_results_panel")
           )
         ),
         column(4,
@@ -1128,7 +1120,8 @@ server <- function(input, output, session) {
       wavelength_plates = NULL,
       analysis_state   = "idle",    # idle | ready | running | done | failed
       last_model_stats = NULL,      # populated after successful render
-      last_std_range   = NULL       # list(min, max) of configured std concs
+      last_std_range   = NULL,      # list(min, max) of configured std concs
+      last_render_paths = NULL      # named list of rendered file paths from render_reports()
     ),
 
     # Tissue weights (ELISA only)

@@ -414,11 +414,8 @@ server_upload <- function(input, output, session, shared) {
       # Well grid section for each selected plate
       uiOutput("visual_well_grids"),
 
-      # Confirm button
-      actionButton("confirm_visual_import",
-                   tr("confirm_selection", lang),
-                   class = "btn btn-success",
-                   style = "width: 100%; margin-top: 10px; font-size: 16px; padding: 10px;")
+      # Sticky confirm bar: count + button
+      uiOutput("visual_confirm_bar")
     )
   })
 
@@ -523,6 +520,34 @@ server_upload <- function(input, output, session, shared) {
       hr(),
       tags$b(style = "font-size: 14px;", tr("step2_prefix", lang), " ", tr("excluded_wells_label", lang)),
       plate_grids
+    )
+  })
+
+  # Sticky confirm bar: well count + confirm button
+  output$visual_confirm_bar <- renderUI({
+    lang     <- input$app_language %||% "en"
+    registry <- rv_file_preview$plate_registry
+    if (is.null(registry) || nrow(registry) == 0) return(NULL)
+
+    # Count active (non-excluded) wells across all selected plates
+    n_wells <- 0L
+    for (idx in seq_len(nrow(registry))) {
+      pl <- registry[idx, ]
+      plate_id <- pl$plate_id
+      checkbox_val <- input[[paste0("select_plate_", plate_id)]]
+      if (!isTRUE(checkbox_val)) next
+      total_in_plate <- pl$nrows * pl$ncols
+      n_excl <- length(rv_file_preview$exclusions[[plate_id]] %||% character(0))
+      n_wells <- n_wells + total_in_plate - n_excl
+    }
+
+    tags$div(
+      class = "bs-sticky-actions",
+      tags$span(class = "bs-confirm-count", tr("confirm_wells_count", lang, n_wells)),
+      actionButton("confirm_visual_import",
+                   tr("confirm_selection", lang),
+                   class = "btn btn-success",
+                   style = "font-size: 15px; padding: 8px 20px;")
     )
   })
 
