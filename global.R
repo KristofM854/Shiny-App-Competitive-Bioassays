@@ -30,7 +30,7 @@ required_pkgs <- c(
   "htmltools", "htmlwidgets",
   "jsonlite", "kableExtra", "knitr",
   "patchwork", "plotly", "purrr",
-  "readr", "readxl", "rhandsontable", "rintrojs", "rmarkdown",
+  "readr", "readxl", "remotes", "rhandsontable", "rintrojs", "rmarkdown",
   "scales", "shiny", "shinyFeedback", "shinycssloaders", "shinyjs",
   "stringr", "tibble", "tidyr"
 )
