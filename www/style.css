@@ -1961,39 +1961,39 @@ table.bs-report td.num { text-align: right; }
   white-space: nowrap;
 }
 
-/* §C — Report results panel */
-.bs-result-panel {
-  margin-top: 16px;
-}
-.bs-result-panel-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--c-ink-2);
-  margin-bottom: 10px;
-}
-.bs-result-cards {
+/* §C — Report results panel (open-folder card) */
+.bs-report-result {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.bs-result-card {
-  flex: 1 1 180px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
   background: var(--c-surface-1);
   border: 1px solid var(--c-line);
   border-radius: 6px;
-  padding: 12px 14px;
+  flex-wrap: wrap;
 }
-.bs-result-card-name {
-  font-family: var(--ff-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--c-ink-1);
-  margin-bottom: 2px;
+.bs-report-result-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
-.bs-result-card-desc {
-  font-size: 11px;
+.bs-report-result-meta strong {
+  font-size: 14px;
+}
+.bs-report-result-path {
   color: var(--c-ink-3);
-  margin-bottom: 10px;
-  line-height: 1.4;
+  font-size: 12px;
+  font-family: var(--ff-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+  display: block;
 }
-.bs-result-card .btn { width: 100%; }
+.bs-report-result-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
