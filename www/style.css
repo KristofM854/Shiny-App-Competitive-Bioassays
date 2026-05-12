@@ -476,7 +476,7 @@ h5 { font-size: 12.5px; font-weight: 600; color: var(--c-ink-2); }
    they pick up the design system without competing with the five
    primary roles. */
 .handsontable td.cell-qc       { background: rgba(86,180,233,0.10) !important;  color: #2d6f93 !important; }
-.handsontable td.cell-ta       { background: rgba(86,180,233,0.16) !important;  color: #2d6f93 !important; }
+.handsontable td.cell-ta       { background: rgba(153,102,204,0.14) !important; color: #5c2d9e !important; }
 .handsontable td.cell-other    { background: var(--c-surface-2) !important;     color: var(--c-ink-3) !important; }
 
 /* ============================================
@@ -1940,24 +1940,28 @@ table.bs-report td.num { text-align: right; }
   );
 }
 
-/* §B — Sticky confirm bar for visual plate selector */
+/* §B — Sticky confirm bar for visual plate selector.
+   position:fixed so a parent overflow:hidden cannot suppress it. */
 .bs-sticky-actions {
-  position: sticky;
-  bottom: 0;
-  background: #fff;
-  border-top: 1px solid var(--c-line);
-  padding: 10px 14px;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 22px;
+  width: min(900px, calc(100vw - 80px));
+  z-index: 1050;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  z-index: 100;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
-  margin-top: 12px;
+  gap: 16px;
+  padding: 10px 20px;
+  background: #fff;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.14);
 }
 .bs-sticky-actions .bs-confirm-count {
-  font-size: 12px;
-  color: var(--c-ink-3);
+  font-size: 13px;
+  color: var(--c-ink-2);
   white-space: nowrap;
 }
 
