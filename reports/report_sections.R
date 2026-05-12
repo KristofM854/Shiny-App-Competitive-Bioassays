@@ -621,6 +621,47 @@ render_methods_section <- function(analysis_config, assay_config, is_elisa, lang
 }
 
 
+# Render the "How to read this table" callout above the Detailed Sample Results table.
+# HTML: visible .bs-table-legend div (not inside <details>).
+# Non-HTML: compact inline prose.
+render_table_legend <- function() {
+  if (is_html_out()) {
+    cat(paste0(
+      '<div class="bs-table-legend">\n',
+      '<h5>How to read this table</h5>\n',
+      '<p>The <strong>Range</strong> column flags whether a sample\'s mean concentration ',
+      'falls within the calibration curve:</p>\n',
+      '<ul>\n',
+      '<li><strong>In range</strong> — sample value lies between the lowest and highest ',
+      'standards. Concentration is interpolated from the fitted 4PL curve.</li>\n',
+      '<li><strong>&gt;Cal. high</strong> — sample value is above the highest standard. ',
+      'The reported concentration is extrapolated from the upper plateau of the curve, ',
+      'where prediction uncertainty grows quickly. Dilute and re-run for a final result.</li>\n',
+      '<li><strong>&lt;Cal. low</strong> — sample value is below the lowest standard. ',
+      'Same caveat — extrapolated, treat as semi-quantitative.</li>\n',
+      '</ul>\n',
+      '<p>Row colouring is independent of the Range flag and indicates measurement quality:</p>\n',
+      '<ul>\n',
+      '<li><strong>Amber background</strong> — sample falls outside the calibration range ',
+      '(matches &gt;Cal. high / &lt;Cal. low).</li>\n',
+      '<li><strong>Red left-border</strong> — coefficient of variation between replicates ',
+      'is above 30%. The two wells disagreed; consider repeating.</li>\n',
+      '</ul>\n',
+      '<p>A row can carry both treatments if it is both out-of-range and imprecise.</p>\n',
+      '</div>\n\n'
+    ))
+  } else {
+    cat(paste0(
+      "**How to read this table:** The Range column shows whether a sample concentration was ",
+      "interpolated within the calibration range (In range), extrapolated above it (>Cal. high), ",
+      "or extrapolated below it (<Cal. low). Amber background marks out-of-range rows; ",
+      "a red left-border marks rows where CV > 30%.\n\n"
+    ))
+  }
+  invisible(NULL)
+}
+
+
 # Render a collapsed Abbreviations block near the report footer (item 11).
 # HTML: <details class="bs-abbreviations"> with a <dl> grid.
 # Non-HTML: a compact inline list.
@@ -636,10 +677,12 @@ render_abbreviations_block <- function() {
       c("%B/B0",  "Percent bound relative to maximum specific binding (B0)"),
       c("B0",     "Maximum specific binding (zero-standard well)"),
       c("NSB",    "Non-specific binding"),
-      c("LLOQ",   "Lower Limit of Quantification"),
-      c("ULOQ",   "Upper Limit of Quantification"),
-      c("CV",     "Coefficient of Variation (SD / mean × 100%)"),
-      c("SD",     "Standard Deviation"),
+      c("LLOQ",      "Lower Limit of Quantification"),
+      c("ULOQ",      "Upper Limit of Quantification"),
+      c("Cal. high", "Upper limit of the calibration curve (concentration of the highest standard)"),
+      c("Cal. low",  "Lower limit of the calibration curve (concentration of the lowest standard)"),
+      c("CV",        "Coefficient of variation between replicate wells, %. Replicates with CV > 30% are flagged with a red left-border on the row."),
+      c("SD",        "Standard Deviation"),
       c("SE",     "Standard Error of the Mean"),
       c("CI",     "Confidence Interval")
     )
@@ -652,7 +695,7 @@ render_abbreviations_block <- function() {
       '<dl>\n', dl_items, '\n</dl>\n',
       '</details>\n\n'))
   } else {
-    cat("**Abbreviations:** RBA = Radioligand Binding Assay; ELISA = Enzyme-Linked Immunosorbent Assay; LL.4 = four-parameter log-logistic; IC50 = half-maximal inhibitory concentration; EC20/EC80 = 20%/80% response concentrations; %B/B0 = percent bound relative to B0; LLOQ/ULOQ = Lower/Upper Limit of Quantification; CV = Coefficient of Variation; SD/SE = Standard Deviation/Error; CI = Confidence Interval.\n\n")
+    cat("**Abbreviations:** RBA = Radioligand Binding Assay; ELISA = Enzyme-Linked Immunosorbent Assay; LL.4 = four-parameter log-logistic; IC50 = half-maximal inhibitory concentration; EC20/EC80 = 20%/80% response concentrations; %B/B0 = percent bound relative to B0; LLOQ/ULOQ = Lower/Upper Limit of Quantification; Cal. high/Cal. low = upper/lower calibration range limits; CV = coefficient of variation between replicates (> 30% flagged with red border); SD/SE = Standard Deviation/Error; CI = Confidence Interval.\n\n")
   }
   invisible(NULL)
 }

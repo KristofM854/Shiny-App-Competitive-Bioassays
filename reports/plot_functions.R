@@ -53,11 +53,8 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL)
       plotly::ggplotly(gg, height = height)
     }
 
-    # Apply default plotly layout: tighter top margin, consistent legend,
-    # and explicit empty title to prevent ggplotly from preserving any
-    # residual title text from the ggplot object.
+    # Apply default plotly layout: tighter margins and consistent legend.
     default_layout <- list(
-      title  = list(text = ""),
       margin = list(t = 30, r = 20, b = 50, l = 60),
       legend = list(orientation = "h", x = 0, y = 1.08)
     )
