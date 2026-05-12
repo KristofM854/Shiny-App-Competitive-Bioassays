@@ -1,4 +1,14 @@
 #!/bin/sh
-if git diff --cached | grep -P '[\x{201C}\x{201D}\x{2018}\x{2019}]'; then
+# Block curly/smart quote characters: U+201C " U+201D " U+2018 ' U+2019 '
+if git diff --cached | python3 -c "
+import sys, re
+data = sys.stdin.buffer.read()
+# U+201C E2 80 9C, U+201D E2 80 9D, U+2018 E2 80 98, U+2019 E2 80 99
+if re.search(b'\xe2\x80[\x9c\x9d\x98\x99]', data):
+    sys.exit(1)
+sys.exit(0)
+"; then
+  : # no smart quotes found
+else
   echo "ERROR: smart quotes in staged changes"; exit 1
 fi
