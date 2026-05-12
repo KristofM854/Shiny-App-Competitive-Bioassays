@@ -27,6 +27,7 @@ params:
   output_dir: NULL
   lang: "en"
   compact: false
+  stats_env: !r new.env(parent = emptyenv())
 ---
 
 <!--
@@ -1196,6 +1197,12 @@ model_stats <- list(
 
 # write_json_safe is defined in global.R (loaded before rendering)
 write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
+
+# Env-handoff: assign into the environment passed from the Shiny host so
+# the KPI strip can populate without reading the JSON file back from disk.
+if (is.environment(params$stats_env)) {
+  params$stats_env$model_stats <- model_stats
+}
 ```
 
 ### `r tr("std_backcalc_title", lang)`
@@ -1537,6 +1544,10 @@ if (exists("model_stats") && exists("replicate_stats") &&
 # Re-save model_stats with the updated mean_sample_cv
 if (exists("model_stats") && exists("write_json_safe")) {
   write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
+}
+# Env-handoff update: overwrite with the final mean_sample_cv-enriched copy
+if (exists("model_stats") && is.environment(params$stats_env)) {
+  params$stats_env$model_stats <- model_stats
 }
 ```
 
