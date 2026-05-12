@@ -224,10 +224,12 @@ server_upload <- function(input, output, session, shared) {
 
   # ---------- Detection observer (runs ONCE per new file upload) ----------
   # Reads the file, detects plates, assigns stable IDs, and caches the
-
   # file-preview HTML.  Rendering outputs below read from cache only.
+  # NOTE: runs for both Classic and Visual uploads so that switching from
+  # Classic -> Visual after an upload finds rv_file_preview already populated
+  # (avoids "Could not read file for preview" on mode switch).
   observeEvent(input$upload_counts, {
-    req(input$import_method == "visual")
+    req(input$upload_counts)
 
     file_path <- input$upload_counts$datapath
     ext <- tools::file_ext(input$upload_counts$name)
@@ -412,10 +414,7 @@ server_upload <- function(input, output, session, shared) {
       )),
 
       # Well grid section for each selected plate
-      uiOutput("visual_well_grids"),
-
-      # Sticky confirm bar: count + button
-      uiOutput("visual_confirm_bar")
+      uiOutput("visual_well_grids")
     )
   })
 
@@ -529,12 +528,16 @@ server_upload <- function(input, output, session, shared) {
     registry <- rv_file_preview$plate_registry
     if (is.null(registry) || nrow(registry) == 0) return(NULL)
 
-    # Count active (non-excluded) wells across all selected plates
+    # Count active (non-excluded) wells across all selected plates.
+    # Dynamic checkboxes (select_plate_*) are created inside visual_file_preview
+    # and may not have round-tripped through the browser yet on first render —
+    # input[[...]] returns NULL until the browser sends the initial value back.
+    # Default NULL to TRUE so the count matches the checkboxes' value=TRUE default.
     n_wells <- 0L
     for (idx in seq_len(nrow(registry))) {
       pl <- registry[idx, ]
       plate_id <- pl$plate_id
-      checkbox_val <- input[[paste0("select_plate_", plate_id)]]
+      checkbox_val <- input[[paste0("select_plate_", plate_id)]] %||% TRUE
       if (!isTRUE(checkbox_val)) next
       total_in_plate <- pl$nrows * pl$ncols
       n_excl <- length(rv_file_preview$exclusions[[plate_id]] %||% character(0))
@@ -723,6 +726,15 @@ server_upload <- function(input, output, session, shared) {
   observeEvent(input$clear_upload, {
     shinyjs::reset("upload_counts")
     shared$matrix_measresults(create_plate_matrix())
+
+    # Clear all visual-selector derived state so the grid doesn't persist
+    # with stale data after the file input is reset.
+    rv_file_preview$raw_data       <- NULL
+    rv_file_preview$file_path      <- NULL
+    rv_file_preview$plate_registry <- NULL
+    rv_file_preview$exclusions     <- list()
+    rv_file_preview$preview_cache  <- NULL
+
     showNotification("File cleared", type = "message")
   })
 
