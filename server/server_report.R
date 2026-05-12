@@ -345,129 +345,193 @@ server_report <- function(input, output, session, shared, config_reactives) {
   # --------------------------------------------------------------------------
 
   observeEvent(input$convert, {
+    lang <- input$app_language %||% "en"
 
-    withProgress(message = tr("generating_report", input$app_language %||% "en"), value = 0, {
+    # A3: disable button immediately to prevent double-clicks
+    shinyjs::disable("convert")
+    updateActionButton(session, "convert",
+      label = tr("rendering_report_btn", lang),
+      icon  = icon("spinner", class = "fa-spin"))
+    shared$rv$analysis_state <- "running"
 
-      # Task 1: every Generate Report click writes into a fresh
-      # run_HHMMSS/ subdir under the session container so a second click
-      # does not overwrite the first. session_root was captured at session
-      # start (app.R) and stays put for the whole session; output_dir +
-      # csv_path are repointed at the new run dir for downstream stages.
-      .session_root <- session$userData$session_root %||%
-                       session$userData$output_dir
-      .ts <- format(Sys.time(), "%H%M%S")
-      .run_dir <- file.path(.session_root, paste0("run_", .ts))
-      .suffix <- 1
-      while (dir.exists(.run_dir)) {
-        .run_dir <- file.path(.session_root,
-                              paste0("run_", .ts, "_", .suffix))
-        .suffix <- .suffix + 1
-      }
-      dir.create(.run_dir, recursive = TRUE, showWarnings = FALSE)
-      session$userData$output_dir <- .run_dir
-      session$userData$csv_path   <- file.path(.run_dir, "long_data_output.csv")
-      message(sprintf("[generate-report] writing artifacts to %s", .run_dir))
+    # A3: single persistent notification, updated through pipeline stages
+    .notif_id <- "report_progress"
 
-      # Stage 1: Flush pending layout state
-      flush_latest_layout_state(input, shared)
+    tryCatch({
+      withProgress(message = tr("generating_report", lang), value = 0, {
 
-      # Stage 2: Build long-format data
-      df_long <- build_long_data(shared, config_reactives$std_conc_raw())
-      incProgress(0.2, detail = "Validating data...")
+        showNotification(tr("notif_validating", lang),
+                         id = .notif_id, duration = NULL, type = "message")
 
-      # Stage 3: Normalize
-      df_normalized <- normalize_assay_data(
-        df_long, input$assay_type, shared$matrix_type(), session
-      )
-      if (is.null(df_normalized)) return()
-      incProgress(0.4, detail = "Saving data files...")
+        # Task 1: every Generate Report click writes into a fresh
+        # run_HHMMSS/ subdir under the session container so a second click
+        # does not overwrite the first. session_root was captured at session
+        # start (app.R) and stays put for the whole session; output_dir +
+        # csv_path are repointed at the new run dir for downstream stages.
+        .session_root <- session$userData$session_root %||%
+                         session$userData$output_dir
+        .ts <- format(Sys.time(), "%H%M%S")
+        .run_dir <- file.path(.session_root, paste0("run_", .ts))
+        .suffix <- 1
+        while (dir.exists(.run_dir)) {
+          .run_dir <- file.path(.session_root,
+                                paste0("run_", .ts, "_", .suffix))
+          .suffix <- .suffix + 1
+        }
+        dir.create(.run_dir, recursive = TRUE, showWarnings = FALSE)
+        session$userData$output_dir <- .run_dir
+        session$userData$csv_path   <- file.path(.run_dir, "long_data_output.csv")
+        message(sprintf("[generate-report] writing artifacts to %s", .run_dir))
 
-      # Stage 4: Collect configuration and save artifacts
-      assay <- input$assay_type
-      sel_weights <- input$regression_weight
-      if (is.null(sel_weights) || length(sel_weights) == 0) sel_weights <- "none"
+        # Stage 1: Flush pending layout state
+        flush_latest_layout_state(input, shared)
 
-      artifact_config <- list(
-        csv_path       = session$userData$csv_path,
-        output_dir     = session$userData$output_dir,
-        # Task 1: redirect the two JSON sidecars into the per-run dir so each
-        # run is a self-contained bundle (instead of every run overwriting
-        # the session-root copies).
-        fmt_json       = file.path(session$userData$output_dir,
-                                   basename(session$userData$fmt_json)),
-        notes_file     = file.path(session$userData$output_dir,
-                                   basename(session$userData$notes_file)),
-        export_formats = input$export_formats,
-        notes          = input$notes %||% "",
-        assay_type     = assay,
-        is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
-        wavelengths        = shared$rv$wavelengths,
-        wavelength_plates  = shared$rv$wavelength_plates,
-        matrix_type      = shared$matrix_type(),
-        matrix_id        = shared$matrix_id(),
-        matrix_dilution  = shared$matrix_dilution(),
-        matrix_replicate = shared$matrix_replicate(),
-        std_conc_raw     = config_reactives$std_conc_raw(),
-        qc_params = if (assay == "rba") {
-          list(qc_concentration = input$qc_conc, expected_hill = input$expected_hill,
-               assay_type = assay, detection_method = "radioligand",
-               analyte = config_reactives$chosen_standard_label())
-        } else {
-          list(assay_type = assay, detection_method = "absorbance",
-               analyte = input$elisa_analyte, units = input$elisa_units %||% "pg/mL",
-               normalization = "percent_b_b0")
-        },
-        assay_config = if (assay == "elisa") {
-          list(assay_type = "elisa", analyte = input$elisa_analyte,
-               units = input$elisa_units %||% "pg/mL", detection_method = "absorbance")
-        } else {
-          list(assay_type = "rba", toxin_class = input$toxin_class,
-               toxin_variant = input$toxin_variant %||% NA,
-               toxin_standard_label = config_reactives$chosen_standard_label(),
-               molecular_weight_g_mol = shared$mw_g_mol(),
-               detection_method = "radioligand", units = "mol/L")
-        },
-        analysis_config = list(
-          regression_weight = sel_weights,
-          quant_range_min = input$quant_range_min %||% 20,
-          quant_range_max = input$quant_range_max %||% 80,
-          ci_method = input$ci_method %||% "t_dist",
-          enable_outlier_detection = isTRUE(input$enable_outlier_detection),
-          outlier_min_n = input$outlier_min_n %||% 3,
-          normality_assumption = input$normality_assumption %||% "assume",
-          cv_limit = input$cv_limit %||% 30
-        ),
-        # #4: report_languages is a vector of "en" / "es" the user ticked. If
-        # they unticked both we fall back to "en" so a render still happens.
-        report_languages = if (length(input$report_languages) > 0)
-                             input$report_languages else "en",
-        tissue_weights   = if (assay == "elisa") shared$tissue_weights_rv() else NULL
-      )
+        # Stage 2: Build long-format data
+        df_long <- build_long_data(shared, config_reactives$std_conc_raw())
+        incProgress(0.2)
 
-      save_analysis_artifacts(df_normalized, artifact_config, session)
-      incProgress(0.7, detail = "Rendering report (this may take a minute)...")
+        showNotification(tr("notif_fitting", lang),
+                         id = .notif_id, duration = NULL, type = "message")
 
-      # Stage 5: Render reports (H4: compact + detailed when the user leaves
-      # generate_compact checked; #4: across each ticked language).
-      render_reports(
-        params = list(
-          output_dir         = session$userData$output_dir,
-          report_langs       = if (length(input$report_languages) > 0)
-                                 input$report_languages else "en",
+        # Stage 3: Normalize
+        df_normalized <- normalize_assay_data(
+          df_long, input$assay_type, shared$matrix_type(), session
+        )
+        if (is.null(df_normalized)) {
+          removeNotification(.notif_id)
+          shared$rv$analysis_state <- "failed"
+          return()
+        }
+        incProgress(0.4)
+
+        showNotification(tr("notif_quantifying", lang),
+                         id = .notif_id, duration = NULL, type = "message")
+
+        # Stage 4: Collect configuration and save artifacts
+        assay <- input$assay_type
+        sel_weights <- input$regression_weight
+        if (is.null(sel_weights) || length(sel_weights) == 0) sel_weights <- "none"
+
+        artifact_config <- list(
+          csv_path       = session$userData$csv_path,
+          output_dir     = session$userData$output_dir,
+          # Task 1: redirect the two JSON sidecars into the per-run dir so each
+          # run is a self-contained bundle (instead of every run overwriting
+          # the session-root copies).
+          fmt_json       = file.path(session$userData$output_dir,
+                                     basename(session$userData$fmt_json)),
+          notes_file     = file.path(session$userData$output_dir,
+                                     basename(session$userData$notes_file)),
+          export_formats = input$export_formats,
+          notes          = input$notes %||% "",
+          assay_type     = assay,
           is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
           wavelengths        = shared$rv$wavelengths,
-          selected_formats   = input$export_formats,
-          generate_compact   = isTRUE(input$generate_compact),
-          csv_path           = session$userData$csv_path
-        ),
-        session = session
-      )
+          wavelength_plates  = shared$rv$wavelength_plates,
+          matrix_type      = shared$matrix_type(),
+          matrix_id        = shared$matrix_id(),
+          matrix_dilution  = shared$matrix_dilution(),
+          matrix_replicate = shared$matrix_replicate(),
+          std_conc_raw     = config_reactives$std_conc_raw(),
+          qc_params = if (assay == "rba") {
+            list(qc_concentration = input$qc_conc, expected_hill = input$expected_hill,
+                 assay_type = assay, detection_method = "radioligand",
+                 analyte = config_reactives$chosen_standard_label())
+          } else {
+            list(assay_type = assay, detection_method = "absorbance",
+                 analyte = input$elisa_analyte, units = input$elisa_units %||% "pg/mL",
+                 normalization = "percent_b_b0")
+          },
+          assay_config = if (assay == "elisa") {
+            list(assay_type = "elisa", analyte = input$elisa_analyte,
+                 units = input$elisa_units %||% "pg/mL", detection_method = "absorbance")
+          } else {
+            list(assay_type = "rba", toxin_class = input$toxin_class,
+                 toxin_variant = input$toxin_variant %||% NA,
+                 toxin_standard_label = config_reactives$chosen_standard_label(),
+                 molecular_weight_g_mol = shared$mw_g_mol(),
+                 detection_method = "radioligand", units = "mol/L")
+          },
+          analysis_config = list(
+            regression_weight = sel_weights,
+            quant_range_min = input$quant_range_min %||% 20,
+            quant_range_max = input$quant_range_max %||% 80,
+            ci_method = input$ci_method %||% "t_dist",
+            enable_outlier_detection = isTRUE(input$enable_outlier_detection),
+            outlier_min_n = input$outlier_min_n %||% 3,
+            normality_assumption = input$normality_assumption %||% "assume",
+            cv_limit = input$cv_limit %||% 30
+          ),
+          # #4: report_languages is a vector of "en" / "es" the user ticked. If
+          # they unticked both we fall back to "en" so a render still happens.
+          report_languages = if (length(input$report_languages) > 0)
+                               input$report_languages else "en",
+          tissue_weights   = if (assay == "elisa") shared$tissue_weights_rv() else NULL
+        )
 
-      incProgress(1, detail = "Done!")
+        # A3: cache std range for KPI strip (A4)
+        std_raw <- config_reactives$std_conc_raw()
+        if (!is.null(std_raw) && length(std_raw) > 0) {
+          shared$rv$last_std_range <- list(
+            min = min(std_raw, na.rm = TRUE),
+            max = max(std_raw, na.rm = TRUE)
+          )
+        }
 
-      # Addition C: reveal download buttons — only reached on successful completion
-      shinyjs::show("download_report_ui")
-      shinyjs::show("download_report_full_ui")
+        save_analysis_artifacts(df_normalized, artifact_config, session)
+        incProgress(0.7)
+
+        showNotification(tr("notif_rendering", lang),
+                         id = .notif_id, duration = NULL, type = "message")
+
+        # Stage 5: Render reports (H4: compact + detailed when the user leaves
+        # generate_compact checked; #4: across each ticked language).
+        render_reports(
+          params = list(
+            output_dir         = session$userData$output_dir,
+            report_langs       = if (length(input$report_languages) > 0)
+                                   input$report_languages else "en",
+            is_multiwavelength = isTRUE(shared$rv$is_multiwavelength),
+            wavelengths        = shared$rv$wavelengths,
+            selected_formats   = input$export_formats,
+            generate_compact   = isTRUE(input$generate_compact),
+            csv_path           = session$userData$csv_path
+          ),
+          session = session
+        )
+
+        incProgress(1)
+        removeNotification(.notif_id)
+
+        # A3 / A4: read model_stats.json to populate the KPI strip
+        .stats_path <- file.path(session$userData$output_dir, "model_stats.json")
+        if (file.exists(.stats_path)) {
+          shared$rv$last_model_stats <- tryCatch(
+            jsonlite::fromJSON(.stats_path, simplifyVector = TRUE),
+            error = function(e) NULL
+          )
+        }
+
+        shared$rv$analysis_state <- "done"
+
+        # Addition C: reveal download buttons — only reached on successful completion
+        shinyjs::show("download_report_ui")
+        shinyjs::show("download_report_full_ui")
+      })
+
+    }, error = function(e) {
+      removeNotification(.notif_id)
+      shared$rv$analysis_state <- "failed"
+      showNotification(paste("Report generation failed:", e$message),
+                       type = "error", duration = 10)
+      message("[generate-report] ERROR: ", e$message)
+
+    }, finally = {
+      # A3: always re-enable the button
+      shinyjs::enable("convert")
+      updateActionButton(session, "convert",
+        label = tr("generate_report", lang),
+        icon  = icon("file-arrow-down"))
     })
   })
 
