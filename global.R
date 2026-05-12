@@ -260,6 +260,21 @@ get_script_dir <- function() {
   normalizePath(getwd(), winslash = "/")
 }
 
+#' Open a folder in the OS file manager (local installs only)
+open_folder_in_os <- function(path) {
+  if (is.null(path) || !nzchar(path)) return(FALSE)
+  norm <- tryCatch(normalizePath(path, mustWork = TRUE), error = function(e) NULL)
+  if (is.null(norm)) return(FALSE)
+  tryCatch({
+    switch(Sys.info()[["sysname"]],
+      Windows = shell.exec(norm),
+      Darwin  = system2("open",     shQuote(norm), wait = FALSE),
+              system2("xdg-open", shQuote(norm), wait = FALSE)
+    )
+    TRUE
+  }, error = function(e) FALSE)
+}
+
 #' Safe JSON write with directory creation
 write_json_safe <- function(x, file) {
   dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)

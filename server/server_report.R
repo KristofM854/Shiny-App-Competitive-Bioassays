@@ -357,9 +357,13 @@ server_report <- function(input, output, session, shared, config_reactives) {
     # A3: single persistent notification, updated through pipeline stages
     .notif_id <- "report_progress"
 
-    # Initialised here so they remain accessible after withProgress exits (Item 5)
-    .render_paths    <- list()
+    # Initialised here so they remain accessible after withProgress exits.
+    # .stats_env is an R environment passed as an Rmd param; the template
+    # assigns model_stats into it directly so we avoid a fragile JSON round-trip.
+    .stats_env        <- new.env(parent = emptyenv())
+    .render_paths     <- list()
     .final_output_dir <- NULL
+    .captured_std_range <- NULL
 
     tryCatch({
       withProgress(message = tr("generating_report", lang), value = 0, {
@@ -473,10 +477,10 @@ server_report <- function(input, output, session, shared, config_reactives) {
           tissue_weights   = if (assay == "elisa") shared$tissue_weights_rv() else NULL
         )
 
-        # A3: cache std range for KPI strip (A4)
+        # Cache std range — captured as a plain value for post-withProgress assignment
         std_raw <- config_reactives$std_conc_raw()
         if (!is.null(std_raw) && length(std_raw) > 0) {
-          shared$rv$last_std_range <- list(
+          .captured_std_range <- list(
             min = min(std_raw, na.rm = TRUE),
             max = max(std_raw, na.rm = TRUE)
           )
@@ -489,7 +493,8 @@ server_report <- function(input, output, session, shared, config_reactives) {
                          id = .notif_id, duration = NULL, type = "message")
 
         # Stage 5: Render reports (always generate both compact + detailed).
-        # Capture returned paths for the result panel (Item 3).
+        # stats_env is passed through to the Rmd; the template assigns
+        # model_stats into it directly (env-handoff, avoids JSON round-trip).
         .render_paths <- render_reports(
           params = list(
             output_dir         = session$userData$output_dir,
@@ -499,7 +504,8 @@ server_report <- function(input, output, session, shared, config_reactives) {
             wavelengths        = shared$rv$wavelengths,
             selected_formats   = input$export_formats,
             generate_compact   = TRUE,
-            csv_path           = session$userData$csv_path
+            csv_path           = session$userData$csv_path,
+            stats_env          = .stats_env
           ),
           session = session
         )
@@ -511,16 +517,37 @@ server_report <- function(input, output, session, shared, config_reactives) {
         .final_output_dir <- session$userData$output_dir
       })
 
-      # Item 3/5: set reactive state AFTER withProgress exits so the reactive
-      # graph invalidates cleanly (avoids any withProgress context quirks).
-      .stats_path <- file.path(.final_output_dir, "model_stats.json")
-      if (file.exists(.stats_path)) {
-        shared$rv$last_model_stats <- tryCatch(
-          jsonlite::fromJSON(.stats_path, simplifyVector = TRUE),
-          error = function(e) NULL
-        )
+      # Set reactive state AFTER withProgress exits — reactive assignments here
+      # invalidate cleanly outside the withProgress context.
+
+      # KPI strip: prefer the env-handoff (model_stats assigned by the Rmd
+      # into .stats_env); fall back to reading model_stats.json if the env
+      # is empty (e.g. older code path or multi-wavelength template).
+      if (exists("model_stats", envir = .stats_env, inherits = FALSE)) {
+        shared$rv$last_model_stats <- .stats_env$model_stats
+        message("[kpi-strip] model_stats populated via env-handoff: r2=",
+                .stats_env$model_stats$r_squared %||% "NULL",
+                " rmse=", .stats_env$model_stats$rmse %||% "NULL")
+      } else {
+        .stats_path <- file.path(.final_output_dir, "model_stats.json")
+        if (file.exists(.stats_path)) {
+          shared$rv$last_model_stats <- tryCatch(
+            jsonlite::fromJSON(.stats_path, simplifyVector = TRUE),
+            error = function(e) {
+              message("[kpi-strip] JSON read failed: ", e$message); NULL
+            }
+          )
+        } else {
+          message("[kpi-strip] No model_stats found — KPI strip will stay empty. ",
+                  "Check that the save-model-stats chunk ran at: ", .final_output_dir)
+        }
+      }
+
+      if (!is.null(.captured_std_range)) {
+        shared$rv$last_std_range <- .captured_std_range
       }
       shared$rv$last_render_paths <- .render_paths
+      shared$rv$last_report_dir   <- .final_output_dir
       shared$rv$analysis_state    <- "done"
 
     }, error = function(e) {
