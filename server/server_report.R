@@ -547,8 +547,20 @@ server_report <- function(input, output, session, shared, config_reactives) {
         shared$rv$last_std_range <- .captured_std_range
       }
       shared$rv$last_render_paths <- .render_paths
-      shared$rv$last_report_dir   <- .final_output_dir
-      shared$rv$analysis_state    <- "done"
+
+      # Only mark "done" (and expose the folder button) when at least one
+      # output file was actually written.  render_reports() catches per-render
+      # errors silently, so an empty list means every render failed.
+      if (length(.render_paths) > 0L) {
+        shared$rv$last_report_dir <- .final_output_dir
+        shared$rv$analysis_state  <- "done"
+      } else {
+        shared$rv$analysis_state <- "failed"
+        showNotification(
+          "All report renders failed — check the error notifications above.",
+          type = "error", duration = 12
+        )
+      }
 
     }, error = function(e) {
       removeNotification(.notif_id)

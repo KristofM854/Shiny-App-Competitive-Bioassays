@@ -1201,7 +1201,8 @@ write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
 # Env-handoff: assign into the environment passed from the Shiny host so
 # the KPI strip can populate without reading the JSON file back from disk.
 if (is.environment(params$stats_env)) {
-  params$stats_env$model_stats <- model_stats
+  .se <- params$stats_env
+  .se$model_stats <- model_stats
 }
 ```
 
@@ -1547,7 +1548,8 @@ if (exists("model_stats") && exists("write_json_safe")) {
 }
 # Env-handoff update: overwrite with the final mean_sample_cv-enriched copy
 if (exists("model_stats") && is.environment(params$stats_env)) {
-  params$stats_env$model_stats <- model_stats
+  .se <- params$stats_env
+  .se$model_stats <- model_stats
 }
 ```
 
