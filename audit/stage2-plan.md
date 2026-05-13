@@ -11,6 +11,17 @@ Effort sizes: S = ≤ 1 day, M = 2–4 days, L = ≥ 5 days.
 
 ## Branch sequence
 
+### Phase 0 — Decision capture and pre-fix baseline (this branch)
+
+#### 0.1 `claude/audit-baseline-and-decisions`
+**Issues**: documentation updates to AUDIT-001, AUDIT-005, AUDIT-006, AUDIT-008, AUDIT-021, AUDIT-029, AUDIT-040 + capture of the pre-fix numerical baseline
+**Effort**: S
+**Blocker for v1.0.0**: **yes — must precede Phase 1**
+**Rationale (sequencing)**: Records the maintainer's decisions on the option choices in the four highest-impact statistical fixes (AUDIT-001 fail-loud, AUDIT-005 unbounded asymptote, AUDIT-006 pre-flight reject, AUDIT-008 v1.0.0 version) and captures the "what the app produces today" snapshot. Subsequent fix branches use the snapshot as the diff baseline to characterize numerical impact. Reasoning for sequencing: the statistical fix branches will change numerical output, so the baseline must be frozen against an unmodified `main` (or this branch's HEAD) before any fix lands.
+**Required tests to ship**: none — documentation + script + frozen snapshot only. The captured `audit/pre-fix-snapshot/` directory IS the artifact this branch ships.
+
+---
+
 ### Phase 1 — Numerical correctness (must precede everything that depends on results)
 
 #### 1.1 `claude/fix-statistical-fallback-and-warnings`
@@ -145,13 +156,14 @@ Effort sizes: S = ≤ 1 day, M = 2–4 days, L = ≥ 5 days.
 ### Phase 5 — JOSS submission documentation
 
 #### 5.1 `claude/joss-docs-pass`
-**Issues**: AUDIT-028 (no CONTRIBUTING), AUDIT-029 (stale README + CI matrix), AUDIT-030 (statement of need), AUDIT-031 (system deps in install)
-**Effort**: M
+**Issues**: AUDIT-028 (no CONTRIBUTING), AUDIT-029 (stale README + reduced CI matrix per decision), AUDIT-030 (statement of need), AUDIT-031 (system deps in install), **AUDIT-040 (roxygen on server modules — promoted from v1.0.1)**
+**Effort**: **M+** (was M; promotion of AUDIT-040 adds ≈ 0.5 day of roxygen writing across `server/server_common.R`, `server/server_layout.R`, `server/server_config.R`, `server/server_upload.R`)
 **Blocker for v1.0.0**: yes
-**Rationale**: All documentation deliverables for JOSS. Bundled so the JOSS submission can be staged as a single PR.
+**Rationale**: All documentation deliverables for JOSS, including function-level roxygen on server modules for contributor onboarding (AUDIT-040 decision). Bundled so the JOSS submission can be staged as a single PR. **CI matrix**: 3 jobs only — Ubuntu R 4.2, Ubuntu R release, Windows R release (per AUDIT-029 decision); add `R CMD check --as-cran` and `covr` (Codecov upload); defer `lintr` to v1.0.1. **roxygen**: documentation-only — do NOT generate a NAMESPACE.
 **Required tests**:
 - `test_that("CONTRIBUTING.md and CODE_OF_CONDUCT.md exist")` (file-existence assertions)
 - CI matrix expanded as part of the same branch
+- No new tests for AUDIT-040 — documentation-only
 
 #### 5.2 `claude/cleanup-elisa-normalization-dead-code`
 **Issues**: AUDIT-017 (dead ELISA branch in normalize_data)
@@ -172,10 +184,10 @@ Effort sizes: S = ≤ 1 day, M = 2–4 days, L = ≥ 5 days.
 **Required tests**: security regression test for path traversal
 
 #### 6.2 `claude/code-hygiene-pass`
-**Issues**: AUDIT-027 (`<<-` in tryCatch handlers), AUDIT-035 (ggplot2 size→linewidth), AUDIT-036 (DEFAULT_STANDARDS duplication), AUDIT-037 (i18n TODOs), AUDIT-038 (TRANSLATIONS_CACHE closure), AUDIT-039 (dev-process markdown clutter), AUDIT-040 (server modules roxygen), AUDIT-041 (multiwavelength tempdir), AUDIT-043 (tr_idx comment)
+**Issues**: AUDIT-027 (`<<-` in tryCatch handlers), AUDIT-035 (ggplot2 size→linewidth), AUDIT-036 (DEFAULT_STANDARDS duplication), AUDIT-037 (i18n TODOs), AUDIT-038 (TRANSLATIONS_CACHE closure), AUDIT-039 (dev-process markdown clutter), AUDIT-041 (multiwavelength tempdir), AUDIT-043 (tr_idx comment)
 **Effort**: M
 **Blocker for v1.0.0**: no
-**Rationale**: Pure cleanup; defer to v1.0.1.
+**Rationale**: Pure cleanup; defer to v1.0.1. Note: AUDIT-040 (roxygen on server modules) was **promoted to v1.0.0** in the Phase 5.1 bundle per the maintainer decision; it is no longer in this v1.0.1 list.
 **Required tests**: tests already exist for behaviors touched by the changes; no new tests needed except AUDIT-036's standards-equality test.
 
 #### 6.3 `claude/bootstrap-iterations-cleanup`
@@ -198,22 +210,23 @@ The minimum set of branches that must merge before tagging v1.0.0:
 
 | Order | Branch | Reason |
 |---|---|---|
-| 1 | `claude/fix-statistical-fallback-and-warnings` | AUDIT-001 (Critical, silent NA) + AUDIT-014 (High, swallowed warnings) |
-| 2 | `claude/fix-elisa-asymptote-and-curve-direction` | AUDIT-005 + AUDIT-006 (High, silently wrong on plausible data) |
+| 0 | `claude/audit-baseline-and-decisions` | Pre-fix baseline + maintainer decisions on AUDIT-001/005/006/008/021/029/040; must precede every numerical fix |
+| 1 | `claude/fix-statistical-fallback-and-warnings` | AUDIT-001 (Critical, silent NA — fail-loud per maintainer decision) + AUDIT-014 (High, swallowed warnings) |
+| 2 | `claude/fix-elisa-asymptote-and-curve-direction` | AUDIT-005 (unbounded top + 80–120 sanity warning per decision) + AUDIT-006 (pre-flight hard reject per decision) |
 | 3 | `claude/fix-auto-weighting-degeneracy-flag` | AUDIT-007 (High) |
 | 4 | `claude/fix-auto-weighting-multi-select` | AUDIT-032 (Medium UX correctness, cheap fix) |
 | 5 | `claude/pin-dependencies-and-r-version` | AUDIT-004 (Critical JOSS blocker) + AUDIT-026 |
-| 6 | `claude/version-source-of-truth` | AUDIT-008 + AUDIT-009 (High JOSS blockers) |
+| 6 | `claude/version-source-of-truth` | AUDIT-008 (set DESCRIPTION to 1.0.0 per decision) + AUDIT-009 (High JOSS blockers) |
 | 7 | `claude/session-safety-pass` | AUDIT-010 + AUDIT-011 (High, multi-user safety) |
-| 8 | `claude/report-metadata-and-replay` | AUDIT-018 + AUDIT-020 + AUDIT-021 (Medium reproducibility, JOSS-relevant) |
+| 8 | `claude/report-metadata-and-replay` | AUDIT-018 + AUDIT-020 + AUDIT-021 (Medium reproducibility, JOSS-relevant; replay-script value elevated by decision) |
 | 9 | `claude/repair-golden-number-test` | AUDIT-002 (Critical regression-test gap) |
 | 10 | `claude/regression-tests-for-previously-fixed-bugs` | AUDIT-003 (Critical) |
 | 11 | `claude/upgrade-shinytest2-content-assertions` | AUDIT-015 (High, false confidence) |
 | 12 | `claude/csv-separator-and-encoding` | AUDIT-012 + AUDIT-013 + AUDIT-022 (High, predictable failure on EU data) |
 | 13 | `claude/upload-size-and-format-doc` | AUDIT-024 (Medium one-liner) + AUDIT-033 (Medium spec doc) |
-| 14 | `claude/joss-docs-pass` | AUDIT-028 + AUDIT-029 + AUDIT-030 + AUDIT-031 (JOSS blockers) |
+| 14 | `claude/joss-docs-pass` | AUDIT-028 + AUDIT-029 (3-job CI matrix per decision) + AUDIT-030 + AUDIT-031 + AUDIT-040 (roxygen, promoted) |
 
-**Total v1.0.0 blocker effort estimate:** 4× S + 9× M + 1× S/M = roughly 4–6 weeks of focused work if branches are sequenced; 2–3 weeks if multiple are landed in parallel by different contributors.
+**Total v1.0.0 blocker effort estimate:** 5× S + 9× M + 1× M+ = roughly 4–6 weeks of focused work if branches are sequenced; 2–3 weeks if multiple are landed in parallel by different contributors.
 
 **Critical dependency chain (must be in this order):**
 1. Phase 1 fixes statistics → 2. Phase 2 pins environment → 3. Phase 3 locks regression tests → 4–5. Phase 4 + Phase 5 polish for submission.
@@ -249,4 +262,12 @@ These are improvements that are not appropriate for a 1.x patch but should be tr
 
 ## Publication risk statement
 
-Once the v1.0.0 blocker checklist (14 branches) is addressed, two classes of residual risk should be acknowledged as limitations in the JOSS software paper rather than fixed in code. **Scope of supported assay formats**: the app supports decreasing competitive-binding curves only (RBA, competitive ELISA); agonist/sandwich/non-competitive ELISA formats produce increasing dose-response and are explicitly rejected after the AUDIT-006 fix — this scope restriction should be stated in the paper's "limitations" section. **Reproducibility caveat for renv-managed environments**: even with `renv.lock` (AUDIT-004), users who choose to upgrade dependencies beyond the lockfile assume responsibility for re-validating against the shipped example outputs — the paper should direct users to `scripts/replay_report.R` (AUDIT-021) as the recommended sanity check after any environment change and should state that JOSS-published numbers were produced with the locked environment captured at the release SHA. Additional residual risks worth one paragraph in the paper: the log-linear interpolation fallback is deliberately removed in favour of explicit failure (AUDIT-001 fix path b) — pathological standards data is no longer "papered over" but instead surfaces as a clear error, which is the correct behaviour for a scientific tool but a UX regression for the rare cases where interpolation would have produced anything usable.
+Once the v1.0.0 blocker checklist (15 branches, Phase 0 through Phase 5) is addressed, three classes of residual risk should be acknowledged as **limitations in the JOSS software paper** rather than fixed in code. These correspond directly to maintainer decisions captured in this branch.
+
+**1. Interpolation fallback deliberately removed (AUDIT-001).** When both LL.4 and LL.3 fail to converge, the app now refuses to generate a report rather than falling back to log-linear interpolation. Pathological standards data — flat response, all-zero, fewer than 4 unique non-degenerate concentrations — is no longer "papered over" but surfaces as a clear error. This is the correct behaviour for a scientific tool, but constitutes a UX regression for the rare cases where interpolation would have produced anything usable. The paper should state this explicitly so users with degraded plates understand why the report fails.
+
+**2. Scope of supported assay formats (AUDIT-006).** The app supports **decreasing (competitive) dose-response curves only** — RBA radioligand displacement, competitive ELISA. Agonist binding, sandwich ELISA, and other formats producing increasing response with concentration are rejected at the Tab 5 pre-flight stage with a modal dialog. The paper's "limitations" section should state this scope restriction and direct users with increasing-curve data to other tools (`drc` directly, GraphPad Prism, or PROAST).
+
+**3. Unbounded ELISA top asymptote with sanity envelope (AUDIT-005).** The fitted top asymptote `d` is no longer constrained to ≤ 100% B/B0 — individual standards can plausibly exceed 100 due to measurement noise and matrix effects, and constraining `d` biased IC50 estimates. A sanity warning is emitted for fits where `d > 120` or `d < 80`, signalling real data problems (poor B0 controls, severe matrix effects, wrong assay orientation). The paper should document the 80–120 envelope as the expected range and note that fits outside it produce a warning rather than silent acceptance.
+
+**4. Reproducibility caveat for environments beyond the lockfile (AUDIT-004 + AUDIT-021).** Even with `renv.lock` capturing the v1.0.0 environment, users who upgrade dependencies beyond the lockfile assume responsibility for re-validating against the shipped reference outputs. The paper should direct users to `scripts/replay_report.R` (AUDIT-021) as the recommended sanity check after any environment change and should state that JOSS-published numbers were produced with the locked environment captured at the release SHA.
