@@ -30,7 +30,9 @@ Reproducer: any standards subset where 4PL convergence fails twice (e.g. 3 uniqu
 
 **Recommended fix**: Either (a) wire `quantify_samples()` to call `all_models[[primary_key]]$interp_fun` and its inverse for sample back-calculation when `model_fit` is NULL, returning concentrations with a "Interpolated (no parametric fit)" status flag and an inflated "interpolation-uncertainty" CI; OR (b) remove the interpolation fallback entirely and fail loudly with an `showNotification(..., type = "error")` when both LL.4 and LL.3 fail, so the user is forced to fix the upstream data or analysis settings. Option (b) is recommended for v1.0.0 because deriving meaningful CIs from `approxfun()` interpolation is non-trivial and would itself need validation. Relabel any user-facing reference from "log-linear" to "log-linear interpolation" so the distinction from a parametric linear fit is explicit.
 
-**Regression test needed**: yes — `test-analysis-pipeline.R` should add a case where both LL.4 and LL.3 are forced to fail (e.g. by passing a degenerate `standards_for_model` with all-equal responses) and assert the chosen failure mode: either (a) sample concentrations are computed from `interp_fun` and `quantification_status` is "Interpolated", or (b) `quantify_samples()` returns an explicit failure flag and the orchestrator triggers `showNotification(..., type = "error")`.
+**Decision (2026-05-13):** Maintainer chose **option (b) — fail loudly**. When both LL.4 and LL.3 fail, `quantify_samples()` will be skipped and the orchestrator (`server_report.R`) will emit `showNotification("Dose-response curve fit failed. Check that standards have a clear dose-response trend and at least 4 unique concentrations with non-zero variance.", type = "error", duration = 15)` and set `shared$rv$analysis_state <- "failed"`. The `interp_fun` storage in `analysis_pipeline.R:448–479` and the entire interpolation branch will be removed. Reasoning: when both LL.4 and LL.3 fail, the underlying standards data is typically unusable (flat response, all-zero, fewer than 4 unique concentrations, etc.); rendering a report from interpolation would provide false confidence. The deliberate removal of the interpolation path will be documented in the JOSS paper's limitations section.
+
+**Regression test needed**: yes — `test-analysis-pipeline.R` should add a case where both LL.4 and LL.3 are forced to fail (e.g. by passing a degenerate `standards_for_model` with all-equal responses) and assert that `fit_all_models()` returns `drc_failed_completely = TRUE`, that `quantify_samples()` either is not called or returns an explicit failure flag, and that the orchestrator path produces the user-visible error notification.
 
 ---
 **Issue ID**: AUDIT-002
@@ -94,7 +96,9 @@ Reproducer: ELISA dataset where one or more standards have computed %B/B0 ≥ 10
 
 **Recommended fix**: Either (a) remove the upper bound on d and let drc fit it freely (recommended — competitive-binding theory does not require %B/B0 ≤ 100 in finite samples), or (b) keep the bound but check `summary(fit)$coefficients["d:(Intercept)", ...]` against the bound after fitting and emit a prominent in-report warning when the parameter is at or near the boundary (within 1e-6, already detected by `assess_model_stability():502–512`).
 
-**Regression test needed**: yes — fit a synthetic ELISA dataset with engineered %B/B0 > 100 at the top standard, assert that either (a) the fitted top asymptote exceeds 100, or (b) `assess_model_stability()$boundary_flag` is TRUE and the warning is rendered.
+**Decision (2026-05-13):** Maintainer chose **option (a) — remove the upper bound entirely**. %B/B0 values above 100 are expected on individual replicates due to measurement noise and matrix effects, even though population means are bounded; constraining d at 100 biases IC50 in the presence of normal noise. The `upperl = c(NA, NA, 100, NA)` argument will be removed from the ELISA branch at `analysis_pipeline.R:364–378`. Add a **sanity warning** in the model-stability section if the unconstrained fitted top asymptote `d > 120` or `d < 80` — these signal real data problems (poor B0 controls, severe matrix effects, wrong assay orientation) worth surfacing to the user. The 80–120 range is also documented in the JOSS paper as the expected envelope.
+
+**Regression test needed**: yes — (1) fit a synthetic ELISA dataset with engineered %B/B0 ≈ 105% at the top standard, assert the fitted top exceeds 100 with no `boundary_flag`; (2) fit a dataset with engineered B0/NSB inversion producing top ≈ 150%, assert the new sanity warning is emitted.
 
 ---
 **Issue ID**: AUDIT-006
@@ -110,7 +114,9 @@ Reproducer: synthetic dataset where MeasurementValue *increases* with concentrat
 
 **Recommended fix**: Check the sign of `coef(fit)["b:(Intercept)"]` (Hill slope) before EC computation. For decreasing curves (the only supported scope), b > 0 in drc's LL.4 parameterization; if b < 0, refuse to compute EC values and emit `showNotification("Increasing dose-response curves are not supported. Check your standards and sample types.", type = "error")`. Document the supported scope in the README and in the eventual JOSS paper.
 
-**Regression test needed**: yes — synthetic increasing-curve dataset, assert the pipeline either errors with the documented message or sets `direction_supported = FALSE` in `model_stats.json`.
+**Decision (2026-05-13):** Maintainer chose **hard reject at the Shiny pre-flight stage rather than partial-render**. Every downstream calculation (EC values, sample concentrations, LLOQ/ULOQ, range flags) depends on a correctly-oriented curve, so partial rendering would provide false confidence. Implementation: detect curve direction at the **Tab 5 pre-flight stage** in `server_report.R` (before `observeEvent(input$convert)` fires), using a quick monotonic-trend check on the standards (e.g. Spearman correlation of mean response vs `log10(concentration)`; reject when `cor > +0.5` indicating increasing trend). Show a prominent `modalDialog`: "This app supports competitive (decreasing) dose-response curves only. Your data shows an increasing response with concentration — check your sample types or assay configuration." The Generate Report button stays disabled until the modal is dismissed and the curve direction is corrected (e.g. by re-checking sample types in Tab 2). The scope restriction will be documented in the JOSS paper's limitations section.
+
+**Regression test needed**: yes — (1) synthetic increasing-curve dataset, drive through `shinytest2` AppDriver, assert the pre-flight modal appears and `input$convert` is disabled; (2) decreasing curve with one stray reversed point, assert the pipeline still runs (monotonic-trend check is robust to outliers).
 
 ---
 **Issue ID**: AUDIT-007
@@ -139,6 +145,8 @@ Reproducer: standards where one concentration level has all-identical responses 
 **Impact**: JOSS reviewers will reject a submission where citation, package metadata, and UI badge disagree about which version is being reviewed. Downstream users cannot reliably cite a specific release.
 
 **Recommended fix**: Establish `DESCRIPTION` as the single source of truth. Replace every hardcoded version string with a runtime lookup from `utils::packageVersion("RBAElisaApp")` (already partially done at `global.R:124–127` for `APP_VERSION`; extend the same pattern to `report_constants.R:REPORT_INFO`, the UI top-bar badge in `app.R:121`, and the report-meta chunk). Add a `tools/release.R` script that (a) bumps the DESCRIPTION version, (b) updates `CITATION.cff` programmatically, (c) creates a git tag, (d) instructs the maintainer to upload to Zenodo. Document the release process in `CONTRIBUTING.md`.
+
+**Decision (2026-05-13):** Maintainer confirmed **v1.0.0 is the correct next version** (current Zenodo release is v0.9.0; DESCRIPTION's "2.0.0" was version-bump drift during early development and never released). Set `DESCRIPTION: Version: 1.0.0` and propagate from there as the recommended fix already describes. The Zenodo v1.0.0 deposit will be created at tag time and the resulting version DOI will replace the v0.9.0 entry in `CITATION.cff` (also resolves AUDIT-009).
 
 **Regression test needed**: yes — a single test that reads DESCRIPTION, parses CITATION.cff, and asserts the version strings match.
 
@@ -343,6 +351,8 @@ What is real: `normalize_assay_data()` in `report_pipeline.R:104–117` short-ci
 
 **Recommended fix**: Add `scripts/replay_report.R` taking an output_dir argument, reading the sidecars, calling `rmarkdown::render(reports/unified_analysis_template.Rmd, params = list(output_dir = ..., lang = "en"))`. Document in README. Make a release-time CI job that runs the replay against the shipped example to confirm reports remain reproducible.
 
+**Decision (2026-05-13):** No change to severity, but **elevate the rationale**: this is one of the highest-value JOSS deliverables because it converts an abstract reproducibility claim into an executable artifact. Reviewers can clone the repo, install the renv-pinned environment (post-AUDIT-004), and replay the shipped example to confirm identical numerical output against the captured reference (`examples/reference_outputs.json`, AUDIT-042). The script is also the development tool for the numerical-diff workflow that measures the impact of AUDIT-001 / AUDIT-005 / AUDIT-006 fixes — every fix branch will run `scripts/replay_report.R` and diff against `audit/pre-fix-snapshot/` to characterize the numerical delta. The minimal precursor `scripts/capture_baseline.R` (in branch `claude/audit-baseline-and-decisions`) is structurally similar but scoped only to baseline capture; the full replay script generalizes this to any output_dir.
+
 **Regression test needed**: yes — `test-replay.R` that runs the shipped example through `scripts/replay_report.R` and asserts the generated HTML/JSON match a snapshot.
 
 ---
@@ -456,6 +466,13 @@ The `notes.json` content (`input$notes`) is written to a file path that does not
 **Impact**: Documentation lies to new contributors. Single-version CI does not catch R-version-specific regressions.
 
 **Recommended fix**: Update README project-structure table to match the actual layout. Expand CI to a 3×2 matrix (Linux + macOS + Windows × R 4.2/4.3/release) and add `R CMD check`, `covr` with a coverage threshold (start at 50%, raise over time), and `lintr` with the recommended preset.
+
+**Decision (2026-05-13):** **Reduce the matrix from 3×2 to a three-job setup:**
+  - `ubuntu-latest`, **R 4.2** (oldest supported version, matches the runtime warning at `global.R:20`)
+  - `ubuntu-latest`, **R release** (latest stable)
+  - `windows-latest`, **R release** (real user base includes Windows lab boxes in IAEA member states)
+
+Skip macOS and R-devel: macOS adds CI minutes for no user-base coverage gain (IAEA / UCR bench environments are Windows + Linux), and R-devel breakage is too noisy to gate releases. Add `R CMD check --as-cran` and `covr::package_coverage()` (uploaded to Codecov) as CI steps. **Defer `lintr` to v1.0.1** — it would surface dozens of stylistic findings unrelated to v1.0.0 correctness and the noise would slow the release.
 
 **Regression test needed**: no — documentation/CI deliverable.
 
@@ -614,6 +631,8 @@ The `notes.json` content (`input$notes`) is written to a file path that does not
 **Impact**: Acceptable for a non-package Shiny app, but JOSS reviewers prefer documented internals. Low-severity gap.
 
 **Recommended fix**: Add brief roxygen `#'` block (Title + Description + @param + @return) to each top-level function in the four named server modules. Do not generate a NAMESPACE — these functions are not exported.
+
+**Decision (2026-05-13):** **Promoted from v1.0.1 to v1.0.0**. Maintainer chose comprehensive roxygen coverage on server modules for contributor onboarding — JOSS reviewers reading the code will reasonably expect every non-trivial function to be documented. Documentation-only — **do NOT generate a NAMESPACE**; these functions are not exported. Bundled into the `claude/joss-docs-pass` branch (Phase 5.1) rather than creating a separate branch. Effort estimate for Phase 5.1 increases from M to M+.
 
 **Regression test needed**: no — documentation deliverable.
 
