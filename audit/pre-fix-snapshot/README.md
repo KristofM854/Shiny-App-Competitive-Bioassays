@@ -64,6 +64,27 @@ The script:
 This matches the proven non-Shiny render path used by
 `tests/testthat/test-report-numbers.R`.
 
+### Note on the multi-wavelength path
+
+The multi-wavelength capture calls `detect_and_import_multiwavelength()`
+**directly** rather than going through `parse_plate_file()`, because
+`parse_plate_file()` in `utils/utils_import_v3.R:352` gates multi-wave
+detection behind `ext %in% c("xlsx", "xls")` and the shipped fixture is a
+`.csv`. The lower-level `.read_raw_matrix()` in
+`utils/utils_import_multiwavelength.R:32` does support CSV inputs, so
+direct invocation works. If detection still returns fewer than 2
+wavelengths (e.g. the fixture has been regenerated without the
+`Raw Data (XXX)` marker rows), the script writes `SKIPPED.md` into the
+multiwavelength snapshot directory with a clear diagnostic and exits
+that branch without rendering.
+
+This wrapper-vs-direct discrepancy in `parse_plate_file()` is a candidate
+finding for the upstream audit (the live Shiny upload flow at
+`server/server_upload.R:596` calls `parse_plate_file()` as well, so a CSV
+multi-wavelength file uploaded through the app would not be detected as
+multi-wave through the Classic Import path). Flagged here for the
+maintainer to file as a separate AUDIT issue against the import code.
+
 ## Required R packages
 
 The script will fail to source if any of these are missing:
