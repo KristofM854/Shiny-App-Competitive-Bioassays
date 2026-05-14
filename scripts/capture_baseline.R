@@ -289,79 +289,120 @@ if (!file.exists(mw_fixture)) {
   dilution_mat_mw  <- create_dilution_matrix()
   replicate_mat_mw <- create_replicate_matrix("elisa")
 
-  mw_parsed <- parse_plate_file(mw_fixture)
-  if (!isTRUE(mw_parsed$is_multiwavelength)) {
-    message("    Warning: multi-wave detection failed; fixture parsed as single-plate.")
-  }
+  mw_parsed <- tryCatch(
+    detect_and_import_multiwavelength(mw_fixture, sheet = 1),
+    error = function(e) {
+      message("    detect_and_import_multiwavelength errored: ", e$message)
+      list(wavelengths = NULL, plates = NULL)
+    }
+  )
 
-  # Per-wavelength CSVs (matches the file naming convention in
-  # server/report_pipeline.R:189–192).
-  for (wl in mw_parsed$wavelengths) {
-    plate_wl <- mw_parsed$plates[[wl]]
-    df_wl <- matrix_to_long(
-      type_mat_mw, id_mat_mw, dilution_mat_mw, replicate_mat_mw, plate_wl,
+  # parse_plate_file() in utils_import_v3.R gates multi-wave detection behind
+  # ext %in% c("xlsx", "xls"), so a CSV fixture cannot reach the multi-wave
+  # path through that wrapper. We call the lower-level detector directly
+  # because .read_raw_matrix() in utils_import_multiwavelength.R does support
+  # CSV inputs. If the detector still returns no wavelengths (file lacks
+  # "Raw Data (XXX)" markers, or markers fail the LETTERS[1:8] row-label
+  # check), we abort capture for this example with a clear SKIPPED.md
+  # rather than dereferencing a NULL list.
+  if (is.null(mw_parsed$wavelengths) || length(mw_parsed$wavelengths) < 2 ||
+      is.null(mw_parsed$plates) || length(mw_parsed$plates) < 2) {
+    message("    SKIP: multi-wavelength detection found ",
+            length(mw_parsed$wavelengths %||% list()),
+            " wavelength(s); need >= 2.")
+    writeLines(
+      c("# multi-wavelength baseline NOT captured",
+        "#",
+        sprintf("# Fixture: %s", mw_fixture),
+        sprintf("# Detected wavelengths: %d (need >= 2)",
+                length(mw_parsed$wavelengths %||% list())),
+        "#",
+        "# Possible causes:",
+        "#   - Fixture lacks 'Raw Data (XXX)' marker rows.",
+        "#   - Marker rows are present but the 8 rows below the column-header",
+        "#     row do not start with row labels A-H (the detection requirement",
+        "#     in .scan_wavelength_locations() at utils_import_multiwavelength.R).",
+        "#   - The fixture file is corrupt or has been regenerated against a",
+        "#     different format.",
+        "#",
+        "# Regenerate the fixture via:",
+        "#   Rscript tests/testthat/fixtures/generate_multiwave.R"),
+      file.path(mw_out, "SKIPPED.md")
+    )
+    write_baseline_meta(mw_out, "multiwave_synthetic.csv",
+                        notes = sprintf("SKIPPED: multi-wave detection found %d wavelengths (need >= 2). See SKIPPED.md.",
+                                        length(mw_parsed$wavelengths %||% list())))
+  } else {
+
+    # Per-wavelength CSVs (matches the file naming convention in
+    # server/report_pipeline.R:189–192).
+    for (wl in mw_parsed$wavelengths) {
+      plate_wl <- mw_parsed$plates[[wl]]
+      df_wl <- matrix_to_long(
+        type_mat_mw, id_mat_mw, dilution_mat_mw, replicate_mat_mw, plate_wl,
+        std_conc = DEFAULT_CORTISOL_CONC[1:n_std]
+      )
+      df_wl$NormalizedValue <- df_wl$MeasurementValue
+      df_wl$ResponseUnit    <- "Raw Absorbance"
+      wl_safe <- gsub("[/\\\\:*?\"<>|]", "_", wl)
+      write.csv(df_wl,
+                file.path(mw_out, paste0("long_data_output_", wl_safe, ".csv")),
+                row.names = FALSE)
+    }
+    # Primary CSV: the first wavelength's plate, named long_data_output.csv
+    primary_wl <- mw_parsed$wavelengths[[1]]
+    primary_plate <- mw_parsed$plates[[primary_wl]]
+    df_primary <- matrix_to_long(
+      type_mat_mw, id_mat_mw, dilution_mat_mw, replicate_mat_mw, primary_plate,
       std_conc = DEFAULT_CORTISOL_CONC[1:n_std]
     )
-    df_wl$NormalizedValue <- df_wl$MeasurementValue
-    df_wl$ResponseUnit    <- "Raw Absorbance"
-    wl_safe <- gsub("[/\\\\:*?\"<>|]", "_", wl)
-    write.csv(df_wl,
-              file.path(mw_out, paste0("long_data_output_", wl_safe, ".csv")),
+    df_primary$NormalizedValue <- df_primary$MeasurementValue
+    df_primary$ResponseUnit    <- "Raw Absorbance"
+    write.csv(df_primary,
+              file.path(mw_out, "long_data_output.csv"),
               row.names = FALSE)
-  }
-  # Primary CSV: the first wavelength's plate, named long_data_output.csv
-  primary_wl <- mw_parsed$wavelengths[[1]]
-  primary_plate <- mw_parsed$plates[[primary_wl]]
-  df_primary <- matrix_to_long(
-    type_mat_mw, id_mat_mw, dilution_mat_mw, replicate_mat_mw, primary_plate,
-    std_conc = DEFAULT_CORTISOL_CONC[1:n_std]
-  )
-  df_primary$NormalizedValue <- df_primary$MeasurementValue
-  df_primary$ResponseUnit    <- "Raw Absorbance"
-  write.csv(df_primary,
-            file.path(mw_out, "long_data_output.csv"),
-            row.names = FALSE)
 
-  # Wavelength manifest
-  jsonlite::write_json(
-    list(wavelengths = as.list(mw_parsed$wavelengths)),
-    file.path(mw_out, "wavelength_manifest.json"),
-    auto_unbox = TRUE
-  )
-
-  write_sidecars(mw_out, "elisa", DEFAULT_CORTISOL_CONC[1:n_std],
-                 elisa_analyte = "cortisol", elisa_units = "pg/mL")
-
-  # Render the multi-wavelength template
-  mw_template <- file.path(repo_root, "reports",
-                            "multiwavelength_analysis_template.Rmd")
-  withr::with_envvar(
-    list(
-      RBA_OUTPUT_DIR = mw_out,
-      RBA_CSV_PATH   = file.path(mw_out, "long_data_output.csv"),
-      RBA_FMT_JSON   = file.path(mw_out, "selected_formats.json"),
-      RBA_NOTES_FILE = file.path(mw_out, "notes.json")
-    ),
-    rmarkdown::render(
-      input        = mw_template,
-      output_file  = "analysis_report.html",
-      output_dir   = mw_out,
-      params       = list(
-        output_dir  = mw_out,
-        wavelengths = mw_parsed$wavelengths,
-        lang        = "en"
-      ),
-      knit_root_dir = dirname(mw_template),
-      envir        = new.env(parent = globalenv()),
-      quiet        = TRUE
+    # Wavelength manifest
+    jsonlite::write_json(
+      list(wavelengths = as.list(mw_parsed$wavelengths)),
+      file.path(mw_out, "wavelength_manifest.json"),
+      auto_unbox = TRUE
     )
-  )
 
-  write_baseline_meta(mw_out, "multiwave_synthetic.csv",
-                      notes = sprintf("Multi-wavelength ELISA, %d wavelengths: %s.",
-                                      length(mw_parsed$wavelengths),
-                                      paste(mw_parsed$wavelengths, collapse = ", ")))
-  message("    Done: ", mw_out)
+    write_sidecars(mw_out, "elisa", DEFAULT_CORTISOL_CONC[1:n_std],
+                   elisa_analyte = "cortisol", elisa_units = "pg/mL")
+
+    # Render the multi-wavelength template
+    mw_template <- file.path(repo_root, "reports",
+                              "multiwavelength_analysis_template.Rmd")
+    withr::with_envvar(
+      list(
+        RBA_OUTPUT_DIR = mw_out,
+        RBA_CSV_PATH   = file.path(mw_out, "long_data_output.csv"),
+        RBA_FMT_JSON   = file.path(mw_out, "selected_formats.json"),
+        RBA_NOTES_FILE = file.path(mw_out, "notes.json")
+      ),
+      rmarkdown::render(
+        input        = mw_template,
+        output_file  = "analysis_report.html",
+        output_dir   = mw_out,
+        params       = list(
+          output_dir  = mw_out,
+          wavelengths = mw_parsed$wavelengths,
+          lang        = "en"
+        ),
+        knit_root_dir = dirname(mw_template),
+        envir        = new.env(parent = globalenv()),
+        quiet        = TRUE
+      )
+    )
+
+    write_baseline_meta(mw_out, "multiwave_synthetic.csv",
+                        notes = sprintf("Multi-wavelength ELISA, %d wavelengths: %s.",
+                                        length(mw_parsed$wavelengths),
+                                        paste(mw_parsed$wavelengths, collapse = ", ")))
+    message("    Done: ", mw_out)
+  }
 }
 
 # --- Final summary ------------------------------------------------------------
