@@ -1,0 +1,1 @@
+{"regression_weight":"none","quant_range_min":20,"quant_range_max":80,"ci_method":"t_dist","enable_outlier_detection":false,"outlier_min_n":3,"normality_assumption":"assume","cv_limit":30}
