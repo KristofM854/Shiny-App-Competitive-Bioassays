@@ -453,43 +453,16 @@ fit_all_models <- function(data_long, response_var, analysis_config,
         lack_of_fit = lof_result
       )
     } else {
-      tryCatch({
-        std_means <- standards_for_model %>%
-          dplyr::group_by(concentration) %>%
-          dplyr::summarise(
-            mean_resp = mean(.data[[response_var]], na.rm = TRUE),
-            .groups = "drop"
-          ) %>%
-          dplyr::filter(is.finite(mean_resp), concentration > 0) %>%
-          dplyr::arrange(concentration)
-        if (nrow(std_means) >= 2) {
-          interp_fun <- approxfun(log10(std_means$concentration),
-                                  std_means$mean_resp, rule = 2)
-          warning("Using log-linear interpolation fallback for weight '",
-                  wt_key, "'.")
-          all_models[[wt_key]] <- list(
-            model = NULL,
-            interp_fun = interp_fun,
-            interp_data = std_means,
-            label = paste0(wt_info$label, " (log-linear interpolation)"),
-            R2 = NA_real_, RMSE = NA_real_, coefs = NULL,
-            AIC = NA_real_,
-            fit_method = "interpolation"
-          )
-        } else {
-          warning("Insufficient data for interpolation fallback for weight '",
-                  wt_key, "'.")
-        }
-      }, error = function(e) {
-        warning("All fitting methods failed for weight '", wt_key, "': ",
-                e$message)
-      })
+      warning("LL.4 and LL.3 both failed for weight '", wt_key,
+              "'. Skipping this weighting option.")
     }
   }
 
   drc_failed_completely <- (length(all_models) == 0)
   if (drc_failed_completely) {
-    warning("No dose-response models could be fitted. Report will show standards data only.")
+    stop("Dose-response curve fitting failed: LL.4 and LL.3 both failed for all ",
+         "weighting options. Verify that standards have at least 4 unique ",
+         "concentrations with valid numeric responses.")
   }
   if (!drc_failed_completely) {
     primary_key <- names(all_models)[[1]]
