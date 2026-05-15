@@ -7,7 +7,7 @@ test_that("AUDIT-001: fit_all_models() stops when all fits fail", {
   conc <- rep(c(1e-9, 1e-8, 1e-7, 1e-6), each = 3)
   resp <- rep(100, 12)
   df <- data.frame(
-    concentration    = conc,
+    StandardConc     = conc,
     MeasurementValue = resp,
     SampleType       = "Standard",
     ReplicateGroup   = paste0("Std", rep(1:4, each = 3))
@@ -42,7 +42,7 @@ test_that("AUDIT-001: fit_all_models() result never contains interpolation fit_m
   conc <- c(1e-6, 1e-7, 3e-8, 1e-8, 3e-9, 1e-9, 1e-10, 3e-11)
   resp <- c(800, 1500, 3200, 5500, 8200, 11000, 14000, 16000)
   df <- data.frame(
-    concentration    = rep(conc, each = 3),
+    StandardConc     = rep(conc, each = 3),
     MeasurementValue = rep(resp, each = 3) * rnorm(24, 1, 0.05),
     SampleType       = "Standard",
     ReplicateGroup   = paste0("Std", rep(seq_along(conc), each = 3))

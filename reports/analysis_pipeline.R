@@ -233,8 +233,7 @@ determine_lloq_uloq <- function(standards_for_model, model_fit, response_var,
 #   * build per-weight weight vectors (none / 1/Y / 1/Y^2)
 #   * H2 auto: pick a weight via heteroscedasticity diagnostic if "auto" is in
 #     selected_weights
-#   * fit each selected weight with the LL.4 -> LL.3 -> log-linear interpolation
-#     fallback chain
+#   * fit each selected weight with the LL.4 -> LL.3 chain; stop() if all fail
 #   * compute R^2, RMSE, AIC, lack-of-fit, convergence info per fit
 #   * pick the primary model (first successfully fitted weight) and surface
 #     its R^2/RMSE/weight_desc/model_fit at the top level
@@ -348,8 +347,7 @@ fit_all_models <- function(data_long, response_var, analysis_config,
     multi_weight_mode <- FALSE
   }
 
-  # Fit ALL selected models with the LL.4 -> LL.3 -> interpolation fallback
-  # chain.
+  # Fit ALL selected models with the LL.4 -> LL.3 chain.
   all_models <- list()
   for (wt_key in selected_weights) {
     wt_info <- weight_options[[wt_key]]
@@ -402,7 +400,7 @@ fit_all_models <- function(data_long, response_var, analysis_config,
         }
       }, error = function(e) {
         warning("LL.3() also failed for weight '", wt_key, "': ",
-                e$message, ". Falling back to log-linear interpolation.")
+                e$message, ".")
         NULL
       })
     }
