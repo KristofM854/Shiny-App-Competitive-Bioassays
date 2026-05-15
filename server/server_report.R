@@ -266,6 +266,74 @@ server_report <- function(input, output, session, shared, config_reactives) {
       }
     }
 
+    # Check 10: Spearman curve-direction check (competitive assay should be decreasing)
+    plate_meas <- shared$matrix_measresults()
+    type_mat_check <- shared$matrix_type()
+    rep_mat_check  <- shared$matrix_replicate()
+    std_conc_vec   <- config_reactives$std_conc()
+
+    if (!is.null(plate_meas) && !is.null(type_mat_check) &&
+        !is.null(rep_mat_check) && length(std_conc_vec) >= 4) {
+
+      type_vec_flat <- as.character(unlist(type_mat_check))
+      rep_vec_flat  <- as.character(unlist(rep_mat_check))
+      meas_flat     <- suppressWarnings(as.numeric(unlist(plate_meas)))
+
+      std_mask <- !is.na(type_vec_flat) & type_vec_flat == "Standard" &
+                  !is.na(rep_vec_flat)  & rep_vec_flat != "" &
+                  is.finite(meas_flat)
+
+      if (sum(std_mask) >= 4) {
+        std_df <- data.frame(
+          rep   = rep_vec_flat[std_mask],
+          meas  = meas_flat[std_mask],
+          stringsAsFactors = FALSE
+        )
+        group_means <- tapply(std_df$meas, std_df$rep, mean, na.rm = TRUE)
+        group_means <- group_means[order(names(group_means))]
+        n_groups    <- length(group_means)
+        n_conc      <- min(n_groups, length(std_conc_vec))
+
+        if (n_conc >= 4) {
+          conc_vals <- std_conc_vec[seq_len(n_conc)]
+          resp_vals <- as.numeric(group_means[seq_len(n_conc)])
+          valid     <- is.finite(conc_vals) & conc_vals > 0 & is.finite(resp_vals)
+          if (sum(valid) >= 4) {
+            rho <- tryCatch(
+              cor(log(conc_vals[valid]), resp_vals[valid], method = "spearman"),
+              error = function(e) NA_real_
+            )
+            if (!is.na(rho) && rho > 0.5) {
+              checks[[length(checks) + 1]] <- pf_line(
+                "exclamation-triangle", "#FF9800",
+                "pf_curve_direction_warn", lang, rho
+              )
+            } else if (!is.na(rho)) {
+              checks[[length(checks) + 1]] <- pf_line(
+                "check-circle", "#388E3C",
+                "pf_curve_direction_ok", lang
+              )
+            }
+          } else {
+            checks[[length(checks) + 1]] <- pf_line(
+              "info-circle", "#607D8B",
+              "pf_curve_direction_skip", lang
+            )
+          }
+        } else {
+          checks[[length(checks) + 1]] <- pf_line(
+            "info-circle", "#607D8B",
+            "pf_curve_direction_skip", lang
+          )
+        }
+      } else {
+        checks[[length(checks) + 1]] <- pf_line(
+          "info-circle", "#607D8B",
+          "pf_curve_direction_skip", lang
+        )
+      }
+    }
+
     # --- Summary badge showing overall severity ---
     has_errors <- any(sapply(checks, function(ch) grepl("#D32F2F", as.character(ch))))
     has_warnings <- any(sapply(checks, function(ch) grepl("#FF9800", as.character(ch))))
