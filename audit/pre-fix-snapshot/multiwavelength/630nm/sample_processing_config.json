@@ -1,0 +1,7 @@
+{
+  "extraction_volume_ul": 500,
+  "tissue_mass_mg": {},
+  "sample_type": "extracted",
+  "extraction_method": "standard",
+  "notes": "Default extraction parameters"
+}

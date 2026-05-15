@@ -47,24 +47,34 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL)
     # figure frame which clashes with the surrounding Rmd section heading.
     gg <- gg + ggplot2::labs(title = NULL)
 
-    p <- if (!is.null(tooltip)) {
-      plotly::ggplotly(gg, tooltip = tooltip, height = height)
-    } else {
-      plotly::ggplotly(gg, height = height)
-    }
-
-    # Apply default plotly layout: tighter margins and consistent legend.
-    default_layout <- list(
-      margin = list(t = 30, r = 20, b = 50, l = 60),
-      legend = list(orientation = "h", x = 0, y = 1.08)
-    )
-    combined_layout <- utils::modifyList(default_layout, plotly_layout %||% list())
-    p <- do.call(plotly::layout, c(list(p), combined_layout))
+    p <- tryCatch({
+      px <- if (!is.null(tooltip)) {
+        plotly::ggplotly(gg, tooltip = tooltip, height = height)
+      } else {
+        plotly::ggplotly(gg, height = height)
+      }
+      # Apply default plotly layout: tighter margins and consistent legend.
+      default_layout <- list(
+        margin = list(t = 30, r = 20, b = 50, l = 60),
+        legend = list(orientation = "h", x = 0, y = 1.08)
+      )
+      combined_layout <- utils::modifyList(default_layout, plotly_layout %||% list())
+      do.call(plotly::layout, c(list(px), combined_layout))
+    }, error = function(e) {
+      warning("render_plot: ggplotly() conversion failed (", conditionMessage(e),
+              "). Falling back to static plot.")
+      NULL
+    })
 
     # Return the tagList — knitr's knit_print dispatches on the visible
     # return value, which correctly handles widget HTML + JS dependencies
     # in both results='asis' and default chunk modes.
-    htmltools::tagList(p)
+    if (!is.null(p)) {
+      htmltools::tagList(p)
+    } else {
+      print(gg)
+      invisible(NULL)
+    }
   } else {
     print(gg)
     invisible(NULL)
