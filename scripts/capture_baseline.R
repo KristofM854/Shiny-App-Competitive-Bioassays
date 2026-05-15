@@ -63,17 +63,9 @@ repo_root <- tryCatch({
 
 setwd(repo_root)
 
-# Source app code (same pattern as tests/testthat/helper-setup.R)
-source(file.path(repo_root, "global.R"))
-source(file.path(repo_root, "utils", "utils_plate.R"))
-source(file.path(repo_root, "utils", "utils_import_v3.R"))
-source(file.path(repo_root, "utils", "utils_import_multiwavelength.R"))
-source(file.path(repo_root, "utils", "utils_normalization.R"))
-source(file.path(repo_root, "reports", "report_constants.R"))
-source(file.path(repo_root, "reports", "report_functions.R"))
-source(file.path(repo_root, "reports", "plot_functions.R"))
-source(file.path(repo_root, "reports", "analysis_pipeline.R"))
-source(file.path(repo_root, "reports", "report_sections.R"))
+# Source the minimal analysis bootstrap (replaces global.R + individual sources).
+# See scripts/_bootstrap_analysis.R for the full package and constant inventory.
+source(file.path(repo_root, "scripts", "_bootstrap_analysis.R"))
 
 snapshot_root <- file.path(repo_root, "audit", "pre-fix-snapshot")
 dir.create(snapshot_root, showWarnings = FALSE, recursive = TRUE)
