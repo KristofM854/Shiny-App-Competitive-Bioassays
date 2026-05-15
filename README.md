@@ -166,22 +166,64 @@ See `examples/README.md` for details on each file.
 
 ```
 .
-├── app.R                          # Main Shiny app (UI + server)
-├── global.R                       # Packages, constants, theme, helpers
-├── i18n.R                         # Bilingual translations (EN/ES)
-├── utils_plate.R                  # Plate matrix creation and conversion
-├── utils_import_v3.R              # Smart plate reader file import
-├── utils_import_multiwavelength.R # Multi-wavelength Excel parsing
-├── utils_normalization.R          # ELISA %B/B0 normalization
-└── reports/
-    ├── unified_analysis_template.Rmd         # Single-wavelength report
-    ├── multiwavelength_analysis_template.Rmd # Multi-wavelength wrapper
-    ├── report_functions.R                    # Analysis functions (DRC, QC)
-    ├── report_constants.R                    # Report-specific constants
-    └── plot_functions.R                      # Standardized plot/table rendering
+├── app.R                    # Entry point (UI + server assembly)
+├── global.R                 # Packages, constants, theme, helpers
+├── DESCRIPTION              # Package metadata and version
+├── CITATION.cff             # Citation metadata
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── README.md
+├── LICENSE
+├── server/                  # Modular server logic
+│   ├── i18n.R               # 480+ translation keys (EN/ES/FR/RU/ZH)
+│   ├── layout_history.R     # Undo/redo for matrix edits
+│   ├── report_pipeline.R    # Staged report-generation helpers
+│   ├── server_analysis.R    # Tab 4 — weighting, CI, outlier settings
+│   ├── server_common.R      # Auto-save, navigation, language switcher
+│   ├── server_config.R      # Tab 1 — assay type, standards, QC inputs
+│   ├── server_layout.R      # Tab 2 — plate matrix editors, presets
+│   ├── server_report.R      # Tab 5 — pre-flight validation, report trigger
+│   └── server_upload.R      # Tab 3 — file import, heatmap preview
+├── utils/                   # Stateless helpers
+│   ├── utils_import_v3.R               # Auto-detect plate region (xlsx/csv/txt)
+│   ├── utils_import_multiwavelength.R  # Per-sheet multi-wavelength parsing
+│   ├── utils_normalization.R           # ELISA %B/B0 blank correction
+│   └── utils_plate.R                   # Matrix ↔ long-format conversion
+├── reports/                 # Report templates and analysis pipeline
+│   ├── analysis_pipeline.R                  # DRC fitting, LLOQ/ULOQ, quantification
+│   ├── report_functions.R                   # Data loading, QC checks, heteroscedasticity
+│   ├── report_sections.R                    # HTML section helpers
+│   ├── plot_functions.R                     # render_table(), render_plot(), sections
+│   ├── report_constants.R                   # Validation rules, output file names
+│   ├── unified_analysis_template.Rmd        # Main single-wavelength report (~2100 lines)
+│   ├── unified_analysis_template_compact.Rmd # Compact wrapper (params$compact = TRUE)
+│   ├── multiwavelength_analysis_template.Rmd # Multi-wavelength wrapper
+│   └── create_reference_doc.R               # DOCX reference document generator
+├── presets/                 # Pre-built plate layouts
+├── examples/                # Example datasets and regeneration scripts
+├── scripts/                 # Standalone scripts (baseline capture, replay)
+├── tests/testthat/          # Test suite
+├── www/                     # Static web assets (CSS, JS)
+├── docs/                    # Screenshots and supplementary docs
+├── .github/workflows/       # CI configuration
+└── audit/                   # JOSS audit deliverables
 ```
 
 ## Dependencies
+
+### System dependencies
+
+The application requires the following system-level tools in addition to the
+R packages listed below.
+
+- **pandoc** — required for rendering reports in any format. Bundled with
+  RStudio; standalone install: `apt install pandoc` (Linux),
+  `brew install pandoc` (macOS), or download from
+  [pandoc.org](https://pandoc.org/installing.html) (Windows).
+- **TinyTeX** — required only for PDF report output. Install from R:
+  `tinytex::install_tinytex()`. HTML and DOCX outputs work without it.
+- **Chrome or Chromium** — required only for running the `shinytest2` test
+  suite during development. Not needed by end users.
 
 ### Required R Packages
 
