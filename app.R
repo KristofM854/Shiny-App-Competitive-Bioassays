@@ -62,26 +62,11 @@ if (!file.exists("presets/rba_stx_triplicate.rds")) {
   })
 }
 
-# Get output directory from environment (set by an external wrapper, if any).
-# If not set OR if set by a previous standalone run, create a fresh dated folder
+# Detect standalone mode at load time (read-only — no Sys.setenv here).
+# The actual output directory is created per-session inside the server function
+# so concurrent sessions each get their own isolated path.
 standalone_mode <- (Sys.getenv("RBA_OUTPUT_DIR") == "" ||
                     Sys.getenv("RBA_STANDALONE") == "1")
-
-if (standalone_mode) {
-  # Each run gets its own timestamped subdirectory under reports/runs/ so
-  # output is co-located with the source code and never collides across runs.
-  output_dir <- file.path(getwd(), "reports", "runs",
-                          format(Sys.time(), "%Y%m%d_%H%M%S"))
-  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-  csv_path <- file.path(output_dir, "long_data_output.csv")
-  Sys.setenv(RBA_OUTPUT_DIR = output_dir)
-  Sys.setenv(RBA_CSV_PATH   = normalizePath(csv_path, winslash = "/", mustWork = FALSE))
-  Sys.setenv(RBA_FMT_JSON   = normalizePath(file.path(output_dir, "selected_formats.json"), winslash = "/", mustWork = FALSE))
-  Sys.setenv(RBA_NOTES_FILE = normalizePath(file.path(output_dir, "notes.json"),             winslash = "/", mustWork = FALSE))
-  Sys.setenv(RBA_STANDALONE = "1")
-  message("Standalone mode - output directory: ", output_dir)
-}
-output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
 
 # ============================================================================
 # UI DEFINITION
@@ -1135,14 +1120,35 @@ server <- function(input, output, session) {
   prev_assay_type <- reactiveVal(NULL)
   prev_num_standards <- reactiveVal(NULL)
 
-  # Session-scoped paths (replaces Sys.setenv/getenv for concurrency safety)
-  session$userData$output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
-  session$userData$csv_path <- Sys.getenv("RBA_CSV_PATH")
-  session$userData$fmt_json <- Sys.getenv("RBA_FMT_JSON")
-  session$userData$notes_file <- Sys.getenv("RBA_NOTES_FILE")
-  # Task 1: session_root is the per-launch container; every Generate Report
-  # click creates a fresh run_HHMMSS subfolder under it (see server_report.R)
-  # so a second report doesn't overwrite the first.
+  # Session-scoped paths: each session gets its own output directory so
+  # concurrent sessions never overwrite each other's files (AUDIT-010).
+  if (standalone_mode) {
+    # Standalone: create a fresh timestamped directory for this session.
+    sess_output_dir <- file.path(getwd(), "reports", "runs",
+                                 format(Sys.time(), "%Y%m%d_%H%M%S"))
+    dir.create(sess_output_dir, showWarnings = FALSE, recursive = TRUE)
+    sess_csv_path   <- file.path(sess_output_dir, "long_data_output.csv")
+    session$userData$output_dir  <- sess_output_dir
+    session$userData$csv_path    <- normalizePath(sess_csv_path,
+                                                  winslash = "/", mustWork = FALSE)
+    session$userData$fmt_json    <- normalizePath(
+      file.path(sess_output_dir, "selected_formats.json"),
+      winslash = "/", mustWork = FALSE)
+    session$userData$notes_file  <- normalizePath(
+      file.path(sess_output_dir, "notes.json"),
+      winslash = "/", mustWork = FALSE)
+    message("Standalone mode — session output directory: ", sess_output_dir)
+  } else {
+    # External wrapper already set RBA_OUTPUT_DIR (e.g. run_local.R).
+    # Read it once per session; do NOT write back to Sys.setenv.
+    ext_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+    session$userData$output_dir  <- ext_dir
+    session$userData$csv_path    <- Sys.getenv("RBA_CSV_PATH")
+    session$userData$fmt_json    <- Sys.getenv("RBA_FMT_JSON")
+    session$userData$notes_file  <- Sys.getenv("RBA_NOTES_FILE")
+  }
+  # session_root mirrors output_dir; server_report.R creates run_HHMMSS
+  # subfolders under it so multiple "Generate Report" clicks never collide.
   session$userData$session_root <- session$userData$output_dir
 
 
