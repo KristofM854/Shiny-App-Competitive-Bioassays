@@ -1,0 +1,4 @@
+# Runtime cache files created by the analysis pipeline during baseline capture.
+# These are intermediate artifacts, not baseline deliverables.
+.fit_all_models_cache.rds
+.quantify_samples_cache.rds
