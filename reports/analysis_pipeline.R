@@ -363,11 +363,11 @@ fit_all_models <- function(data_long, response_var, analysis_config,
       if (isTRUE(is_elisa)) {
         if (is.null(wt_info$weights)) {
           drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
-                   lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
+                   lowerl = c(NA, 0, NA, NA))
         } else {
           drc::drm(fml, data = standards_for_model, fct = drc::LL.4(),
                    weights = wt_info$weights,
-                   lowerl = c(NA, 0, NA, NA), upperl = c(NA, NA, 100, NA))
+                   lowerl = c(NA, 0, NA, NA))
         }
       } else {
         if (is.null(wt_info$weights)) {
@@ -382,6 +382,14 @@ fit_all_models <- function(data_long, response_var, analysis_config,
               e$message, ". Trying LL.3()...")
       NULL
     })
+
+    if (!is.null(fit) && isTRUE(is_elisa) && fit_method == "LL.4") {
+      d_val <- tryCatch(coef(fit)[["d:(Intercept)"]], error = function(e) NA_real_)
+      if (!is.na(d_val) && (d_val > 120 || d_val < 80)) {
+        warning("ELISA upper asymptote (d = ", round(d_val, 1),
+                ") outside expected range [80, 120] for %B/B0 data.")
+      }
+    }
 
     if (is.null(fit)) {
       fit_method <- "LL.3"
