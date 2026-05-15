@@ -313,6 +313,7 @@ fit_all_models <- function(data_long, response_var, analysis_config,
       auto_weighting_result <- list(
         chosen_weight  = "inv_y2",
         fallback       = TRUE,
+        degenerate     = FALSE,
         test_name      = NA_character_, statistic = NA_real_,
         p_value        = NA_real_,      variance_ratio = NA_real_
       )
@@ -337,6 +338,7 @@ fit_all_models <- function(data_long, response_var, analysis_config,
       auto_weighting_result <- list(
         chosen_weight  = chosen,
         fallback       = FALSE,
+        degenerate     = isTRUE(hetero_auto$degenerate),
         test_name      = hetero_auto$test_name,
         statistic      = hetero_auto$statistic,
         p_value        = hetero_auto$p_value,
