@@ -353,6 +353,8 @@ What is real: `normalize_assay_data()` in `report_pipeline.R:104–117` short-ci
 
 **Decision (2026-05-13):** No change to severity, but **elevate the rationale**: this is one of the highest-value JOSS deliverables because it converts an abstract reproducibility claim into an executable artifact. Reviewers can clone the repo, install the renv-pinned environment (post-AUDIT-004), and replay the shipped example to confirm identical numerical output against the captured reference (`examples/reference_outputs.json`, AUDIT-042). The script is also the development tool for the numerical-diff workflow that measures the impact of AUDIT-001 / AUDIT-005 / AUDIT-006 fixes — every fix branch will run `scripts/replay_report.R` and diff against `audit/pre-fix-snapshot/` to characterize the numerical delta. The minimal precursor `scripts/capture_baseline.R` (in branch `claude/audit-baseline-and-decisions`) is structurally similar but scoped only to baseline capture; the full replay script generalizes this to any output_dir.
 
+**Investigation finding (2026-05-15, branch `claude/phase-0-baseline-and-docs-cleanup`):** Phase 0 baseline capture revealed that `global.R`'s package-loading logic includes Shiny UI packages (rhandsontable, rintrojs, shinyFeedback, shinycssloaders) that the analysis pipeline does not use. To decouple the analysis from the Shiny UI dependency tree, `scripts/_bootstrap_analysis.R` was introduced: a minimal bootstrap that loads only the analysis-side packages and copies the handful of constants and helpers (`%||%`, `write_json_safe`, plate dimensions, default concentrations, MW lookup) that the pipeline relies on from global.R. The replay script (AUDIT-021) should source `scripts/_bootstrap_analysis.R` rather than `global.R`. The bootstrap encodes a deliberate minimal analysis environment and exposes any remaining coupling to global.R as explicit copied constants with "Copied from global.R; keep in sync." comments.
+
 **Regression test needed**: yes — `test-replay.R` that runs the shipped example through `scripts/replay_report.R` and asserts the generated HTML/JSON match a snapshot.
 
 ---
@@ -396,6 +398,8 @@ What is real: `normalize_assay_data()` in `report_pipeline.R:104–117` short-ci
 **Recommended fix**: Add `options(shiny.maxRequestSize = MAX_UPLOAD_SIZE_MB * 1024^2)` at the top of `app.R` (after sourcing `global.R`).
 
 **Regression test needed**: yes — assert `getOption("shiny.maxRequestSize")` equals `MAX_UPLOAD_SIZE_MB * 1024^2` after `global.R` is loaded.
+
+**Decision (2026-05-15):** Implementation deferred to a dedicated one-line fix in `app.R` adding `options(shiny.maxRequestSize = MAX_UPLOAD_SIZE_MB * 1024^2)` immediately after `source("global.R")`. Bundled with the input-handling branch `claude/csv-separator-and-encoding` to keep the current branch documentation-only.
 
 ---
 **Issue ID**: AUDIT-025
@@ -454,6 +458,8 @@ The `notes.json` content (`input$notes`) is written to a file path that does not
 **Recommended fix**: Add `CONTRIBUTING.md` documenting: branch model, PR process, how to run tests locally, how to capture golden-number reference values, release process (paired with AUDIT-008 fix). Add `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1).
 
 **Regression test needed**: no — documentation deliverable.
+
+**Decision (2026-05-15):** Addressed in branch `claude/phase-0-baseline-and-docs-cleanup`. `CODE_OF_CONDUCT.md` (renamed from `code_of_conduct.md` for GitHub compatibility) and `CONTRIBUTING.md` are now present at the repo root. CONTRIBUTING.md covers branch model, PR process, local test recipe (system deps + R packages + command), golden-value capture placeholder, and release process. AUDIT-028 closed.
 
 ---
 **Issue ID**: AUDIT-029
@@ -531,6 +537,8 @@ Skip macOS and R-devel: macOS adds CI minutes for no user-base coverage gain (IA
 **Recommended fix**: Add `docs/INPUT_FORMAT.md` with: (a) accepted file extensions, (b) two recognized layouts (labeled / unlabeled), (c) overflow marker list, (d) decimal-separator rules, (e) encoding requirements, (f) max file size, (g) partial-plate semantics, (h) example for each layout. Link from README.
 
 **Regression test needed**: no — documentation deliverable, but the spec doc is the contract that future format-related tests can target.
+
+**Decision (2026-05-15):** Defer `docs/INPUT_FORMAT.md` to the input-handling branch `claude/csv-separator-and-encoding` where the underlying parser changes are made. The spec doc should describe the post-fix accepted formats (decimal-separator rules, encoding handling), not the current ambiguous pre-fix behavior. Writing the spec doc before the parser is fixed would document behavior we intend to change.
 
 ---
 **Issue ID**: AUDIT-034
