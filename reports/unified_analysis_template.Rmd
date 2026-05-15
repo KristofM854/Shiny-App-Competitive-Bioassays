@@ -211,6 +211,11 @@ source(file.path(script_dir, "plot_functions.R"))
 source(file.path(script_dir, "analysis_pipeline.R"))
 source(file.path(script_dir, "report_sections.R"))
 
+# AUDIT-020: Set a deterministic RNG seed for reproducible bootstrap CIs.
+# The seed value is centralised in STATS_CONFIG (report_constants.R) so it
+# can be inspected in the report metadata sidecar without hard-coding it here.
+set.seed(STATS_CONFIG$report_seed)
+
 # Load assay configuration
 assay_config <- tryCatch({
   load_assay_config(output_dir)
@@ -472,6 +477,35 @@ if (is_html_out()) {
             .app_ver_meta, R.version.string, .drc_ver_meta)
   ))
 }
+```
+
+```{r report-metadata-sidecar, include=FALSE}
+# AUDIT-018: Write a machine-readable sidecar (report_metadata.json) alongside
+# each rendered report so that the exact inputs, RNG seed, and R environment
+# that produced the report are permanently recorded.
+.run_uuid <- paste(sample(c(letters[1:6], 0:9), 32L, replace = TRUE), collapse = "")
+.input_hash <- tryCatch(
+  digest::digest(
+    list(
+      read.csv(file.path(output_dir, "long_data_output.csv")),
+      jsonlite::read_json(file.path(output_dir, "model_stats.json"))
+    ),
+    algo = "sha256"
+  ),
+  error = function(e) NA_character_
+)
+.sinfo <- utils::sessionInfo()
+.meta <- list(
+  run_uuid    = .run_uuid,
+  input_hash  = .input_hash,
+  report_seed = STATS_CONFIG$report_seed,
+  rendered_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
+  r_version   = paste(R.version$major, R.version$minor, sep = "."),
+  packages    = sapply(.sinfo$otherPkgs, function(p) p$Version, USE.NAMES = TRUE)
+)
+jsonlite::write_json(.meta, file.path(output_dir, "report_metadata.json"),
+                     pretty = TRUE, auto_unbox = TRUE)
+rm(.run_uuid, .input_hash, .sinfo, .meta)
 ```
 
 ```{r dynamic-description, results='asis'}
