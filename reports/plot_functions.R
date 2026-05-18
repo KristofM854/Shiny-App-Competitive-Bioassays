@@ -42,6 +42,11 @@ is_docx_out <- function() {
 #' @return For HTML: an htmltools tagList (knitr renders as interactive widget).
 #'         For DOCX/PDF: invisible NULL (static plot is a side-effect of print()).
 render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL) {
+  # Apply the house theme per-call (AUDIT-011): avoids relying on the
+  # process-global theme_set() that was removed from global.R, and works in
+  # standalone Rmd renders where global.R is NOT sourced.
+  if (exists("theme_rba", mode = "function")) gg <- gg + theme_rba()
+
   if (is_html_out()) {
     # Strip the ggplot title before conversion: plotly renders it inside the
     # figure frame which clashes with the surrounding Rmd section heading.

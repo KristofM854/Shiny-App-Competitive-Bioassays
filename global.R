@@ -304,9 +304,6 @@ theme_rba <- function(base_size = 12) {
     )
 }
 
-# Set as default theme
-theme_set(theme_rba())
-
 # --- Color Palettes -----------------------------------------------------------
 
 # Sample type colors (for plate visualization)
