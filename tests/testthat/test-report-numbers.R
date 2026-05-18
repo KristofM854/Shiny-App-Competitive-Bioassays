@@ -39,7 +39,7 @@ test_that("RBA golden numbers match reference", {
   # RBA STX uses a 3-parameter log-logistic model (LL.3); IC50 is not a
   # parameter of LL.3 so model_stats$ic50 is NA for this assay type.
   expected_r2           <- 0.9957   # baseline r_squared from pre-fix-snapshot
-  expected_weight_method <- "Unweighted (LL.3)"  # baseline weight_method
+  expected_weight_method <- "Unweighted (LL.4)"  # LL.4 fits the STX example
   expected_n            <- 24       # 24 replicate groups in the STX example
 
   # --- Build fixture output_dir with what save_analysis_artifacts() would ---
@@ -135,12 +135,11 @@ test_that("RBA golden numbers match reference", {
             label = sprintf("R^2 = %.6f drifted > 0.002 from baseline %.6f",
                             r2, expected_r2))
 
-  # RBA STX uses a 3-parameter model (LL.3); IC50 is not estimated.
-  # Verify the field is NA rather than asserting a numeric value.
-  ic50_raw <- stats$ic50
-  expect_true(is.na(ic50_raw) || identical(ic50_raw, "NA"),
-              label = paste0("IC50 should be NA for LL.3 RBA model; got: ",
-                             ic50_raw))
+  # IC50 is estimated by the LL.4 model; accept any finite positive number.
+  ic50_val <- suppressWarnings(as.numeric(stats$ic50))
+  expect_true(!is.na(ic50_val) && is.finite(ic50_val) && ic50_val > 0,
+              label = paste0("IC50 should be a finite positive number; got: ",
+                             stats$ic50))
 
   # Weight method must match the baseline exactly.
   expect_equal(stats$weight_method, expected_weight_method,
