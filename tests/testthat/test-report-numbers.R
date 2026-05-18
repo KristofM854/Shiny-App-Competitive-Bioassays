@@ -33,10 +33,14 @@ test_that("RBA golden numbers match reference", {
   skip_if_not_installed("drc")
   skip_if_not_installed("jsonlite")
 
-  # --- Reference values (update via capture_reference_values() above) ---
-  expected_r2   <- 0.998    # placeholder per implementation plan §B6
-  expected_ic50 <- 5.2e-9   # placeholder per implementation plan §B6
-  expected_n    <- 24       # 24 replicate groups in the STX example
+  # --- Reference values locked from audit/pre-fix-snapshot/rba_stx/ ---
+  # Captured by running the pipeline against examples/rba_stx_example.csv
+  # and reading the written model_stats.json and unknown_results_summary.csv.
+  # RBA STX uses a 3-parameter log-logistic model (LL.3); IC50 is not a
+  # parameter of LL.3 so model_stats$ic50 is NA for this assay type.
+  expected_r2           <- 0.9957   # baseline r_squared from pre-fix-snapshot
+  expected_weight_method <- "Unweighted (LL.3)"  # baseline weight_method
+  expected_n            <- 24       # 24 replicate groups in the STX example
 
   # --- Build fixture output_dir with what save_analysis_artifacts() would ---
   fixture_out <- file.path(tempdir(), "golden-rba",
@@ -63,7 +67,7 @@ test_that("RBA golden numbers match reference", {
 
   df_long <- matrix_to_long(type_mat, id_mat, dilution_mat, replicate_mat,
                             meas_mat,
-                            std_concentrations = DEFAULT_STX_CONC[1:n_std])
+                            std_conc = DEFAULT_STX_CONC[1:n_std])
   csv_path <- file.path(fixture_out, "long_data_output.csv")
   write.csv(df_long, csv_path, row.names = FALSE)
 
@@ -123,12 +127,24 @@ test_that("RBA golden numbers match reference", {
               info = "model_stats.json must be produced by the render")
   stats <- jsonlite::fromJSON(stats_path)
 
-  expect_lt(abs(stats$r_squared - expected_r2), 0.002,
-            label = sprintf("R^2 = %.6f drifted > 0.002 from reference %.6f",
-                            stats$r_squared, expected_r2))
-  expect_lt(abs(stats$ic50 - expected_ic50) / expected_ic50, 0.05,
-            label = sprintf("IC50 = %.3e drifted > 5%% from reference %.3e",
-                            stats$ic50, expected_ic50))
+  # R² must be ≥ 0.98 and within 0.002 of the baseline (0.9957).
+  r2 <- stats$r_squared
+  expect_gte(r2, 0.98,
+             label = sprintf("R^2 = %.6f dropped below 0.98", r2))
+  expect_lt(abs(r2 - expected_r2), 0.002,
+            label = sprintf("R^2 = %.6f drifted > 0.002 from baseline %.6f",
+                            r2, expected_r2))
+
+  # RBA STX uses a 3-parameter model (LL.3); IC50 is not estimated.
+  # Verify the field is NA rather than asserting a numeric value.
+  ic50_raw <- stats$ic50
+  expect_true(is.na(ic50_raw) || identical(ic50_raw, "NA"),
+              label = paste0("IC50 should be NA for LL.3 RBA model; got: ",
+                             ic50_raw))
+
+  # Weight method must match the baseline exactly.
+  expect_equal(stats$weight_method, expected_weight_method,
+               label = "weight_method changed from baseline")
 
   summary_path <- file.path(fixture_out, "unknown_results_summary.csv")
   expect_true(file.exists(summary_path),
