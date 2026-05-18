@@ -55,7 +55,24 @@ test_that("Multi-wavelength upload produces per-wavelength CSVs and a concordanc
   Sys.sleep(5)
   app$wait_for_idle(timeout = 240000)
 
-  output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+  app_dir    <- testthat::test_path("../..")
+  runs_base  <- file.path(app_dir, "reports", "runs")
+  output_dir <- NULL
+  if (dir.exists(runs_base)) {
+    session_dirs <- list.dirs(runs_base, recursive = FALSE)
+    if (length(session_dirs) > 0) {
+      newest_session <- session_dirs[which.max(file.mtime(session_dirs))]
+      run_dirs <- list.dirs(newest_session, recursive = FALSE)
+      run_dirs <- run_dirs[grepl("^run_", basename(run_dirs))]
+      output_dir <- if (length(run_dirs) > 0)
+        run_dirs[which.max(file.mtime(run_dirs))]
+      else
+        newest_session
+    }
+  }
+  if (is.null(output_dir) || !nzchar(output_dir)) {
+    output_dir <- Sys.getenv("RBA_OUTPUT_DIR")
+  }
   expect_true(nzchar(output_dir))
   expect_true(dir.exists(output_dir))
 
@@ -66,7 +83,8 @@ test_that("Multi-wavelength upload produces per-wavelength CSVs and a concordanc
             label = "At least one CSV per wavelength must be present")
 
   # Multi-wavelength template renders the Bland-Altman concordance block.
-  html_files <- list.files(output_dir, pattern = "\\.html$", full.names = TRUE)
+  html_files <- list.files(output_dir, pattern = "\\.html$", full.names = TRUE,
+                           recursive = TRUE)
   expect_gt(length(html_files), 0)
   html <- paste(readLines(html_files[1], warn = FALSE), collapse = "\n")
   expect_match(html, "Bland-Altman", fixed = TRUE,

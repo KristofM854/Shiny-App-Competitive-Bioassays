@@ -123,7 +123,7 @@ suppressPackageStartupMessages({
 # --- App Metadata -------------------------------------------------------------
 APP_VERSION <- tryCatch(
   utils::packageVersion("RBAElisaApp") |> as.character(),
-  error = function(e) "2.0.0-dev"
+  error = function(e) "1.0.0-dev"
 )
 
 APP_NAME <- "RBA & ELISA Analysis Suite"

@@ -103,7 +103,7 @@ ui <- fluidPage(
         target = "_blank",
         rel = "noopener noreferrer",
         title = "View this release on Zenodo (DOI)",
-        "v1.0.0"
+        paste0("v", APP_VERSION)
       ),
       uiOutput("analysis_state_pill", inline = TRUE)
     ),
