@@ -16,24 +16,25 @@
 
 set.seed(20260422)
 
-# Competitive ELISA layout (Cayman-style):
-#   Col 1: A=Blank, B=NSB, C=B0, D=TotalActivity, E-H=samples
-#   Col 2-3: 8 standards in duplicate (S1 col 2, S2 col 3 ... wrong, actually
-#            S1-S8 run A->H in col 2 and repeated in col 3)
+# ELISA layout matching create_type_matrix("elisa", 8):
+#   Col 1: A,B=Blank; C,D=NSB; E,F,G=B0; H=TotalActivity
+#   Col 2-3: 8 standards (S1-S8, rows A-H) in duplicate
 #   Col 4-12: samples in triplicate groups
 
 plate_450 <- matrix(NA_real_, nrow = 8, ncol = 12,
                     dimnames = list(LETTERS[1:8], as.character(1:12)))
 
-# Column 1 controls (blank/NSB/B0/TA then four sample rows)
+# Column 1 controls — must match the app's default ELISA layout from
+# create_type_matrix("elisa", 8):  A,B=Blank; C,D=NSB; E,F,G=B0; H=TotalActivity.
+# NSB must be < B0 after blank correction so calculate_elisa_bb0() succeeds.
 plate_450["A", 1] <- 0.045   # Blank
-plate_450["B", 1] <- 0.052   # NSB
-plate_450["C", 1] <- 1.318   # B0
-plate_450["D", 1] <- 2.140   # TotalActivity
-plate_450["E", 1] <- 0.650
-plate_450["F", 1] <- 0.820
-plate_450["G", 1] <- 0.410
-plate_450["H", 1] <- 1.105
+plate_450["B", 1] <- 0.052   # Blank
+plate_450["C", 1] <- 0.090   # NSB
+plate_450["D", 1] <- 0.088   # NSB
+plate_450["E", 1] <- 1.280   # B0
+plate_450["F", 1] <- 1.310   # B0
+plate_450["G", 1] <- 1.295   # B0
+plate_450["H", 1] <- 2.140   # TotalActivity
 
 # Standard curve in columns 2-3 (duplicate). B0 response ~1.3, Blank ~0.05.
 # Classic competitive ELISA: response drops as analyte increases.
