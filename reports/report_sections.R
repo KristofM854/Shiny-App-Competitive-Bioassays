@@ -752,9 +752,11 @@ render_report_header <- function(R2, RMSE, formal_lloq, formal_uloq,
     ctrl_txt      <- if (valid) tr("control_hierarchy_valid",   lang)
                      else       tr("control_hierarchy_invalid", lang)
     ctrl_pill_cls <- if (valid) "is-pass" else "is-warn"
+    blank_fmt     <- sprintf("Blank average %.3f", as.numeric(control_summary$blank_avg))
     ctrl_tile     <- make_tile(tr("elisa_controls_title", lang),
-                               sprintf('<span class="bs-status-pill %s">%s</span>',
-                                       ctrl_pill_cls, ctrl_txt))
+                               paste0(blank_fmt, " &nbsp;",
+                                      sprintf('<span class="bs-status-pill %s">%s</span>',
+                                              ctrl_pill_cls, ctrl_txt)))
   }
 
   meta_html <- paste0(
