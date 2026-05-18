@@ -35,8 +35,8 @@ test_that("AUDIT-032: analysis_pipeline does not contain interpolation weight me
   )
   expect_false(result$multi_weight_mode,
                info = "Auto mode should set multi_weight_mode = FALSE")
-  expect_length(result$all_models, 1,
-                info = "Auto mode should produce exactly one fitted model")
+  expect_equal(length(result$all_models), 1L,
+               info = "Auto mode should produce exactly one fitted model")
   expect_false(is.null(result$auto_weighting_result),
                info = "auto_weighting_result should be populated when auto is selected")
 })
