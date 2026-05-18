@@ -420,14 +420,6 @@ if (isTRUE(is_elisa)) {
     assay_config$analyte <- assay_config$analyte %||% "Analyte"
   }
 
-  if (!is.null(control_summary)) {
-    cat("**Control Well QC:**\n")
-    cat("- Blank average:", round(as.numeric(control_summary$blank_avg), 3), "\n")
-    cat("- NSB average:", round(as.numeric(control_summary$nsb_avg), 3), "\n")
-    cat("- B0 average:", round(as.numeric(control_summary$b0_avg), 3), "\n")
-    cat("- Hierarchy valid:", control_summary$hierarchy_valid, "\n\n")
-  }
-  
 } else {
   # RBA: Use existing response variable
   response_var <- if (has_normalized && "NormalizedValue" %in% names(data_long)) {
