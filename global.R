@@ -229,6 +229,7 @@ QC_THRESHOLDS <- list(
 
 # --- File Upload Settings -----------------------------------------------------
 MAX_UPLOAD_SIZE_MB <- 10
+options(shiny.maxRequestSize = MAX_UPLOAD_SIZE_MB * 1024^2)
 ACCEPTED_FILE_TYPES <- c(
   ".txt", ".csv", ".xlsx", ".xls"
 )
