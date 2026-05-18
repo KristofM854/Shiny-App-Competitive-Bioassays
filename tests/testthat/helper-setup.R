@@ -35,6 +35,7 @@ suppressPackageStartupMessages({
 .try_source(file.path(.repo_root, "utils", "utils_plate.R"))
 .try_source(file.path(.repo_root, "utils", "utils_import_v3.R"))
 .try_source(file.path(.repo_root, "utils", "utils_normalization.R"))
+.try_source(file.path(.repo_root, "server", "i18n.R"))
 .try_source(file.path(.repo_root, "reports", "report_constants.R"))
 .try_source(file.path(.repo_root, "reports", "report_functions.R"))
 .try_source(file.path(.repo_root, "reports", "plot_functions.R"))
