@@ -8,14 +8,16 @@ test_that("AUDIT-007: assess_heteroscedasticity flags degenerate F as degenerate
             11000, 11200, 10800,
              6000,  5800,  6200,
              2000,  1900,  2100)
+  # assess_heteroscedasticity() groups residuals by data_long$StandardConc,
+  # so the column must be named StandardConc to match the function contract.
   df <- data.frame(
-    concentration    = conc,
+    StandardConc     = conc,
     MeasurementValue = resp,
     SampleType       = "Standard",
     ReplicateGroup   = paste0("Std", rep(1:4, each = 3))
   )
   fit <- tryCatch(
-    drc::drm(MeasurementValue ~ concentration, data = df, fct = drc::LL.4()),
+    drc::drm(MeasurementValue ~ StandardConc, data = df, fct = drc::LL.4()),
     error = function(e) NULL
   )
   skip_if(is.null(fit), "DRC fit failed on test data — skipping heteroscedasticity test")
@@ -32,13 +34,13 @@ test_that("AUDIT-007: assess_heteroscedasticity degenerate = FALSE for normal da
              6000,  5800,  6200,
              2000,  1900,  2100)
   df <- data.frame(
-    concentration    = conc,
+    StandardConc     = conc,
     MeasurementValue = resp,
     SampleType       = "Standard",
     ReplicateGroup   = paste0("Std", rep(1:4, each = 3))
   )
   fit <- tryCatch(
-    drc::drm(MeasurementValue ~ concentration, data = df, fct = drc::LL.4()),
+    drc::drm(MeasurementValue ~ StandardConc, data = df, fct = drc::LL.4()),
     error = function(e) NULL
   )
   skip_if(is.null(fit), "DRC fit failed on test data — skipping heteroscedasticity test")
