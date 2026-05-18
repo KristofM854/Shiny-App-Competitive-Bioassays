@@ -10,6 +10,10 @@
 # explicit device; not part of the test corpus).
 tests/testthat/Rplots.pdf
 
+# R CMD check and build artifacts
+*.Rcheck/
+*.tar.gz
+
 # Generated report output (standalone mode runs)
 reports/runs/
 
