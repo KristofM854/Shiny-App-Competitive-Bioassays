@@ -42,9 +42,9 @@ jobs:
           extra-packages: |
             any::car
             any::digest
-            min::dplyr@1.1.0
-            min::drc@3.0-1
-            min::ggplot2@3.4.0
+            any::dplyr
+            any::drc
+            any::ggplot2
             any::ggrepel
             any::ggtext
             any::ggthemes
@@ -62,7 +62,7 @@ jobs:
             any::remotes
             any::rhandsontable
             any::rintrojs
-            min::rmarkdown@2.20
+            any::rmarkdown
             any::scales
             any::shiny
             any::shinyFeedback
