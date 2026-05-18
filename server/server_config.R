@@ -28,9 +28,14 @@ server_config <- function(input, output, session, shared) {
       shared$matrix_dilution(create_dilution_matrix())
       shared$matrix_replicate(create_replicate_matrix("elisa"))
     } else {
-      # RBA: use the existing preset RDS via the preset_layout selector so
-      # the standard concentrations + dilution grid come from the same
-      # source of truth used when the user picks the preset manually.
+      # RBA: directly set matrices (matching ELISA approach) so matrices are
+      # available synchronously before the async preset_layout observer fires.
+      # Also trigger the preset selector so the UI stays in sync.
+      n <- as.integer(input$num_standards %||% 8L)
+      shared$matrix_type(create_type_matrix("rba", n))
+      shared$matrix_id(create_id_matrix("rba", n))
+      shared$matrix_dilution(create_dilution_matrix())
+      shared$matrix_replicate(create_replicate_matrix("rba"))
       updateSelectInput(session, "preset_layout", selected = "rba_stx_triplicate")
     }
 

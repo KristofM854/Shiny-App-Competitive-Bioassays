@@ -76,9 +76,10 @@ test_that("Multi-wavelength upload produces per-wavelength CSVs and a concordanc
   expect_true(nzchar(output_dir))
   expect_true(dir.exists(output_dir))
 
-  # Per-wavelength result CSVs: one unknown_results(_summary).csv per wavelength
-  # is written into output_dir (named with a 450 / 630 suffix by the pipeline).
-  csvs <- list.files(output_dir, pattern = "unknown_results.*\\.csv$")
+  # Per-wavelength result CSVs: the multiwavelength template renders each
+  # wavelength's analysis into a per-wavelength subdir (e.g. output_dir/450nm/).
+  # Use recursive = TRUE so subdirectory files are found.
+  csvs <- list.files(output_dir, pattern = "unknown_results.*\\.csv$", recursive = TRUE)
   expect_gt(length(csvs), 1,
             label = "At least one CSV per wavelength must be present")
 
