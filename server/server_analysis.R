@@ -131,4 +131,22 @@ server_analysis <- function(input, output, session, shared) {
            lwd    = c(1.2, rep(2, length(weights))),
            bty    = "n", cex = 0.85)
   }, height = 280)
+
+  # AUDIT-032: enforce Auto / explicit-weight mutual exclusivity.
+  # When "auto" is added while explicit weights are selected, keep only "auto".
+  # When an explicit weight is added while "auto" is selected, drop "auto".
+  observeEvent(input$regression_weight, ignoreNULL = FALSE, {
+    sel <- input$regression_weight
+    if (is.null(sel) || length(sel) == 0) return()
+    if ("auto" %in% sel && length(sel) > 1) {
+      if (sel[length(sel)] == "auto") {
+        # "auto" was just added — deselect everything else
+        updateCheckboxGroupInput(session, "regression_weight", selected = "auto")
+      } else {
+        # an explicit weight was just added while "auto" was selected — drop "auto"
+        updateCheckboxGroupInput(session, "regression_weight",
+                                 selected = sel[sel != "auto"])
+      }
+    }
+  })
 }

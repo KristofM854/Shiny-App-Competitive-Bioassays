@@ -15,14 +15,16 @@ Description: Shiny application for radioligand binding assay (RBA) and
     automated HTML/DOCX report generation.
 License: MIT
 Encoding: UTF-8
+Depends:
+    R (>= 4.2)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.0.0
 Imports:
     car,
     digest,
-    dplyr,
-    drc,
-    ggplot2,
+    dplyr (>= 1.1.0),
+    drc (>= 3.0-1),
+    ggplot2 (>= 3.4.0),
     ggrepel,
     ggtext,
     ggthemes,
@@ -37,9 +39,10 @@ Imports:
     purrr,
     readr,
     readxl,
+    remotes,
     rhandsontable,
     rintrojs,
-    rmarkdown,
+    rmarkdown (>= 2.20),
     scales,
     shiny,
     shinyFeedback,
@@ -47,4 +50,5 @@ Imports:
     shinyjs,
     stringr,
     tibble,
-    tidyr
+    tidyr,
+    withr

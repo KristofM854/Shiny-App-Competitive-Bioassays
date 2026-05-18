@@ -35,6 +35,10 @@ if (!exists("QC_THRESHOLDS") || is.null(QC_THRESHOLDS$cv_limit)) {
 # Values chosen based on common immunoassay-analysis conventions; change
 # in one place to propagate everywhere.
 STATS_CONFIG <- list(
+  # Reproducibility seed — used by set.seed() in the Rmd setup chunk so that
+  # every rendered report uses the same RNG state for bootstrap CIs.
+  report_seed = 42L,
+
   # Bootstrap resampling
   bootstrap_iterations = 1000,     # per-replicate-group percentile bootstrap
 
