@@ -5,8 +5,8 @@ test_that("AUDIT-004: DESCRIPTION declares R >= 4.4", {
   skip_if(!file.exists(desc_path))
   desc_lines <- readLines(desc_path)
   depends_line <- grep("R \\(>= 4\\.4\\)", desc_lines, value = TRUE)
-  expect_length(depends_line, 1,
-                info = "DESCRIPTION should declare Depends: R (>= 4.4)")
+  expect_equal(length(depends_line), 1L,
+               info = "DESCRIPTION should declare Depends: R (>= 4.4)")
 })
 
 test_that("AUDIT-004: DESCRIPTION has minimum version pins for sensitive packages", {

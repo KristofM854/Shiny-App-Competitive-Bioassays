@@ -80,7 +80,8 @@ test_that("ELISA Instant Demo produces a complete report with control summary", 
   expect_true(nzchar(output_dir), info = "output_dir must be non-empty")
   expect_true(dir.exists(output_dir), info = "output_dir must exist on disk")
 
-  html_files <- list.files(output_dir, pattern = "\\.html$", full.names = TRUE)
+  html_files <- list.files(output_dir, pattern = "\\.html$", full.names = TRUE,
+                           recursive = TRUE)
   expect_gt(length(html_files), 0)
   expect_gt(file.info(html_files[1])$size, 10000)
 
