@@ -240,7 +240,8 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
     p_value = NA_real_,
     interpretation = "Could not assess heteroscedasticity.",
     recommendation = "No recommendation available.",
-    variance_ratio = NA_real_
+    variance_ratio = NA_real_,
+    degenerate = FALSE
   )
 
   tryCatch({
@@ -343,6 +344,7 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
             "F > 1×10⁶ — at least one replicate group has zero within-group variance, so the test is degenerate. Reported variance ratio (max/min, %s) is the more reliable indicator of heteroscedasticity.",
             vr_str)
           result$recommendation <- "Weighted regression (1/Y or 1/Y²) is recommended to account for unequal variance."
+          result$degenerate <- TRUE
           return(result)
         }
 

@@ -851,6 +851,13 @@ if (!is.null(auto_weighting_result)) {
                     auto_weighting_result$p_value %||% NA_real_),
         "\n\n", sep = "")
   }
+  if (isTRUE(auto_weighting_result$degenerate)) {
+    cat("\n\n> **Warning:** The heteroscedasticity test was numerically degenerate",
+        "(at least one replicate group has zero within-group variance — F → ∞).",
+        "The auto-weight selection used the variance ratio as a fallback.",
+        "Inspect your standards for all-identical replicates at any concentration level.",
+        "\n\n", sep = " ")
+  }
 }
 
 # Formal heteroscedasticity diagnostic (assess_heteroscedasticity)
