@@ -390,20 +390,26 @@ is_elisa <- isTRUE(assay_config$assay_type == "elisa") ||
 
 # For ELISA, calculate proper B/B0 values following Cayman protocol
 if (isTRUE(is_elisa)) {
-  # Calculate B/B0 values using control wells (Blank, NSB, B0)
-  # Use the raw data with diagnostic columns for calculation, but return clean data
-  control_summary <- NULL
-  data_long <- tryCatch({
-    data_with_bb0 <- calculate_elisa_bb0(data_long_raw, use_percent = TRUE)  # Use %B/B0 (0-100%)
-    # Capture attribute before dplyr::select() strips it
-    control_summary <<- attr(data_with_bb0, "control_summary")
-    data_with_bb0 %>% dplyr::select(-any_of(diagnostic_cols))
-  }, error = function(e) {
-    warning("Could not calculate B/B0 values: ", e$message)
+  # Step 1: Try B/B0 calculation (keep full result so we can read the attribute)
+  .bb0_result <- tryCatch(
+    calculate_elisa_bb0(data_long_raw, use_percent = TRUE),
+    error = function(e) {
+      warning("Could not calculate B/B0 values: ", e$message)
+      NULL
+    }
+  )
+
+  # Step 2: Capture control_summary NOW — before dplyr::select() strips the attribute
+  control_summary <- if (!is.null(.bb0_result)) attr(.bb0_result, "control_summary") else NULL
+
+  # Step 3: Build the final data_long
+  data_long <- if (!is.null(.bb0_result)) {
+    .bb0_result %>% dplyr::select(-any_of(diagnostic_cols))
+  } else {
     warning("Falling back to existing NormalizedValue column")
     data_long$calculated_bb0 <- data_long$NormalizedValue
     data_long
-  })
+  }
 
   response_var <- "calculated_bb0"
 
@@ -414,11 +420,6 @@ if (isTRUE(is_elisa)) {
     assay_config$analyte <- assay_config$analyte %||% "Analyte"
   }
 
-  # control_summary was already captured above (before dplyr stripped it)
-  # Re-read from attr() in case the fallback path set it
-  if (is.null(control_summary)) {
-    control_summary <- attr(data_long, "control_summary")
-  }
   if (!is.null(control_summary)) {
     cat("**Control Well QC:**\n")
     cat("- Blank average:", round(as.numeric(control_summary$blank_avg), 3), "\n")
