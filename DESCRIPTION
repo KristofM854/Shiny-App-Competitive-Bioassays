@@ -13,7 +13,7 @@ Description: Shiny application for radioligand binding assay (RBA) and
     plate layout configuration, smart file import, 4-parameter logistic
     dose-response curve fitting, QC checks, outlier detection, and
     automated HTML/DOCX report generation.
-License: MIT
+License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:
     R (>= 4.4)
@@ -52,3 +52,8 @@ Imports:
     tibble,
     tidyr,
     withr
+Suggests:
+    testthat (>= 3.0.0),
+    shinytest2,
+    chromote,
+    covr

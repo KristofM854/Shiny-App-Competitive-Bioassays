@@ -1,0 +1,9 @@
+^\.github$
+^\.githooks$
+^\.claude$
+^CITATION\.cff$
+^audit$
+^reports/runs$
+^tests/testthat/Rplots\.pdf$
+^.*\.Rcheck$
+^.*\.tar\.gz$
