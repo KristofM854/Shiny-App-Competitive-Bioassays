@@ -40,3 +40,4 @@ suppressPackageStartupMessages({
 .try_source(file.path(.repo_root, "reports", "plot_functions.R"))
 .try_source(file.path(.repo_root, "reports", "analysis_pipeline.R"))
 .try_source(file.path(.repo_root, "reports", "report_sections.R"))
+.try_source(file.path(.repo_root, "server", "report_pipeline.R"))

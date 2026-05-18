@@ -348,7 +348,7 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
   cat(sprintf("**Sample wells:** %d\n\n", n_sample_wells))
 
   if (isTRUE(is_elisa) && !is.null(control_summary)) {
-    cat(sprintf("**Controls:** Blank=%.3f | NSB=%.3f | B0=%.3f | Hierarchy: %s\n\n",
+    cat(sprintf("**Controls:** Blank average %.3f | NSB average %.3f | B0 average %.3f | Hierarchy: %s\n\n",
                 as.numeric(control_summary$blank_avg),
                 as.numeric(control_summary$nsb_avg),
                 as.numeric(control_summary$b0_avg),
