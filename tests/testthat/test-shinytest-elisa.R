@@ -86,7 +86,9 @@ test_that("ELISA Instant Demo produces a complete report with control summary", 
   expect_gt(file.info(html_files[1])$size, 10000)
 
   # Cayman-protocol control summary must appear in the rendered report.
-  html <- paste(readLines(html_files[1], warn = FALSE), collapse = "\n")
+  # Joining with " " (not "\n") so pandoc's line-wrap doesn't split
+  # "Blank average" across two lines and foil the fixed-string match.
+  html <- paste(readLines(html_files[1], warn = FALSE), collapse = " ")
   expect_match(html, "Blank average", fixed = TRUE,
                info = "ELISA report is expected to include the Blank average line from the control summary.")
 
