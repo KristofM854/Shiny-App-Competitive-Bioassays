@@ -7,6 +7,9 @@
 #   Strategy 2: Find largest contiguous 8xN numeric block (>=70% valid cells)
 #
 # Functions:
+#   read_lines_safe()         - AUDIT-022: Read lines with BOM stripping / Latin-1 fallback
+#   detect_csv_sep()          - AUDIT-012: Detect CSV field separator
+#   fix_comma_decimals()      - AUDIT-013: Convert comma-decimal columns
 #   read_file_raw()           - Read a plate reader file into a raw data.frame
 #   detect_plate_location()   - Find plate data region in file (or raw data)
 #   import_plate_data()       - Import and validate plate as 8x12 matrix
@@ -14,10 +17,92 @@
 #   preview_import()          - Quick validation preview
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# AUDIT-022: Read lines with UTF-8 BOM stripping and Latin-1 fallback
+# ------------------------------------------------------------------------------
+#' Read lines from a file, stripping UTF-8 BOM and falling back to Latin-1
+#'
+#' @param path Path to the file
+#' @return Character vector of lines
+#' @keywords internal
+read_lines_safe <- function(path) {
+  lines <- tryCatch(
+    readLines(path, encoding = "UTF-8", warn = FALSE),
+    error = function(e) readLines(path, encoding = "latin1", warn = FALSE)
+  )
+  # Strip UTF-8 BOM (U+FEFF, codepoint 65279) from the first line if present.
+  # When R reads a UTF-8 file, the 3-byte BOM sequence \xef\xbb\xbf is decoded
+  # to the single Unicode character U+FEFF; detect it by codepoint comparison.
+  if (length(lines) > 0L && nchar(lines[[1L]]) > 0L &&
+      utf8ToInt(substr(lines[[1L]], 1L, 1L)) == 65279L) {
+    lines[[1L]] <- substring(lines[[1L]], 2L)
+  }
+  lines
+}
+
+# ------------------------------------------------------------------------------
+# AUDIT-012: Detect CSV separator from raw lines
+# ------------------------------------------------------------------------------
+#' Detect the field separator used in CSV-like text
+#'
+#' Counts occurrences of \code{;}, \code{,}, and \code{\\t} in the first data
+#' line and returns the most frequent candidate.  When semicolon and comma
+#' counts are tied, semicolon is preferred (European locale convention where
+#' \code{;} is the field separator and \code{,} is the decimal mark).
+#' Falls back to \code{","} when counts are all zero.
+#'
+#' @param lines Character vector of raw file lines (from \code{read_lines_safe})
+#' @return Single character: one of \code{","}, \code{";"}, or \code{"\\t"}
+#' @keywords internal
+detect_csv_sep <- function(lines) {
+  # Use the second line when available (skips a potential header row)
+  sample_line <- lines[min(2L, length(lines))]
+  n_semi  <- nchar(gsub("[^;]",  "", sample_line))
+  n_comma <- nchar(gsub("[^,]",  "", sample_line))
+  n_tab   <- nchar(gsub("[^\t]", "", sample_line))
+  if (n_semi > n_tab && n_semi >= n_comma && n_semi > 0L) return(";")
+  if (n_tab  > n_comma) return("\t")
+  return(",")
+}
+
+# ------------------------------------------------------------------------------
+# AUDIT-013: Convert comma-decimal columns after reading
+# ------------------------------------------------------------------------------
+#' Convert comma-decimal values (e.g. "1,23") to dot-decimal in a data frame
+#'
+#' Only columns whose non-NA, non-empty values \emph{all} match the pattern
+#' \code{^-?[0-9]+,[0-9]+$} are converted.  Mixed columns (some values with
+#' dots, some with commas) are left untouched.
+#'
+#' @param df A data.frame (character columns expected)
+#' @return The same data.frame with affected columns coerced to numeric
+#' @keywords internal
+fix_comma_decimals <- function(df) {
+  for (col in names(df)) {
+    x <- df[[col]]
+    if (is.character(x)) {
+      non_na <- x[!is.na(x) & nchar(trimws(x)) > 0L]
+      if (length(non_na) == 0L) next
+      has_comma_decimal <- all(grepl("^-?[0-9]+,[0-9]+$", non_na, perl = TRUE))
+      if (has_comma_decimal) {
+        df[[col]] <- as.numeric(gsub(",", ".", x, fixed = TRUE))
+      }
+    }
+  }
+  df
+}
+
 #' Read a plate reader file into a raw data.frame (no headers)
 #'
 #' Shared low-level reader used by both detection and import functions
 #' so the file is read exactly once per import attempt.
+#'
+#' For CSV and TXT files, three import fixes are applied automatically:
+#' \itemize{
+#'   \item AUDIT-022: strips UTF-8 BOM and falls back to Latin-1 encoding
+#'   \item AUDIT-012: auto-detects \code{,}, \code{;}, or \code{\\t} field separator
+#'   \item AUDIT-013: converts comma-decimal columns (\code{"1,23"}) to numeric
+#' }
 #'
 #' @param file_path Path to Excel, CSV, or TXT file
 #' @param sheet Sheet name or index (Excel only, default 1)
@@ -30,21 +115,38 @@ read_file_raw <- function(file_path, sheet = 1) {
       readxl::read_excel(file_path, sheet = sheet, col_names = FALSE,
                          .name_repair = "minimal")
     )
-  } else if (ext == "csv") {
-    read.csv(file_path, header = FALSE, stringsAsFactors = FALSE)
-  } else if (ext == "txt") {
-    read.table(file_path, header = FALSE, sep = "\t", stringsAsFactors = FALSE)
+  } else if (ext %in% c("csv", "txt")) {
+    # AUDIT-022: read with BOM stripping / Latin-1 fallback
+    raw_lines <- read_lines_safe(file_path)
+
+    # AUDIT-012: detect separator (comma, semicolon, or tab); TXT files always use tab
+    sep <- if (ext == "txt") "\t" else detect_csv_sep(raw_lines)
+
+    # Parse into data frame (all columns kept as character)
+    df <- tryCatch(
+      read.table(text = raw_lines, header = FALSE, sep = sep,
+                 stringsAsFactors = FALSE, fill = TRUE,
+                 quote = "\"", comment.char = ""),
+      error = function(e) {
+        # Last-resort: fall back to reading from disk
+        read.table(file_path, header = FALSE, sep = sep,
+                   stringsAsFactors = FALSE, fill = TRUE)
+      }
+    )
+
+    # AUDIT-013: convert comma-decimal columns to numeric
+    fix_comma_decimals(df)
   } else {
     stop("Unsupported file format: ", ext)
   }
 }
 
 #' Detect plate data location in Excel file
-#' 
+#'
 #' Scans an Excel file to find the 96-well plate data block using multiple strategies:
 #' 1. Look for row labels (A-H) in first column (with or without column headers)
-#' 2. Look for purely numeric 8×N array (no labels, accepts partial plates)
-#' 
+#' 2. Look for purely numeric 8xN array (no labels, accepts partial plates)
+#'
 #' @param file_path Path to Excel or CSV file
 #' @param sheet Sheet name or index (for Excel files)
 #' @return List with: start_row, start_col, nrows, ncols, format, or NULL if not found
@@ -56,22 +158,22 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
 
   # Convert to matrix for easier scanning
   mat <- as.matrix(raw)
-  
+
   # ============================================================================
   # STRATEGY 1: Search for row labels A-H in first column
   # ============================================================================
   for (i in 1:(nrow(mat) - 7)) {
-    
+
     potential_rows <- mat[i:(i+7), 1]
     potential_rows <- trimws(as.character(potential_rows))
-    
+
     if (identical(potential_rows, LETTERS[1:8])) {
-      
+
       # Found row labels! Check for column headers above
       if (i > 1) {
         potential_cols <- mat[i-1, 2:ncol(mat)]
         potential_cols <- suppressWarnings(as.numeric(potential_cols))
-        
+
         # Count sequential column numbers (1, 2, 3, ...)
         ncols_found <- 0
         for (j in seq_along(potential_cols)) {
@@ -81,7 +183,7 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
             break
           }
         }
-        
+
         if (ncols_found >= 4) {
           return(list(
             start_row = i,
@@ -94,11 +196,11 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
           ))
         }
       }
-      
+
       # No headers, but A-H found - check for numeric data
       test_data <- suppressWarnings(as.numeric(mat[i, 2:min(13, ncol(mat))]))
       num_valid <- sum(!is.na(test_data))
-      
+
       if (num_valid >= 4) {
         return(list(
           start_row = i,
@@ -112,52 +214,52 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
       }
     }
   }
-  
+
   # ============================================================================
-  # STRATEGY 2: Search for pure numeric 8×N array (no labels)
+  # STRATEGY 2: Search for pure numeric 8xN array (no labels)
   # ============================================================================
-  
+
   for (i in 1:(nrow(mat) - 7)) {
-    
+
     # Try different starting columns (skip empty leading columns)
     for (col_offset in 0:min(3, ncol(mat) - 4)) {
-      
+
       max_cols <- min(12, ncol(mat) - col_offset)
       if (max_cols < 4) next
-      
+
       block <- mat[i:(i+7), (col_offset+1):(col_offset+max_cols), drop = FALSE]
-      
+
       # Convert to numeric
       numeric_block <- suppressWarnings(
         matrix(as.numeric(block), nrow = 8, ncol = ncol(block))
       )
-      
+
       # CRITICAL: Check each row individually
       # Require at least 4 valid numbers per row
       valid_per_row <- rowSums(!is.na(numeric_block))
-      
-      # Only accept if ALL 8 rows have ≥4 valid numbers
+
+      # Only accept if ALL 8 rows have >=4 valid numbers
       if (all(valid_per_row >= 4)) {
-        
+
         # Additionally, find which columns are consistently good
         valid_per_col <- colSums(!is.na(numeric_block))
         good_cols <- which(valid_per_col >= 6)  # At least 6/8 rows valid
-        
+
         if (length(good_cols) >= 4) {
-          
+
           # Extract contiguous block of good columns
           first_good <- min(good_cols)
           last_good <- max(good_cols)
-          
+
           # Allow max 1 gap in column sequence
           if ((last_good - first_good + 1) <= (length(good_cols) + 1)) {
-            
+
             final_block <- numeric_block[, first_good:last_good, drop = FALSE]
             valid_count <- sum(!is.na(final_block))
             total_cells <- 8 * ncol(final_block)
             valid_pct <- valid_count / total_cells
-            
-            # Final validation: >70% valid, ≥4 cols, ≥32 valid cells
+
+            # Final validation: >70% valid, >=4 cols, >=32 valid cells
             if (valid_pct > 0.70 && ncol(final_block) >= 4 && valid_count >= 32) {
               return(list(
                 start_row = i,
@@ -176,13 +278,13 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
       }
     }
   }
-  
+
   # Not found
   return(NULL)
 }
 
 #' Import plate data from file
-#' 
+#'
 #' @param file_path Path to file
 #' @param sheet Sheet name/index (Excel only)
 #' @param expected_rows Expected number of rows (default 8)
@@ -227,7 +329,7 @@ import_plate_data <- function(file_path, sheet = 1,
   if (is.null(location)) {
     stop(
       "Could not detect plate data in file.\n",
-      "Expected: 8 rows \u00D7 4+ columns of numeric data.\n",
+      "Expected: 8 rows x 4+ columns of numeric data.\n",
       "Check that your file contains a data table with measurements.\n",
       "Supported formats:\n",
       "  - With row labels (A-H) in first column\n",
@@ -235,7 +337,7 @@ import_plate_data <- function(file_path, sheet = 1,
       "  - With or without column headers (1-12)"
     )
   }
-  
+
   # Extract plate region
   row_indices <- location$start_row:(location$start_row + location$nrows - 1)
   col_indices <- location$start_col:(location$start_col + location$ncols - 1)
@@ -278,7 +380,7 @@ import_plate_data <- function(file_path, sheet = 1,
       stringsAsFactors = FALSE
     )
   )
-  
+
   # Pad with NA if partial plate
   if (ncol(plate_numeric) < expected_cols) {
     n_missing <- expected_cols - ncol(plate_numeric)
@@ -286,7 +388,7 @@ import_plate_data <- function(file_path, sheet = 1,
       plate_numeric[[ncol(plate_numeric) + 1]] <- NA_real_
     }
   }
-  
+
   if (nrow(plate_numeric) < expected_rows) {
     n_missing <- expected_rows - nrow(plate_numeric)
     empty_rows <- as.data.frame(
@@ -294,14 +396,14 @@ import_plate_data <- function(file_path, sheet = 1,
     )
     plate_numeric <- rbind(plate_numeric, empty_rows)
   }
-  
+
   # Trim if too large
   plate_numeric <- plate_numeric[1:expected_rows, 1:expected_cols, drop = FALSE]
-  
+
   # Set standard row/column names
   rownames(plate_numeric) <- LETTERS[1:expected_rows]
   colnames(plate_numeric) <- as.character(1:expected_cols)
-  
+
   # Add metadata
   attr(plate_numeric, "import_info") <- list(
     file = basename(file_path),
@@ -311,7 +413,7 @@ import_plate_data <- function(file_path, sheet = 1,
     partial_plate = location$partial_plate,
     format = location$format
   )
-  
+
   return(plate_numeric)
 }
 
@@ -327,8 +429,8 @@ import_plate_data <- function(file_path, sheet = 1,
 #'   \describe{
 #'     \item{is_multiwavelength}{Logical}
 #'     \item{format}{"Excel", "CSV", or "TXT"}
-#'     \item{detected_wells}{Integer – wells with data in the primary plate}
-#'     \item{partial_plate}{Logical – TRUE when fewer than 96 wells detected}
+#'     \item{detected_wells}{Integer - wells with data in the primary plate}
+#'     \item{partial_plate}{Logical - TRUE when fewer than 96 wells detected}
 #'     \item{wavelengths}{Character vector of wavelength labels, or NULL}
 #'     \item{plates}{Named list of data-frame plates (single-element for
 #'       single-wavelength files)}
@@ -342,7 +444,7 @@ parse_plate_file <- function(file_path, sheet = 1) {
   fmt <- if (ext %in% c("xlsx", "xls")) "Excel" else if (ext == "csv") "CSV" else "TXT"
 
   # ==================================================================
-  # SINGLE FILE READ — all subsequent logic uses this in-memory copy
+  # SINGLE FILE READ - all subsequent logic uses this in-memory copy
   # ==================================================================
   raw <- read_file_raw(file_path, sheet)
 
@@ -382,7 +484,7 @@ parse_plate_file <- function(file_path, sheet = 1) {
 
   # ------------------------------------------------------------------
   # Single-plate path (CSV / TXT / Excel without multi-wave markers)
-  # Reuses the same in-memory raw data — no second file read
+  # Reuses the same in-memory raw data - no second file read
   # ------------------------------------------------------------------
   plate <- import_plate_data(file_path, sheet, raw_data = raw)
   info  <- base::attr(plate, "import_info")
@@ -411,7 +513,7 @@ parse_plate_file <- function(file_path, sheet = 1) {
 #' Preview file import
 #'
 #' Quick check to see what would be imported
-#' 
+#'
 #' @param file_path Path to file
 #' @param sheet Sheet name/index
 #' @return List with summary info
@@ -424,7 +526,7 @@ preview_import <- function(file_path, sheet = 1) {
   if (is.null(location)) {
     return(list(
       status = "error",
-      message = "Plate data not detected in file. Expected 8 rows × 4+ columns of numeric data."
+      message = "Plate data not detected in file. Expected 8 rows x 4+ columns of numeric data."
     ))
   }
 
@@ -433,16 +535,16 @@ preview_import <- function(file_path, sheet = 1) {
     import_plate_data(file_path, sheet, raw_data = raw, location = location),
     error = function(e) NULL
   )
-  
+
   if (is.null(plate)) {
     return(list(
       status = "error",
       message = "Import failed during extraction. Check file format."
     ))
   }
-  
+
   info <- attr(plate, "import_info")
-  
+
   return(list(
     status = "success",
     format = info$format,
