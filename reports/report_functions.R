@@ -269,6 +269,22 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
       result$variance_ratio <- max(valid_vars) / min(valid_vars)
     }
 
+    # AUDIT-007: Degenerate case — any group with zero within-group variance
+    # (all replicates identical) means the Brown-Forsythe F statistic can be
+    # finite yet misleadingly moderate; detect it here before the formal test.
+    if (any(!is.na(group_vars) & group_vars == 0)) {
+      vr_str <- if (!is.null(result$variance_ratio) &&
+                     !is.na(result$variance_ratio) &&
+                     is.finite(result$variance_ratio))
+        sprintf("%.1f", result$variance_ratio) else "N/A"
+      result$interpretation <- sprintf(
+        "Degenerate: at least one replicate group has zero within-group variance (all replicates identical). Variance ratio (max/min, %s) is the more reliable heteroscedasticity indicator.",
+        vr_str)
+      result$recommendation <- "Weighted regression (1/Y or 1/Y²) is recommended to account for unequal variance."
+      result$degenerate <- TRUE
+      return(result)
+    }
+
     # Determine if formal test is feasible:
     # Need >= 3 groups each with >= 2 replicates
     reps_per_group <- sapply(groups, length)

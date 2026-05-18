@@ -134,8 +134,12 @@ read_file_raw <- function(file_path, sheet = 1) {
       }
     )
 
-    # AUDIT-013: convert comma-decimal columns to numeric
-    fix_comma_decimals(df)
+    # AUDIT-013: convert comma-decimal columns to numeric.
+    # Only applied for semicolon-separated CSVs (European locale where ';' is
+    # the field separator and ',' is the decimal mark).  TXT plate files use
+    # tab separators and their own decimal-comma handling inside
+    # import_plate_data(); comma-separated CSVs cannot have comma as decimal.
+    if (sep == ";") fix_comma_decimals(df) else df
   } else {
     stop("Unsupported file format: ", ext)
   }
@@ -158,6 +162,9 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
 
   # Convert to matrix for easier scanning
   mat <- as.matrix(raw)
+
+  # Guard: need at least 8 rows and 1 column to contain a plate.
+  if (nrow(mat) < 8 || ncol(mat) < 1) return(NULL)
 
   # ============================================================================
   # STRATEGY 1: Search for row labels A-H in first column
@@ -197,8 +204,15 @@ detect_plate_location <- function(file_path, sheet = 1, raw_data = NULL) {
         }
       }
 
-      # No headers, but A-H found - check for numeric data
-      test_data <- suppressWarnings(as.numeric(mat[i, 2:min(13, ncol(mat))]))
+      # No headers, but A-H found - check for numeric data.
+      # Try direct conversion first; fall back to comma-decimal substitution so
+      # that European locale files (e.g. "1234,5" tab-separated) are detected.
+      test_raw  <- mat[i, 2:min(13, ncol(mat))]
+      test_data <- suppressWarnings(as.numeric(test_raw))
+      if (sum(is.na(test_data)) > length(test_data) / 2) {
+        test_data_cd <- suppressWarnings(as.numeric(gsub(",", ".", test_raw, fixed = TRUE)))
+        if (sum(!is.na(test_data_cd)) > sum(!is.na(test_data))) test_data <- test_data_cd
+      }
       num_valid <- sum(!is.na(test_data))
 
       if (num_valid >= 4) {
