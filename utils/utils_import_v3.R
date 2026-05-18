@@ -463,9 +463,12 @@ parse_plate_file <- function(file_path, sheet = 1) {
   raw <- read_file_raw(file_path, sheet)
 
   # ------------------------------------------------------------------
-  # Excel files: try multi-wavelength detection first
+  # All file types: try multi-wavelength detection first.
+  # detect_and_import_multiwavelength() handles Excel, CSV, and TXT
+  # via the shared .scan_wavelength_locations() helper. Single-plate
+  # files return wavelengths = NULL so there is no false-positive risk.
   # ------------------------------------------------------------------
-  if (ext %in% c("xlsx", "xls")) {
+  if (ext %in% c("xlsx", "xls", "csv", "txt")) {
     raw_mat <- as.matrix(raw)
     mw <- tryCatch(
       detect_and_import_multiwavelength(file_path, sheet, raw_matrix = raw_mat),
