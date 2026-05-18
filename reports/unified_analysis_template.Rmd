@@ -134,26 +134,38 @@ output_dir <- normalizePath(params$output_dir, winslash = "/", mustWork = TRUE)
 # Load language setting
 lang <- params$lang %||% "en"
 
-# Get script directory FIRST (needed before sourcing any files)
+# Get script directory FIRST (needed before sourcing any files).
+# When this template is included via knitr::knit_child() (multiwavelength
+# template), knitr::current_input() returns the preprocessed temp-file path
+# in tempdir(), not the reports/ directory. Validate the candidate directory
+# actually contains report_constants.R and fall back to getwd() (which knitr
+# sets to knit_root_dir = reports/) when it doesn't.
 script_dir <- tryCatch({
   rmd_path <- knitr::current_input()
-  if (!is.null(rmd_path) && rmd_path != "" && rmd_path != ".") {
+  candidate <- if (!is.null(rmd_path) && nzchar(rmd_path) && rmd_path != ".") {
     normalizePath(dirname(rmd_path), winslash = "/")
   } else {
-    if (dir.exists("reports")) {
-      normalizePath("reports", winslash = "/")
+    NULL
+  }
+  if (!is.null(candidate) && file.exists(file.path(candidate, "report_constants.R"))) {
+    candidate
+  } else if (file.exists(file.path(getwd(), "report_constants.R"))) {
+    normalizePath(getwd(), winslash = "/")
+  } else if (dir.exists("reports")) {
+    normalizePath("reports", winslash = "/")
+  } else {
+    possible_reports_dir <- file.path(dirname(params$output_dir), "reports")
+    if (dir.exists(possible_reports_dir)) {
+      normalizePath(possible_reports_dir, winslash = "/")
     } else {
-      possible_reports_dir <- file.path(dirname(params$output_dir), "reports")
-      if (dir.exists(possible_reports_dir)) {
-        normalizePath(possible_reports_dir, winslash = "/")
-      } else {
-        "."
-      }
+      "."
     }
   }
 }, error = function(e) {
-  if (dir.exists("reports")) {
-    return(normalizePath("reports", winslash = "/"))
+  if (file.exists(file.path(getwd(), "report_constants.R"))) {
+    normalizePath(getwd(), winslash = "/")
+  } else if (dir.exists("reports")) {
+    normalizePath("reports", winslash = "/")
   } else {
     "."
   }
@@ -368,15 +380,23 @@ validate_input_data(data_long)
 
 # Detect assay type from data if not specified in config
 has_normalized <- "NormalizedValue" %in% names(data_long)
-is_elisa <- isTRUE(assay_config$assay_type == "elisa") || has_normalized
+# Use assay_type from config as the authoritative source. The
+# `|| has_normalized` fallback was added for legacy data without a config, but
+# since normalize_assay_data() now adds NormalizedValue for RBA too, that
+# fallback wrongly triggered for RBA. Restrict fallback to configs where
+# assay_type is absent.
+is_elisa <- isTRUE(assay_config$assay_type == "elisa") ||
+            (has_normalized && is.null(assay_config$assay_type))
 
 # For ELISA, calculate proper B/B0 values following Cayman protocol
 if (isTRUE(is_elisa)) {
   # Calculate B/B0 values using control wells (Blank, NSB, B0)
   # Use the raw data with diagnostic columns for calculation, but return clean data
+  control_summary <- NULL
   data_long <- tryCatch({
     data_with_bb0 <- calculate_elisa_bb0(data_long_raw, use_percent = TRUE)  # Use %B/B0 (0-100%)
-    # Remove diagnostic columns from the result
+    # Capture attribute before dplyr::select() strips it
+    control_summary <<- attr(data_with_bb0, "control_summary")
     data_with_bb0 %>% dplyr::select(-any_of(diagnostic_cols))
   }, error = function(e) {
     warning("Could not calculate B/B0 values: ", e$message)
@@ -384,18 +404,21 @@ if (isTRUE(is_elisa)) {
     data_long$calculated_bb0 <- data_long$NormalizedValue
     data_long
   })
-  
+
   response_var <- "calculated_bb0"
-  
+
   # Update assay configuration
   if (!isTRUE(assay_config$assay_type == "elisa")) {
     assay_config$assay_type <- "elisa"
     assay_config$units <- "pg/mL"
     assay_config$analyte <- assay_config$analyte %||% "Analyte"
   }
-  
-  # Display control well summary for QC
-  control_summary <- attr(data_long, "control_summary")
+
+  # control_summary was already captured above (before dplyr stripped it)
+  # Re-read from attr() in case the fallback path set it
+  if (is.null(control_summary)) {
+    control_summary <- attr(data_long, "control_summary")
+  }
   if (!is.null(control_summary)) {
     cat("**Control Well QC:**\n")
     cat("- Blank average:", round(as.numeric(control_summary$blank_avg), 3), "\n")
