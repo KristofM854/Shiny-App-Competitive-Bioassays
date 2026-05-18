@@ -599,10 +599,8 @@ compute_layered_uncertainty <- function(well_predictions, replicate_group,
       se <- s / sqrt(n)
 
       if (ci_method == "bootstrap" && n >= 3) {
-        set.seed(42)
         boot_vals <- replicate(STATS_CONFIG$bootstrap_iterations,
                                mean(sample(concs, replace = TRUE)))
-        set.seed(NULL)
         result$ci_lower_replicate <- as.numeric(quantile(boot_vals, 0.025))
         result$ci_upper_replicate <- as.numeric(quantile(boot_vals, 0.975))
       } else {
