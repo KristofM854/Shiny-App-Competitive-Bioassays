@@ -6,6 +6,21 @@
 #           and upload preview outputs.
 # ===========================================================================
 
+#' Wire up the Upload & Preview tab (Tab 3) server logic
+#'
+#' Registers all Shiny observers, reactive values, and outputs that power
+#' Tab 3 of the bioassay wizard: file import (classic single-pass and the
+#' interactive visual plate selector), the plate heatmap preview, report
+#' download handlers, well-exclusion handling, and the upload summary tables.
+#' It is called once from \code{app.R} with the app's shared reactive state.
+#'
+#' @param input The Shiny \code{input} object for the session.
+#' @param output The Shiny \code{output} object for the session.
+#' @param session The Shiny \code{session} object for the current client.
+#' @param shared The shared reactive-state list assembled in \code{app.R}
+#'   (plate matrices, \code{rv} reactiveValues, language, etc.).
+#' @return Invisibly \code{NULL}; called for its side effects (registers
+#'   Shiny observers, reactive values, and outputs for the upload tab).
 server_upload <- function(input, output, session, shared) {
 
   # --------------------------------------------------------------------------
