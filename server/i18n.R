@@ -20,6 +20,9 @@
 #' @return Named list with "en", "es", "fr", "ru", "zh" sub-lists
 get_translations <- function() {
   if (!is.null(.TRANSLATIONS_CACHE)) return(.TRANSLATIONS_CACHE)
+  # Initialise once on first call; never mutated after. The cache is shared
+  # across every Shiny session in this R process — do NOT add per-user or
+  # per-session mutation here, or translations would leak across sessions.
   .TRANSLATIONS_CACHE <<- list(
     en = list(
       # App title and metadata

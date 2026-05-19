@@ -107,13 +107,10 @@ RESPONSE_VARIABLES <- list(
   elisa = "NormalizedValue"
 )
 
-# Default standard concentrations
-DEFAULT_STANDARDS <- list(
-  rba_saxitoxin = c(1e-6, 3e-7, 1e-7, 3e-8, 1e-8, 3e-9, 1e-9, 3e-10),
-  elisa_cortisol = c(4000, 1600, 640, 256, 102.4, 41.0, 16.4, 6.6),
-  elisa_testosterone = c(10000, 4000, 1600, 640, 256, 102.4, 41.0, 16.4),
-  elisa_estradiol = c(2000, 800, 320, 128, 51.2, 20.5, 8.2, 3.3)
-)
+# Default standard concentrations live in global.R (DEFAULT_STX_CONC /
+# DEFAULT_CORTISOL_CONC / DEFAULT_TESTOSTERONE_CONC / DEFAULT_ESTRADIOL_CONC)
+# — the single source of truth. A second, unused copy here previously
+# diverged from global.R (AUDIT-036); do not reintroduce one.
 
 # Table styling configuration
 TABLE_CONFIG <- list(
