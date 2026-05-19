@@ -656,6 +656,8 @@ quantify_samples <- function(data_long, response_var, model_fit,
       TRUE ~ "Interpolated"
     )
   }, error = function(e) {
+    # <<- targets the enclosing function's local `sample_results` (defined
+    # above the tryCatch), not the global environment.
     sample_results$quantification_status <<- "Unknown"
   })
 

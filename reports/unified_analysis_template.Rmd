@@ -1123,7 +1123,7 @@ drc_plot <- ggplot(plot_data, aes(x = concentration, y = .data[[response_var]], 
     labels$y_label, ": ", round(.data[[response_var]], 2), "<br>",
     "Variability: ", high_variability
   ))) +
-  geom_line(data = model_fits, aes(x = conc, y = p), color = "black", size = 1.2, inherit.aes = FALSE) +
+  geom_line(data = model_fits, aes(x = conc, y = p), color = "black", linewidth = 1.2, inherit.aes = FALSE) +
   scale_color_manual(
     name = tr("legend_std_quality", lang),
     values = c(
@@ -2023,7 +2023,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
     combined_drc <- ggplot() +
       geom_line(data = model_fits, aes(x = conc, y = p),
-               color = "black", size = 1.2) +
+               color = "black", linewidth = 1.2) +
       geom_point(data = standards_plot_data,
                 aes(x = concentration, y = .data[[response_var]],
                     color = high_variability,
