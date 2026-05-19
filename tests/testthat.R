@@ -1,2 +1,2 @@
 library(testthat)
-test_check("RBAElisaApp")
+test_dir("tests/testthat")
