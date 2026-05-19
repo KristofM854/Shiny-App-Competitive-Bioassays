@@ -15,6 +15,19 @@ test_that("STATS_CONFIG is fully defined and referenced correctly", {
   expect_equal(STATS_CONFIG$ec80_resp_level, 20)
 })
 
+test_that("AUDIT-019: no misleading literal bootstrap-iterations fallback", {
+  skip_if_not(exists(".repo_root"), ".repo_root not set by helper-setup.R")
+  src <- readLines(file.path(.repo_root, "reports", "report_sections.R"),
+                   warn = FALSE)
+  # The literal `%||% 2000` disagreed with STATS_CONFIG$bootstrap_iterations
+  # (1000); a refactor missing report_constants.R would silently double the
+  # iterations. All bootstrap call sites must read the constant directly.
+  expect_false(any(grepl("%||% 2000", src, fixed = TRUE)),
+               info = "report_sections.R must not reintroduce the literal `%||% 2000` fallback")
+  expect_true(any(grepl("STATS_CONFIG$bootstrap_iterations", src, fixed = TRUE)),
+              info = "report_sections.R must read STATS_CONFIG$bootstrap_iterations directly")
+})
+
 test_that("compute_layered_uncertainty uses STATS_CONFIG$bootstrap_iterations", {
   # Run with bootstrap and confirm the internal seed call works
   well_preds <- data.frame(
