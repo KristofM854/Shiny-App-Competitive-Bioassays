@@ -201,6 +201,8 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
   tr_idx <- 0L
   parts  <- vapply(parts, function(p) {
     if (!grepl("^<tr\\b", p, perl = TRUE)) return(p)
+    # <<- bumps the closure-scoped row counter (tr_idx, initialised just above
+    # this vapply) so amber/red CSS classes match 1-based table-body rows.
     tr_idx <<- tr_idx + 1L
     cls <- c(
       if (tr_idx %in% amber_rows) "is-extrapolated" else character(0L),

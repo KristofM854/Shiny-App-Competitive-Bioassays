@@ -411,6 +411,8 @@ assess_heteroscedasticity <- function(model, data_long, response_var) {
     }
 
   }, error = function(e) {
+    # <<- targets the enclosing function's local `result` (defined above the
+    # tryCatch), not the global environment.
     result$interpretation <<- paste("Heteroscedasticity assessment failed:", e$message)
   })
 
@@ -561,6 +563,8 @@ assess_model_stability <- function(fit_object, model_name) {
     }
 
   }, error = function(e) {
+    # <<- targets the enclosing function's local `result` (defined above the
+    # tryCatch), not the global environment.
     result$stability_grade <<- "failed"
     result$warnings <<- c(result$warnings, paste("Stability assessment error:", e$message))
   })
@@ -808,6 +812,8 @@ assess_parallelism <- function(data_long, primary_model, response_var) {
     result$details <- paste(details_parts, collapse = " ")
 
   }, error = function(e) {
+    # <<- targets the enclosing function's local `result` (defined above the
+    # tryCatch), not the global environment.
     result$reason <<- paste("Parallelism assessment failed:", e$message)
   })
 
