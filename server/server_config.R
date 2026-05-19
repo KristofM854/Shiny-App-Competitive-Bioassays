@@ -3,6 +3,23 @@
 # matrix initialization, QC inputs/warnings, toxin/analyte config, and
 # standard concentration inputs.
 
+#' Configuration tab server logic (Tab 1)
+#'
+#' Wires up the Shiny server behaviour for the assay Configuration tab: the
+#' Quick Start preset buttons, the assay description text, assay-type-aware
+#' plate matrix initialization, dynamic QC concentration inputs and their
+#' validation, toxin/analyte selection with molecular-weight handling, and the
+#' standard-concentration input grid. Returns the standard-concentration
+#' reactives that downstream server modules consume.
+#'
+#' @param input Shiny \code{input} object for the session.
+#' @param output Shiny \code{output} object for the session.
+#' @param session Shiny \code{session} object for the current client session.
+#' @param shared Shared reactive-state list (matrices, \code{rv}, \code{mw_g_mol})
+#'   passed between server modules.
+#' @return A list of reactives (\code{std_conc}, \code{std_conc_raw},
+#'   \code{chosen_standard_label}) for use by other server modules; also
+#'   registers Shiny observers and outputs as a side effect.
 server_config <- function(input, output, session, shared) {
 
   # --------------------------------------------------------------------------

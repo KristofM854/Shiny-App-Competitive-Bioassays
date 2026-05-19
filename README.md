@@ -12,7 +12,39 @@ single or multi-wavelength plate readers.
 Developed by **Arnold Molina Porras** (University of Costa Rica) and
 **Kristof Moeller** (IAEA Marine Environment Laboratories, Monaco).
 
-→ Jump to: [Quick Start](#quick-start) · [Example Data](#try-it-with-example-data) · [Features](#features) · [Troubleshooting](#troubleshooting) · [Citation](#how-to-cite)
+→ Jump to: [Statement of need](#statement-of-need) · [Quick Start](#quick-start) · [Example Data](#try-it-with-example-data) · [Features](#features) · [Troubleshooting](#troubleshooting) · [Citation](#how-to-cite)
+
+## Statement of need
+
+Quantifying samples from competitive binding assays (radioligand binding
+assays, competitive ELISAs) requires fitting a four-parameter logistic
+dose-response curve, validating it, and back-calculating unknowns with
+defensible confidence intervals and quality control. The existing tooling
+forces a trade-off. General curve-fitting packages such as R's `drc` (on
+which this app builds) or web tools like ED50plus give a fit but leave plate
+layout, control-hierarchy validation, %B/B0 normalization, LLOQ/ULOQ
+determination, outlier handling, and reporting to the user. Proprietary
+GUIs such as GraphPad Prism fit curves interactively but are closed-source,
+licence-restricted, not assay-aware (no Blank/NSB/B0 logic, no plate
+importer), and do not produce a reproducible, audit-ready report. Regulatory
+dose-response platforms such as PROAST target toxicological benchmark-dose
+modelling rather than competitive immuno/receptor assay quantification.
+
+This application closes that gap with an end-to-end, assay-aware workflow:
+guided 96-well plate-layout configuration, smart plate-reader file import
+(single- and multi-wavelength), competitive-curve fitting with a
+heteroscedasticity-driven weighting recommendation, formal QC profiling
+(traffic-light pre-flight, CV thresholds, control-hierarchy checks,
+LLOQ/ULOQ), and a one-click reproducible HTML/Word/PDF report with an
+embedded metadata sidecar for replay. Every report can be regenerated from
+its saved inputs via `scripts/replay_report.R`.
+
+The target community is bench scientists in marine-biotoxin and
+environmental-monitoring laboratories — for example IAEA Member State labs
+and the University of Costa Rica setting this was developed for — who need
+reproducible, defensible assay reports without writing R. The interface and
+the generated report are bilingual (English / Spanish) to serve that user
+base directly.
 
 ## The 5-step workflow
 
@@ -132,7 +164,8 @@ See `examples/README.md` for details on each file.
 
 ### Statistical analysis
 - 4-parameter logistic (4PL) dose-response fitting via `drc` package
-- Automatic fallback: LL.4 → LL.3 → log-linear interpolation
+- Automatic fallback: LL.4 → LL.3; if both models fail the app stops with a
+  clear error rather than silently interpolating
 - Multiple regression weightings (unweighted, 1/Y, 1/Y²) compared side-by-side
 - Formal heteroscedasticity diagnostic (Brown-Forsythe / variance-ratio)
 - Model stability assessment (good / acceptable / unstable / failed)
@@ -282,8 +315,8 @@ and manually select the plate region.
 
 ### DRC fitting fails
 The app automatically falls back from LL.4 (4-parameter logistic) to LL.3
-(3-parameter, fixed bottom) to log-linear interpolation. If all three fail,
-check:
+(3-parameter, fixed bottom). If both models fail, the app stops with a clear
+error rather than silently interpolating. Check:
 - At least 4 unique standard concentrations have valid numeric responses
 - Standards aren't all flagged as high-variability (CV > threshold); lower
   the CV threshold in Analysis Settings if needed
