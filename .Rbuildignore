@@ -4,6 +4,7 @@
 ^CITATION\.cff$
 ^audit$
 ^reports/runs$
-^tests/testthat/Rplots\.pdf$
+^tests$
+^LICENSE\.md$
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
