@@ -12,6 +12,22 @@
 # shared$matrix_measresults(), shared$rv$is_multiwavelength).
 # ==============================================================================
 
+#' Wire up shared/common server logic for the bioassay Shiny app
+#'
+#' Registers the cross-cutting server behaviour shared by every wizard tab:
+#' the 60-second session auto-save and restore-on-launch flow, the first-launch
+#' welcome modal, wizard tab navigation (including the pre-Analysis ELISA
+#' control validation), all language-reactive header/label renderUIs, the
+#' app-wide language-change observer, and the guided intro.js tour. It is
+#' called once from the main server function.
+#'
+#' @param input The Shiny \code{input} object for the current session.
+#' @param output The Shiny \code{output} object for the current session.
+#' @param session The Shiny \code{session} object for the current session.
+#' @param shared List of shared reactive state (matrix reactives and
+#'   \code{rv}) assembled in \code{app.R} and passed to every server module.
+#' @return Invisibly \code{NULL}; called for its side effects (registers
+#'   Shiny observers, outputs, and timers on the session).
 server_common <- function(input, output, session, shared) {
 
   # --------------------------------------------------------------------------
