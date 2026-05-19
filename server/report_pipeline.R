@@ -9,6 +9,38 @@
 # ============================================================================
 
 # --------------------------------------------------------------------------
+# Security: report language-code validation (AUDIT-025)
+# --------------------------------------------------------------------------
+
+#' Validate report language codes against a fixed allowlist
+#'
+#' Report output filenames embed the language code (e.g.
+#' \code{RBA-results-report-full-en.html}). The UI restricts the choice to a
+#' fixed \code{selectInput}, but a malicious client could call
+#' \code{Shiny.setInputValue("report_languages", "../../../etc/passwd")} and
+#' break out of \code{output_dir}. This helper is defence-in-depth: it keeps
+#' only codes in the supported allowlist so a crafted value can never reach a
+#' file path. Unknown codes are dropped (with a warning); if nothing valid
+#' remains it falls back to \code{"en"} so the render still produces output.
+#'
+#' @param langs Character vector of candidate language codes (from
+#'   \code{input$report_languages} / params).
+#' @return A non-empty character vector containing only allowlisted codes,
+#'   order-preserving and de-duplicated.
+validate_lang_code <- function(langs) {
+  allowed <- c("en", "es", "fr", "ru", "zh")
+  langs <- as.character(langs)
+  valid <- unique(langs[langs %in% allowed])
+  dropped <- setdiff(unique(langs), allowed)
+  if (length(dropped) > 0) {
+    warning(sprintf(
+      "Ignoring unsupported report language code(s): %s",
+      paste(dropped, collapse = ", ")))
+  }
+  if (length(valid) == 0) "en" else valid
+}
+
+# --------------------------------------------------------------------------
 # PDF capability detection
 # --------------------------------------------------------------------------
 
@@ -391,7 +423,8 @@ render_reports <- function(params, session) {
   # pass.
   want_compact <- isTRUE(params$generate_compact) && !is_mw
   variants <- if (want_compact) c("compact", "full") else "full"
-  langs <- params$report_langs %||% params$report_lang %||% "en"
+  langs <- validate_lang_code(
+    params$report_langs %||% params$report_lang %||% "en")
 
   for (fmt in params$selected_formats) {
     for (variant in variants) {
