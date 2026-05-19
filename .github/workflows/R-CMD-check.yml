@@ -38,7 +38,6 @@ jobs:
             any::testthat
             any::shinytest2
             any::chromote
-            any::covr
           extra-packages: |
             any::car
             any::digest
@@ -84,9 +83,3 @@ jobs:
           R CMD build . --no-build-vignettes
           R CMD check --no-manual --no-vignettes --no-build-vignettes *.tar.gz
         shell: bash
-
-      - name: Upload coverage to Codecov
-        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
-        run: Rscript -e 'covr::codecov(quiet = FALSE)'
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
