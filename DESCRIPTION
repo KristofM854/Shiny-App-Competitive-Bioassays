@@ -55,5 +55,4 @@ Imports:
 Suggests:
     testthat (>= 3.0.0),
     shinytest2,
-    chromote,
-    covr
+    chromote
