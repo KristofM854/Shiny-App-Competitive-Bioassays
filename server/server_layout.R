@@ -3,6 +3,20 @@
 # matrix change observers, reset buttons, layout save/load/import, and
 # tissue weight table.
 
+#' Wire up the Plate Layout tab (Tab 2) server logic
+#'
+#' Registers the Shiny observers and outputs that drive Tab 2 of the
+#' competitive-bioassay wizard: the four rhandsontable plate-matrix editors
+#' (sample type, sample ID, dilution factor, replicate group), preset and
+#' uniform-fill shortcuts, undo/redo history, layout save/load/import, and
+#' the ELISA tissue-weight table. All edits flow through the shared reactive
+#' matrices so downstream tabs stay in sync.
+#'
+#' @param input Shiny module \code{input} object for the layout tab controls.
+#' @param output Shiny module \code{output} object the rhandsontable and UI renderers are assigned to.
+#' @param session Shiny module \code{session} object for the current user session.
+#' @param shared Shared reactive state list (matrix reactives, validity flags, tissue weights) used to synchronise the plate layout across wizard tabs.
+#' @return Invisibly \code{NULL}; called for its side effects (registers Shiny observers/outputs).
 server_layout <- function(input, output, session, shared) {
 
   # Trigger for re-rendering tissue weight table (used by Apply button)
