@@ -584,7 +584,7 @@ render_methods_section <- function(analysis_config, assay_config, is_elisa, lang
     # -- CI method -------------------------------------------------------------
     ci_method <- analysis_config$ci_method %||% "t_dist"
     if (ci_method == "bootstrap") {
-      boot_n <- STATS_CONFIG$bootstrap_iterations %||% 2000
+      boot_n <- STATS_CONFIG$bootstrap_iterations
       cat(sprintf(
         "**Confidence intervals:** Per-well inverse predictions use the delta method (propagated from the 4PL covariance matrix). Replicate-group 95%% CIs are estimated by percentile bootstrap (%d resamples). Lower bounds truncated to 0 when negative.\n\n",
         boot_n))
