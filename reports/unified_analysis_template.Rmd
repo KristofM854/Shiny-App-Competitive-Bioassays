@@ -83,7 +83,7 @@ Key cross-chunk dependencies:
 -->
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = TRUE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 # For DOCX/PDF output, force static PNG figures at high resolution
 if (!knitr::is_html_output()) {
@@ -118,6 +118,7 @@ library(drc)
 library(scales)
 library(knitr)
 library(kableExtra)
+library(DT)
 library(stringr)
 library(ggtext)
 library(glue)
@@ -535,13 +536,11 @@ if (isTRUE(is_elisa)) {
 }
 ```
 
-## `r tr("analysis_notes", lang)`
-
 ```{r notes-section, results='asis'}
-if (nzchar(trimws(notes_text)) && notes_text != "No notes added.") {
-  cat(notes_text)
-} else {
-  cat("*", tr("no_notes", lang), "*", sep = "")
+.has_notes <- nzchar(trimws(notes_text)) && notes_text != "No notes added."
+if (.has_notes) {
+  cat("## ", tr("analysis_notes", lang), "\n\n", sep = "")
+  cat(notes_text, "\n\n")
 }
 ```
 
@@ -745,7 +744,6 @@ render_qc_traffic_light_section(model_fit          = model_fit,
 # Show comparison of multiple weighting methods if the user selected more than one
 if (multi_weight_mode && length(all_models) > 1) {
   section_start(tr("weight_comparison_title", lang))
-  emit_heading(tr("weight_comparison_title", lang), 4)
   cat(tr("weight_comparison_desc", lang), "\n\n")
 
   # --- Comparison table: R², RMSE, AIC, parameters (+ stability if available) ---
@@ -1037,7 +1035,6 @@ tryCatch({
 # to recomputing if the upstream chunk failed.
 tryCatch({
   section_start(tr("lloq_uloq_title", lang))
-  emit_heading(tr("lloq_uloq_title", lang), 4)
   cat(tr("lloq_uloq_desc", lang), "\n\n")
 
   if (!exists(".lloq_res") || is.null(.lloq_res)) {
@@ -1195,25 +1192,33 @@ tryCatch({
     n_params <- min(length(actual_param_names), nrow(coefficients))
     
     # Create results data frame with correct parameter mapping
+    pval_col <- if ("Pr(>|t|)" %in% colnames(coefficients)) {
+      coefficients[1:n_params, "Pr(>|t|)"]
+    } else {
+      rep(NA_real_, n_params)
+    }
     drc_results <- data.frame(
       Parameter = actual_param_names[1:n_params],
       Value = coefficients[1:n_params, "Estimate"],
       StdError = if ("Std. Error" %in% colnames(coefficients)) {
         coefficients[1:n_params, "Std. Error"]
       } else {
-        rep(NA, n_params)
+        rep(NA_real_, n_params)
       },
-      PValue = if ("Pr(>|t|)" %in% colnames(coefficients)) {
-        coefficients[1:n_params, "Pr(>|t|)"]
-      } else {
-        rep(NA, n_params)
-      }
+      stringsAsFactors = FALSE
     )
-    
+    col_nm <- c(tr("col_parameter", lang), tr("col_estimate", lang), tr("col_std_error", lang))
+
+    # Drop p-value column when all values are NA (e.g. 3-parameter fits)
+    if (!all(is.na(pval_col))) {
+      drc_results$PValue <- pval_col
+      col_nm <- c(col_nm, tr("col_pvalue", lang))
+    }
+
     render_table(
       drc_results,
       caption = tr("four_pl_coefficients", lang),
-      col_names = c(tr("col_parameter", lang), tr("col_estimate", lang), tr("col_std_error", lang), tr("col_pvalue", lang))
+      col_names = col_nm
     )
     
   } else {
@@ -1234,7 +1239,7 @@ tryCatch({
 
 - **R²** = `r round(R2, 3)`
 - **RMSE** = `r round(RMSE, 3)` `r labels$y_unit`
-- **`r tr("standards_used", lang)`** = `r nrow(standards_for_model)` / `r length(unique(standards_data$StandardConc))`
+- **`r tr("standards_used", lang)`** = `r length(unique(standards_for_model$StandardConc))` `r tr("std_levels", lang)` × `r round(nrow(standards_for_model)/max(length(unique(standards_for_model$StandardConc)),1))` replicates = `r nrow(standards_for_model)` wells (of `r length(unique(standards_data$StandardConc))` defined levels)
 
 ```{r save-model-stats, include=FALSE}
 # Save model statistics for multiwavelength executive summary
@@ -1415,133 +1420,212 @@ rm(list = ls(pattern = "^\\.qc_"))
 ### `r tr("detailed_summary", lang)`
 
 ```{r sample-results-table, results='asis'}
-# Wrap entire chunk in tryCatch for debugging
+# .dagger_groups: accumulate CI-truncated group names for Exclusion Audit
+.dagger_groups <- character(0)
+
 tryCatch({
-  
+
   if (exists("replicate_stats") && !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
-    
-    # Check if tissue weights were provided (robust to NA)
+
+    cv_limit <- QC_THRESHOLDS$cv_limit %||% 30
+
+    # ---- tissue weights ----
     has_tissue_weights <- FALSE
-    if (exists("sample_results") && !is.null(sample_results) && "TissueWeight_mg" %in% names(sample_results)) {
-      tissue_check <- tryCatch({
-        any(!is.na(sample_results$TissueWeight_mg) & sample_results$TissueWeight_mg > 0, na.rm = TRUE)
-      }, error = function(e) FALSE)
-      has_tissue_weights <- isTRUE(tissue_check)
+    if (exists("sample_results") && !is.null(sample_results) &&
+        "TissueWeight_mg" %in% names(sample_results)) {
+      has_tissue_weights <- isTRUE(tryCatch(
+        any(!is.na(sample_results$TissueWeight_mg) & sample_results$TissueWeight_mg > 0,
+            na.rm = TRUE),
+        error = function(e) FALSE))
     }
-    
-    # Determine concentration column name based on assay type
+
     conc_col_name <- if (isTRUE(is_elisa)) "Mean Conc. (pg/mL)" else "Mean Conc. (mol/L)"
-    
-    # Create clean results table (include quant_status if available)
-    base_cols <- c("Replicate", "sampleID", "n_replicates", "mean_conc_formatted", "ci_formatted", "cv_formatted")
-    if ("quant_status" %in% names(replicate_stats)) {
-      results_display <- replicate_stats %>%
-        dplyr::select(dplyr::all_of(base_cols), quant_status) %>%
-        dplyr::mutate(quant_status = dplyr::case_when(
-          quant_status == "Interpolated"         ~ tr("status_interpolated", lang),
-          quant_status == "Extrapolated (below)" ~ tr("status_extrapolated_below", lang),
-          quant_status == "Extrapolated (above)" ~ tr("status_extrapolated_above", lang),
-          quant_status == "Not estimable"        ~ tr("status_not_estimable", lang),
-          TRUE ~ quant_status
-        ))
-      names(results_display) <- c(tr("col_replicate_group", lang), tr("col_sample_ids", lang), tr("col_n", lang), conc_col_name, tr("col_ci", lang), tr("col_cv", lang), tr("qc_status", lang))
-    } else {
-      results_display <- replicate_stats %>%
-        dplyr::select(dplyr::all_of(base_cols))
-      names(results_display) <- c(tr("col_replicate_group", lang), tr("col_sample_ids", lang), tr("col_n", lang), conc_col_name, tr("col_ci", lang), tr("col_cv", lang))
+
+    # ---- numeric flag columns (kept for row-class callbacks) ----
+    rs <- replicate_stats %>%
+      dplyr::mutate(
+        .cv_num   = as.numeric(cv_percent),
+        .oor_flag = if ("within_range" %in% names(.)) within_range == "Out of Range" else FALSE,
+        .cv_flag  = !is.na(.cv_num) & .cv_num > cv_limit
+      )
+
+    # ---- accumulate dagger groups ----
+    if ("ci_truncated" %in% names(rs)) {
+      .dagger_groups <<- rs$Replicate[!is.na(rs$ci_truncated) & rs$ci_truncated]
     }
-    
-    # Add tissue-based concentrations if available
+
+    # ---- build display data frame ----
+    base_cols <- c("Replicate", "sampleID", "n_replicates",
+                   "mean_conc_formatted", "ci_formatted", "cv_formatted")
+
+    # Status: combine calibration-range pill + quantifiable-range pill
+    .cal_pill <- function(qs, rf) {
+      qs_str <- if (!is.na(qs) && nzchar(qs)) as.character(qs) else "Unknown"
+      rf_str <- if (!is.na(rf)) as.character(rf) else ""
+      if (is_html_out()) {
+        cal <- if (qs_str %in% c("Interpolated", "Within Range") && rf_str == "") {
+          '<span class="bs-status-pill is-pass">\u2713&nbsp;Cal.&nbsp;OK</span>'
+        } else if (rf_str == "<LLOQ" || qs_str == "Extrapolated (below)") {
+          '<span class="bs-status-pill is-warn">\u25b2&nbsp;&lt;Cal.&nbsp;low</span>'
+        } else if (rf_str == ">ULOQ" || qs_str == "Extrapolated (above)") {
+          '<span class="bs-status-pill is-warn">\u25b2&nbsp;&gt;Cal.&nbsp;high</span>'
+        } else if (qs_str == "Not estimable") {
+          '<span class="bs-status-pill is-fail">\u25cf&nbsp;Not&nbsp;estimable</span>'
+        } else {
+          paste0('<span class="bs-status-pill is-warn">', qs_str, '</span>')
+        }
+        cal
+      } else {
+        if (rf_str != "") rf_str else qs_str
+      }
+    }
+
+    .quant_pill <- function(wr) {
+      if (!is_html_out()) return(as.character(wr %||% ""))
+      wr_str <- as.character(wr %||% "Unknown")
+      if (wr_str == "Within Range") {
+        '<span class="bs-status-pill is-pass">\u2713&nbsp;Quant.&nbsp;OK</span>'
+      } else if (wr_str == "Out of Range") {
+        '<span class="bs-status-pill is-warn">\u25b2&nbsp;Out&nbsp;of&nbsp;range</span>'
+      } else {
+        paste0('<span class="bs-status-pill is-warn">', wr_str, '</span>')
+      }
+    }
+
+    .ci_cell <- function(ci_fmt, cv_num) {
+      if (!is_html_out()) return(ci_fmt)
+      if (!is.na(cv_num) && cv_num > cv_limit) {
+        paste0('<span class="ci-uninformative" title="CI uninformative \u2014 CV > ',
+               cv_limit, '%">', ci_fmt, '</span>')
+      } else {
+        ci_fmt
+      }
+    }
+
+    rs <- rs %>%
+      dplyr::mutate(
+        .qs    = if ("quant_status" %in% names(.)) as.character(quant_status) else "Unknown",
+        .rf    = if ("range_flag"   %in% names(.)) as.character(range_flag)   else "",
+        .wr    = if ("within_range" %in% names(.)) as.character(within_range) else "Unknown",
+        Status = mapply(.cal_pill, .qs, .rf, SIMPLIFY = TRUE),
+        Status2 = mapply(.quant_pill, .wr, SIMPLIFY = TRUE),
+        ci_display = mapply(.ci_cell, ci_formatted, .cv_num, SIMPLIFY = TRUE)
+      )
+
+    results_display <- rs %>%
+      dplyr::select(Replicate, sampleID, n_replicates,
+                    mean_conc_formatted, ci_display, cv_formatted,
+                    Status, Status2, .oor_flag, .cv_flag)
+
+    names(results_display) <- c(
+      tr("col_replicate_group", lang), tr("col_sample_ids", lang),
+      tr("col_n", lang), conc_col_name,
+      tr("col_ci", lang), tr("col_cv", lang),
+      "Cal. Range", "Quant. Range",
+      ".oor", ".cv"
+    )
+
+    # ---- tissue columns ----
     if (isTRUE(is_elisa) && isTRUE(has_tissue_weights)) {
       tissue_results <- tryCatch({
         sample_results %>%
           dplyr::filter(!is.na(TissueWeight_mg) & TissueWeight_mg > 0) %>%
           dplyr::group_by(Replicate) %>%
           dplyr::summarise(
-            tissue_weight = dplyr::first(TissueWeight_mg),
+            tissue_weight    = dplyr::first(TissueWeight_mg),
             mean_tissue_conc = mean(concentration_pg_per_g, na.rm = TRUE),
             .groups = "drop"
           ) %>%
           dplyr::mutate(
-            tissue_weight_formatted = format(tissue_weight, digits = 4, nsmall = 1),
-            tissue_conc_formatted = format(mean_tissue_conc, digits = 4, nsmall = 2, big.mark = ",")
+            tissue_weight_formatted = format(tissue_weight,    digits = 4, nsmall = 1),
+            tissue_conc_formatted   = format(mean_tissue_conc, digits = 4, nsmall = 2, big.mark = ",")
           )
-      }, error = function(e) {
-        warning("Could not process tissue weight data: ", e$message)
-        NULL
-      })
-      
+      }, error = function(e) NULL)
+
       if (!is.null(tissue_results) && nrow(tissue_results) > 0) {
+        rg_col <- tr("col_replicate_group", lang)
         results_display <- results_display %>%
           dplyr::left_join(
-            tissue_results %>% dplyr::select(Replicate, tissue_weight_formatted, tissue_conc_formatted), 
-            by = c("Replicate Group" = "Replicate")
+            tissue_results %>% dplyr::select(Replicate, tissue_weight_formatted, tissue_conc_formatted),
+            by = setNames("Replicate", rg_col)
           )
-        
-        # Rename tissue columns if they exist
-        if ("tissue_weight_formatted" %in% names(results_display)) {
-          names(results_display)[names(results_display) == "tissue_weight_formatted"] <- "Tissue Mass [mg]"
-        }
-        if ("tissue_conc_formatted" %in% names(results_display)) {
-          names(results_display)[names(results_display) == "tissue_conc_formatted"] <- "Conc. (pg/g tissue)"
-        }
+        names(results_display)[names(results_display) == "tissue_weight_formatted"] <- "Tissue Mass [mg]"
+        names(results_display)[names(results_display) == "tissue_conc_formatted"]   <- "Conc. (pg/g tissue)"
       }
     }
-    
-    # Generate table caption
+
     caption_text <- tr("sample_results_caption", lang, toupper(assay_config$assay_type))
     if (isTRUE(is_elisa) && isTRUE(has_tissue_weights)) {
       caption_text <- paste(caption_text, tr("with_tissue", lang))
     }
-    
-    render_table(results_display, caption = caption_text)
 
-    # Task B (HP6): Add truncation footnote when any CIs were truncated to 0
-    if ("ci_truncated" %in% names(replicate_stats)) {
-      any_truncated <- any(replicate_stats$ci_truncated, na.rm = TRUE)
-      if (isTRUE(any_truncated)) {
-        truncated_groups <- replicate_stats$Replicate[replicate_stats$ci_truncated]
-        if (is_html_out()) {
-          cat(sprintf(
-            "\n<small>\u2020 Lower bound truncated to 0 (original value was negative) for: %s</small>\n\n",
-            paste(truncated_groups, collapse = ", ")
-          ))
-        } else {
-          cat(sprintf(
-            "\n*\u2020 Lower bound truncated to 0 (original value was negative) for: %s*\n\n",
-            paste(truncated_groups, collapse = ", ")
-          ))
-        }
-      }
+    # ---- compact mode: only flagged rows ----
+    if (isTRUE(is_compact)) {
+      results_display <- results_display %>%
+        dplyr::filter(.data[[".oor"]] | .data[[".cv"]])
     }
 
-    # Save cleaned results files (Task B: include both raw and display CI bounds in CSV)
+    # ---- flag column indices (0-based for DataTables JS) ----
+    oor_col_idx <- which(names(results_display) == ".oor") - 1L
+    cv_col_idx  <- which(names(results_display) == ".cv")  - 1L
+
+    if (is_html_out()) {
+      # Convert logical flag cols to numeric for JS comparison
+      results_display[[".oor"]] <- as.integer(results_display[[".oor"]])
+      results_display[[".cv"]]  <- as.integer(results_display[[".cv"]])
+
+      dt_obj <- DT::datatable(
+        results_display,
+        caption    = caption_text,
+        escape     = FALSE,
+        rownames   = FALSE,
+        options    = list(
+          pageLength = 25,
+          dom        = "ftip",
+          columnDefs = list(
+            list(targets = c(oor_col_idx, cv_col_idx), visible = FALSE)
+          ),
+          rowCallback = DT::JS(sprintf(
+            "function(row, data) {
+               if (parseInt(data[%d]) === 1) $(row).addClass('row-out-of-range');
+               if (parseInt(data[%d]) === 1) $(row).addClass('row-cv-high');
+             }",
+            oor_col_idx, cv_col_idx
+          ))
+        )
+      )
+      htmltools::tagList(dt_obj)
+    } else {
+      # DOCX / PDF: plain kable (drop hidden flag columns)
+      display_for_kable <- results_display %>%
+        dplyr::select(-dplyr::any_of(c(".oor", ".cv")))
+      render_table(display_for_kable, caption = caption_text)
+    }
+
+    # ---- save CSV files ----
     if (exists("sample_results_clean") && !is.null(sample_results_clean)) {
       write.csv(sample_results_clean,
-               file.path(output_dir, "unknown_results.csv"),
-               row.names = FALSE)
+                file.path(output_dir, "unknown_results.csv"), row.names = FALSE)
     }
-
     if (exists("replicate_summary") && !is.null(replicate_summary)) {
       write.csv(replicate_summary,
-               file.path(output_dir, "unknown_results_summary.csv"),
-               row.names = FALSE)
+                file.path(output_dir, "unknown_results_summary.csv"), row.names = FALSE)
     }
-    
+
     cat("\n**", tr("output_files_created", lang), "**\n", sep = "")
     cat("- ", tr("individual_results", lang), "\n", sep = "")
     cat("- ", tr("summary_results", lang), "\n\n", sep = "")
 
   } else {
     cat("*", tr("no_samples_quantified", lang), "*\n\n", sep = "")
-    
-    if (exists("samples_to_analyze") && !is.null(samples_to_analyze) && nrow(samples_to_analyze) > 0) {
+
+    if (exists("samples_to_analyze") && !is.null(samples_to_analyze) &&
+        nrow(samples_to_analyze) > 0) {
       cat("**Possible reasons:**\n")
       cat("- Response values outside the standard curve range\n")
       cat("- Model fitting issues\n")
       if (isTRUE(is_elisa)) {
-        cat("- Invalid %B/B0 normalization\n")
-        cat("- Control well hierarchy violations\n")
+        cat("- Invalid %B/B0 normalization\n- Control well hierarchy violations\n")
       }
       cat("- Mathematical prediction errors\n")
     } else {
@@ -1550,7 +1634,7 @@ tryCatch({
       cat("Blanks, NSB, TA, and Standards are excluded from quantification.\n")
     }
   }
-  
+
 }, error = function(e) {
   cat("\n**Error in sample results table:**\n")
   cat("Error message:", e$message, "\n")
@@ -1705,7 +1789,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
                format(as.numeric(ci_upper_95),      scientific = TRUE, digits = 2), "]")
       },
       cv_percent = ifelse(is.na(cv_percent), "\u2014",
-                          format(as.numeric(cv_percent), digits = 3, nsmall = 1)),
+                          sprintf("%.1f%%", as.numeric(cv_percent))),
       status_combined = dplyr::case_when(
         !is.na(.rf_col) & .rf_col != ""                                        ~ .rf_col,
         !is.na(.qs_col) & !(.qs_col %in% c("Quantified", "Within Range", "")) ~ .qs_col,
@@ -1961,33 +2045,46 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         })
     }
 
-    # Add faceting for large experiments
+    # Add faceting for large experiments (no strip titles)
     if (use_faceting) {
-      sample_box <- sample_box + facet_wrap(~panel, scales = "free_x", ncol = 1)
+      sample_box <- sample_box +
+        facet_wrap(~panel, scales = "free_x", ncol = 1) +
+        theme(strip.text = element_blank())
     }
 
-    # Section wrapper + description
-    section_start("Sample variability visualization")
+    n_unique_replicates <- length(unique(sample_plot_data$Replicate))
+    .box_subtitle <- sprintf("Replicate groups, n=%d each", round(nrow(sample_plot_data) / n_unique_replicates))
+    sample_box <- sample_box +
+      labs(subtitle = .box_subtitle)
+
+    # Section wrapper + description — open by default (details open)
+    if (is_html_out()) {
+      cat('<details open>\n<summary><strong>',
+          tr("sample_variability", lang),
+          '</strong></summary>\n\n', sep = "")
+    } else {
+      section_start("Sample variability visualization")
+    }
     cat(sprintf("*%s*\n\n", tr("sample_variability_desc", lang)))
   }
 }
 ```
 
-```{r sample-boxplot-render, fig.width=10, fig.height=7, warning=FALSE, message=FALSE}
+```{r sample-boxplot-render, fig.width=10, fig.height=5, warning=FALSE, message=FALSE}
 # Separate chunk so render_plot() return value is visible to knitr
 if (exists("sample_box") && !is.null(sample_box)) {
-  fig_h <- if (exists("use_faceting") && isTRUE(use_faceting)) {
+  fig_h_px <- if (exists("use_faceting") && isTRUE(use_faceting)) {
     n_panels <- max(sample_plot_data$panel)
-    max(7, n_panels * 4.5)
-  } else { 7 }
-  render_plot(sample_box, tooltip = "text", height = fig_h * 96,
+    max(480, n_panels * 432)
+  } else { 480 }
+  render_plot(sample_box, tooltip = "text", height = fig_h_px,
               plotly_layout = list(margin = list(b = 120, l = 80)))
 }
 ```
 
 ```{r sample-boxplot-close, results='asis'}
 if (exists("sample_box") && !is.null(sample_box)) {
-  section_end()
+  if (is_html_out()) cat("</details>\n\n") else section_end()
 }
 ```
 
@@ -1995,37 +2092,75 @@ if (exists("sample_box") && !is.null(sample_box)) {
 
 `r section_open(tr("heatmap_title", lang), default_open = TRUE)`
 
-```{r plate-heatmap, fig.width=10, fig.height=6, results='asis', warning=FALSE, message=FALSE}
+```{r plate-heatmap, fig.width=10, fig.height=6, results='asis', warning=FALSE, message=FALSE, eval=!is_compact}
 tryCatch({
   cat(tr("heatmap_desc", lang), "\n\n")
 
-  # Reconstruct plate layout from long data
+  # Enrich with sample-group labels for the hover tooltip
+  .group_lookup <- data_long %>%
+    dplyr::distinct(Row, Column, SampleType, SampleID) %>%
+    dplyr::mutate(Column = as.numeric(gsub("[^0-9]", "", as.character(Column))))
+
   heatmap_data <- data_long %>%
     dplyr::filter(!is.na(MeasurementValue)) %>%
     dplyr::mutate(
-      Row = factor(Row, levels = LETTERS[1:8]),
+      Row    = factor(Row, levels = LETTERS[1:8]),
       Column = as.numeric(gsub("[^0-9]", "", as.character(Column)))
     ) %>%
-    dplyr::filter(!is.na(Row) & !is.na(Column))
+    dplyr::filter(!is.na(Row) & !is.na(Column)) %>%
+    dplyr::left_join(.group_lookup, by = c("Row", "Column", "SampleType", "SampleID")) %>%
+    dplyr::mutate(
+      well_id   = paste0(as.character(Row), Column),
+      bb0_label = if (isTRUE(is_elisa) && "calculated_bb0" %in% names(.)) {
+        paste0(round(calculated_bb0, 1), "% B/B0")
+      } else { "" },
+      hover_txt = paste0(
+        "Well: ",      well_id,          "<br>",
+        "Raw OD: ",    round(MeasurementValue, 4), "<br>",
+        if (nzchar(bb0_label)) paste0(bb0_label, "<br>") else "",
+        "Group: ",     SampleType,       "<br>",
+        "ID: ",        SampleID
+      )
+    )
 
   if (nrow(heatmap_data) > 0) {
-    heatmap_plot <- ggplot(heatmap_data, aes(x = factor(Column), y = Row, fill = MeasurementValue)) +
-      geom_tile(color = "white", size = 0.5) +
-      geom_text(aes(label = sprintf("%.3f", MeasurementValue)), size = 3.5, color = "black") +
-      scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
-                           midpoint = median(heatmap_data$MeasurementValue, na.rm = TRUE),
-                           name = "Value") +
-      scale_y_discrete(limits = rev(levels(factor(heatmap_data$Row, levels = LETTERS[1:8])))) +
-      labs(x = "Column", y = "Row", title = tr("heatmap_title", lang)) +
-      theme_minimal() +
-      theme(
-        panel.grid = element_blank(),
-        axis.text = element_text(size = 10, face = "bold"),
-        plot.title = element_text(hjust = 0.5)
-      )
-
-    # Static heatmap for all outputs (no plotly conversion needed)
-    print(heatmap_plot)
+    if (is_html_out()) {
+      # Interactive plotly heatmap for HTML
+      hm_plotly <- plot_ly(
+        data        = heatmap_data,
+        x           = ~factor(Column, levels = 1:12),
+        y           = ~factor(as.character(Row), levels = rev(LETTERS[1:8])),
+        z           = ~MeasurementValue,
+        text        = ~hover_txt,
+        hoverinfo   = "text",
+        type        = "heatmap",
+        colorscale  = list(c(0, "#2166AC"), c(0.5, "#F7F7F7"), c(1, "#B2182B")),
+        colorbar    = list(title = "Value"),
+        showscale   = TRUE
+      ) %>%
+        layout(
+          xaxis = list(title = "Column", tickvals = 1:12),
+          yaxis = list(title = "Row"),
+          margin = list(l = 50, r = 20, t = 40, b = 50)
+        )
+      htmltools::tagList(hm_plotly)
+    } else {
+      # Static ggplot for DOCX/PDF
+      heatmap_plot <- ggplot(heatmap_data,
+                             aes(x = factor(Column), y = Row, fill = MeasurementValue)) +
+        geom_tile(color = "white", linewidth = 0.5) +
+        geom_text(aes(label = sprintf("%.3f", MeasurementValue)), size = 3.5, color = "black") +
+        scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
+                             midpoint = median(heatmap_data$MeasurementValue, na.rm = TRUE),
+                             name = "Value") +
+        scale_y_discrete(limits = rev(levels(factor(heatmap_data$Row, levels = LETTERS[1:8])))) +
+        labs(x = "Column", y = "Row", title = tr("heatmap_title", lang)) +
+        theme_minimal() +
+        theme(panel.grid = element_blank(),
+              axis.text  = element_text(size = 10, face = "bold"),
+              plot.title = element_text(hjust = 0.5))
+      print(heatmap_plot)
+    }
   }
 }, error = function(e) {
   cat(sprintf("\n\n*Heatmap could not be generated: %s*\n\n", e$message))
@@ -2179,18 +2314,17 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 
 `r section_close()`
 
-## `r tr("parallelism_title", lang)`
-
 ```{r parallelism-assessment, results='asis', eval=!is_compact}
-# Task C (HP7): Optional parallelism / relative potency assessment
+# Task C (HP7): Optional parallelism / relative potency assessment.
+# Heading is emitted inside the chunk so it only appears when n_curves >= 2.
 tryCatch({
   if (exists("model_fit") && !is.null(model_fit) && exists("data_long") && exists("response_var")) {
     parallelism_result <- assess_parallelism(data_long, model_fit, response_var)
 
     if (isTRUE(parallelism_result$applicable)) {
+      cat("## ", tr("parallelism_title", lang), "\n\n", sep = "")
       cat("### Test Results\n\n")
 
-      # Slope comparison
       if (!is.na(parallelism_result$slope_test$p_value)) {
         if (isTRUE(parallelism_result$slope_test$parallel)) {
           cat(sprintf("**Slope comparison:** Slopes are not significantly different (t = %.3f, p = %.4f). Curves appear parallel.\n\n",
@@ -2203,7 +2337,6 @@ tryCatch({
         }
       }
 
-      # Potency ratio
       if (!is.na(parallelism_result$potency_ratio$estimate)) {
         cat(sprintf("**Relative potency (EC50 ratio):** %.4f [95%% CI: %.4f \u2013 %.4f]\n\n",
                     parallelism_result$potency_ratio$estimate,
@@ -2212,12 +2345,8 @@ tryCatch({
       }
 
       cat(sprintf("*%d curve groups were compared.*\n\n", parallelism_result$curves_found))
-
-    } else {
-      cat(sprintf("*%s*\n\n", tr("parallelism_not_applicable", lang, parallelism_result$reason)))
     }
-  } else {
-    cat(sprintf("*%s*\n\n", tr("parallelism_no_model", lang)))
+    # When not applicable: emit nothing \u2014 section is omitted entirely
   }
 }, error = function(e) {
   cat(sprintf("*Parallelism assessment could not be completed: %s*\n\n", e$message))
@@ -2349,6 +2478,21 @@ render_exclusion_audit_section(
   high_var_standards = if (exists("high_var_standards")) high_var_standards else NULL,
   lang               = lang
 )
+
+# Dagger list: CI lower bounds truncated to 0 — deferred from sample-results-table
+if (exists(".dagger_groups") && length(.dagger_groups) > 0) {
+  if (is_html_out()) {
+    cat(sprintf(
+      "\n<p><small>† CI lower bound truncated to 0 (negative original) for: %s</small></p>\n\n",
+      paste(.dagger_groups, collapse = ", ")
+    ))
+  } else {
+    cat(sprintf(
+      "\n*† CI lower bound truncated to 0 (negative original) for: %s*\n\n",
+      paste(.dagger_groups, collapse = ", ")
+    ))
+  }
+}
 ```
 
 `r section_close()`
