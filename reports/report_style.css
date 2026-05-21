@@ -71,13 +71,34 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
 }
 
 /* ============================================================
-   ITEM 20 — TOC sidebar: 220px, sub-items 13px, navy active pill
+   ITEM 20 — TOC sidebar: responsive
+   Wide viewports (>=992 px): 220 px fixed sidebar (original behaviour).
+   Narrow viewports (<992 px): collapses to a static block at the top of
+   the article so it stops overlapping content on tablets and phones.
+   rmarkdown / tocify.js applies position:fixed via JS, so we override
+   it with !important on the narrow rule.
    ============================================================ */
-.tocify {
-  border: none;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-  width: 220px !important;
+@media (min-width: 992px) {
+  .tocify {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    width: 220px !important;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .tocify,
+  .tocify-wrapper {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 0 16px 0 !important;
+    box-shadow: none !important;
+    border: 1px solid #e3e6ea;
+    border-radius: 6px;
+    padding: 8px 12px;
+  }
 }
 
 .tocify-header {
