@@ -8,3 +8,5 @@
 ^LICENSE\.md$
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
+^renv$
+^renv\.lock$
