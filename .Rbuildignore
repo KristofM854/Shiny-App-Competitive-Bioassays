@@ -8,3 +8,6 @@
 ^LICENSE\.md$
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.positai$
