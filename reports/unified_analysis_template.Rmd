@@ -110,13 +110,20 @@ if (!requireNamespace("kableExtra", quietly = TRUE)) {
   }
   rm(.rmd_repos)
 }
-# DT guard: same self-healing pattern — install if missing
-if (!requireNamespace("DT", quietly = TRUE)) {
-  .rmd_repos <- c("https://packagemanager.posit.co/cran/latest",
-                  "https://cloud.r-project.org")
-  install.packages("DT", repos = .rmd_repos, quiet = TRUE)
-  rm(.rmd_repos)
+# DT guard: attempt silent install; set .has_DT flag for graceful fallback.
+# Never call library(DT) unconditionally — a failed install would make that
+# line throw a fatal error and abort the entire render.
+.has_DT <- requireNamespace("DT", quietly = TRUE)
+if (!.has_DT) {
+  tryCatch({
+    .rmd_repos <- c("https://packagemanager.posit.co/cran/latest",
+                    "https://cloud.r-project.org")
+    install.packages("DT", repos = .rmd_repos, quiet = TRUE)
+    rm(.rmd_repos)
+  }, error = function(e) NULL, warning = function(w) NULL)
+  .has_DT <- requireNamespace("DT", quietly = TRUE)
 }
+if (.has_DT) library(DT)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -125,7 +132,6 @@ library(drc)
 library(scales)
 library(knitr)
 library(kableExtra)
-library(DT)
 library(stringr)
 library(ggtext)
 library(glue)
@@ -1576,7 +1582,7 @@ tryCatch({
     oor_col_idx <- which(names(results_display) == ".oor") - 1L
     cv_col_idx  <- which(names(results_display) == ".cv")  - 1L
 
-    if (is_html_out()) {
+    if (isTRUE(.has_DT) && is_html_out()) {
       # Convert logical flag cols to numeric for JS comparison
       results_display[[".oor"]] <- as.integer(results_display[[".oor"]])
       results_display[[".cv"]]  <- as.integer(results_display[[".cv"]])
@@ -1603,7 +1609,7 @@ tryCatch({
       )
       htmltools::tagList(dt_obj)
     } else {
-      # DOCX / PDF: plain kable (drop hidden flag columns)
+      # DOCX / PDF or DT unavailable: plain kable (drop hidden flag columns)
       display_for_kable <- results_display %>%
         dplyr::select(-dplyr::any_of(c(".oor", ".cv")))
       render_table(display_for_kable, caption = caption_text)
