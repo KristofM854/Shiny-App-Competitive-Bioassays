@@ -28,7 +28,7 @@ required_pkgs <- c(
   "car", "digest", "dplyr", "drc",
   "ggplot2", "ggrepel", "ggtext", "ggthemes", "glue",
   "htmltools", "htmlwidgets",
-  "jsonlite", "kableExtra", "knitr",
+  "jsonlite", "DT", "kableExtra", "knitr",
   "patchwork", "plotly", "purrr",
   "readr", "readxl", "remotes", "rhandsontable", "rintrojs", "rmarkdown",
   "scales", "shiny", "shinyFeedback", "shinycssloaders", "shinyjs",
