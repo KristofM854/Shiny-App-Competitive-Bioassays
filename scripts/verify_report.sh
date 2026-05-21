@@ -127,8 +127,14 @@ for HTML in "$@"; do
   # B.10 Dagger in Exclusion Audit (not inline after sample table)
   assert_present "B.10 Dagger footnote present" 'CI lower bound truncated|† Lower bound' "$HTML"
 
+  # C6   bsSortTable click-to-sort JS present in summary table
+  assert_present "C6   bsSortTable JS present" 'bsSortTable' "$HTML"
+
   echo ""
   echo "--- C. Visuals ---"
+
+  # N1   Sticky thead background colour
+  assert_present "N1   sticky thead bg #f1f3f5" 'f1f3f5' "$HTML"
 
   # C.2  Okabe-Ito palette (--c-pass: #009E73 etc)
   assert_present "C.2  Okabe-Ito palette in CSS" '#009E73|009E73' "$HTML"
