@@ -110,6 +110,13 @@ if (!requireNamespace("kableExtra", quietly = TRUE)) {
   }
   rm(.rmd_repos)
 }
+# DT guard: same self-healing pattern — install if missing
+if (!requireNamespace("DT", quietly = TRUE)) {
+  .rmd_repos <- c("https://packagemanager.posit.co/cran/latest",
+                  "https://cloud.r-project.org")
+  install.packages("DT", repos = .rmd_repos, quiet = TRUE)
+  rm(.rmd_repos)
+}
 library(dplyr)
 library(tidyr)
 library(ggplot2)
