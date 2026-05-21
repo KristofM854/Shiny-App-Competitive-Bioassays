@@ -376,3 +376,43 @@ table[style*="width: auto !important"] {
 }
 .bs-table-legend ul { margin: 4px 0 0 0; padding-left: 18px; }
 .bs-table-legend li + li { margin-top: 2px; }
+
+/* ============================================================
+   BS-TABLE-FILTER + BS-TABLE-SCROLL — sample-results table widget
+   Type-to-filter input above the table + fixed-height scrollable
+   container with sticky thead. HTML-only; DOCX/PDF skip this entirely.
+   ============================================================ */
+.bs-table-filter {
+  margin: 14px 0 6px;
+}
+.bs-filter-input {
+  width: 100%;
+  max-width: 360px;
+  padding: 6px 10px;
+  border: 1px solid #d0d4d9;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background: #fff;
+  color: #0f1722;
+}
+.bs-filter-input::placeholder { color: #8a93a0; }
+.bs-filter-input:focus {
+  outline: none;
+  border-color: var(--c-info, #1F3A5F);
+  box-shadow: 0 0 0 2px rgba(31, 58, 95, 0.12);
+}
+
+.bs-table-scroll {
+  max-height: 600px;
+  overflow: auto;
+  border: 1px solid #e3e6ea;
+  border-radius: 6px;
+  margin: 0 0 16px;
+}
+/* Keep the header visible while scrolling vertically. */
+.bs-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
