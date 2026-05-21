@@ -448,3 +448,28 @@ table[style*="width: auto !important"] {
   top: 0;
   z-index: 1;
 }
+
+/* ============================================================
+   Sample-results table row-level and cell-level QC classes
+   Applied by the DT rowCallback JS and by the pill generator.
+   ============================================================ */
+
+/* Amber background: sample outside calibration or quantifiable range */
+tr.row-out-of-range > td { background-color: var(--c-warn-soft) !important; }
+
+/* Red left-border: CV exceeds limit */
+tr.row-cv-high > td:first-child { border-left: 3px solid var(--c-fail) !important; }
+
+/* CI cell greyed out with dashed underline when CV renders CI uninformative */
+.ci-uninformative {
+  color: #8a93a0;
+  text-decoration: underline dotted #8a93a0;
+  cursor: help;
+}
+
+/* Ensure DT tables are full-width and left-aligned */
+table.dataTable {
+  width: 100% !important;
+  text-align: left;
+}
+table.dataTable thead th { text-align: left; }

@@ -854,7 +854,7 @@ quantify_samples <- function(data_long, response_var, model_fit,
         paste0("[", format(ci_lower, scientific = TRUE, digits = 2), " - ",
                format(ci_upper, scientific = TRUE, digits = 2), "]")
       },
-      cv_formatted = format(cv_percent, digits = 3, nsmall = 1)
+      cv_formatted = sprintf("%.1f%%", cv_percent)
     )
 
   # Range / LLOQ-ULOQ classification per replicate group

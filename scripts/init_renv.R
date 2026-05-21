@@ -21,10 +21,16 @@ if (!requireNamespace("renv", quietly = TRUE)) {
   install.packages("renv", repos = "https://cloud.r-project.org")
 }
 
-# Bare init: skip renv's static dependency discovery (which can miss packages
-# loaded dynamically inside Rmd chunks). Snapshot the current library so
-# what's actually installed gets recorded.
-renv::init(bare = TRUE, force = TRUE)
+# Standard renv init: scans DESCRIPTION + all source/Rmd files for library()
+# and :: usage, installs discovered packages into the project library, and
+# writes renv.lock in one pass.  Do NOT use bare = TRUE here — that creates an
+# empty project library so the subsequent snapshot records only the bootstrap
+# set, missing the full analysis/reporting stack.
+renv::init(force = TRUE)
+
+# Explicit snapshot to capture any packages that renv's static scanner missed
+# (e.g. packages loaded conditionally inside Rmd chunks).  Call this again
+# after installing any manually-added packages with renv::install().
 renv::snapshot(type = "all", prompt = FALSE)
 
 cat(

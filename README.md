@@ -275,7 +275,14 @@ reproducibility — `renv.lock` captures the exact package versions used to
 produce the reference report outputs (`tests/testthat/test-report-numbers.R`
 golden values + the example reports in `examples/`).
 
-After cloning, restore the locked environment with:
+**First-time setup (maintainer only):** `renv.lock` must be generated once and committed before contributors can restore it.
+
+```r
+Rscript scripts/init_renv.R   # generates renv.lock + renv/activate.R + .Rprofile
+# then: git add renv.lock renv/activate.R .Rprofile && git commit
+```
+
+**After cloning** (requires `renv.lock` to be present in the repo):
 
 ```r
 Rscript -e 'renv::restore()'
@@ -285,12 +292,6 @@ To refresh the lockfile after a deliberate dependency change:
 
 ```r
 Rscript -e 'renv::snapshot()'
-```
-
-To bootstrap renv from scratch (only needed once, by the maintainer):
-
-```r
-Rscript scripts/init_renv.R
 ```
 
 ### Known Issue: MASS::select Masking
