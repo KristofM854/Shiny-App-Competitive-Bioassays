@@ -8,7 +8,7 @@ output:
     toc_float:
       collapsed: true
       smooth_scroll: true
-    theme: flatly
+    theme: null
     css: report_style.css
   word_document:
     toc: true
@@ -449,8 +449,6 @@ if (isTRUE(is_elisa)) {
 }
 ```
 
-
-# `r tr(if (isTRUE(is_elisa)) "report_elisa" else "report_rba", lang)` `r tr("analysis_report", lang)`
 
 ```{r report-meta, results='asis'}
 # Item 12: replace the former <h4 class="author"> + inline bold lines with a
@@ -937,7 +935,7 @@ tryCatch({
 
     cat(sprintf("**Test:** %s\n\n", hetero_result$test_name %||% "N/A"))
 
-    if (!is.na(hetero_result$statistic)) {
+    if (!isTRUE(hetero_result$degenerate) && !is.na(hetero_result$statistic)) {
       cat(sprintf("**Statistic:** %s", fmt_smart(hetero_result$statistic, 3)))
       if (!is.na(hetero_result$p_value)) {
         cat(sprintf(" \u2003 **p-value:** %s", fmt_smart(hetero_result$p_value, 4)))
@@ -1646,8 +1644,7 @@ tryCatch({
 
 ```{r outlier-results, results='asis'}
 if (isTRUE(analysis_config$enable_outlier_detection)) {
-  section_start("Click to expand outlier detection results")
-  emit_heading(tr("outlier_title", lang), 4)
+  section_start(tr("outlier_title", lang))
 
   # Phase 1.5: clarify that flagged != removed from the raw table
   cat("> ", tr("outlier_flagged_not_removed_note", lang), "\n\n", sep = "")
@@ -1746,6 +1743,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
        replicate_summary$quant_status %in% c("Extrapolated (above)", "Extrapolated (below)")
      else rep(FALSE, nrow(replicate_summary)))
   )
+  .raw_cv <- if ("cv_percent" %in% names(replicate_summary)) as.numeric(replicate_summary$cv_percent) else rep(NA_real_, nrow(replicate_summary))
   .red_rows <- if ("cv_percent" %in% names(replicate_summary)) {
     which(!is.na(replicate_summary$cv_percent) &
           as.numeric(replicate_summary$cv_percent) > 30)
@@ -1896,6 +1894,15 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
   summary_display <- summary_display %>%
     dplyr::select(-any_of("total_amount_pg"))
 
+  # C4: wrap ci_95 in .ci-uninformative span when CV exceeds threshold
+  if (is_html_out()) {
+    summary_display$ci_95 <- mapply(function(ci_fmt, cv_num) {
+      if (!is.na(cv_num) && cv_num > 30)
+        paste0('<span class="ci-uninformative" title="CI uninformative — CV > 30%">', ci_fmt, '</span>')
+      else ci_fmt
+    }, summary_display$ci_95, .raw_cv, SIMPLIFY = TRUE)
+  }
+
   names(summary_display) <- base_names[1:ncol(summary_display)]
 
   # Item 9: row_highlight wires amber/red-left treatments via render_table()
@@ -1936,6 +1943,33 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
         '      rows[i].style.display = (q === "" || text.indexOf(q) >= 0) ? "" : "none";\n',
         '    }\n',
         '  };\n',
+        '}\n',
+        '</script>\n', sep = "")
+    cat('<script>\n',
+        'if (typeof window.bsSortTable !== "function") {\n',
+        '  window.bsSortTable = function(th) {\n',
+        '    var tbl = th.closest("table");\n',
+        '    if (!tbl || !tbl.tBodies[0]) return;\n',
+        '    var col = Array.prototype.indexOf.call(th.parentNode.children, th);\n',
+        '    var asc = th.getAttribute("data-sort-dir") !== "asc";\n',
+        '    var rows = Array.from(tbl.tBodies[0].rows);\n',
+        '    rows.sort(function(a, b) {\n',
+        '      var va = (a.cells[col] || {}).textContent.trim();\n',
+        '      var vb = (b.cells[col] || {}).textContent.trim();\n',
+        '      var na = parseFloat(va.replace(/[^0-9.\\-eE+]/g, ""));\n',
+        '      var nb = parseFloat(vb.replace(/[^0-9.\\-eE+]/g, ""));\n',
+        '      if (!isNaN(na) && !isNaN(nb)) return asc ? na - nb : nb - na;\n',
+        '      return asc ? va.localeCompare(vb) : vb.localeCompare(va);\n',
+        '    });\n',
+        '    rows.forEach(function(r) { tbl.tBodies[0].appendChild(r); });\n',
+        '    th.parentNode.querySelectorAll("th").forEach(function(t) { t.removeAttribute("data-sort-dir"); });\n',
+        '    th.setAttribute("data-sort-dir", asc ? "asc" : "desc");\n',
+        '  };\n',
+        '  document.addEventListener("DOMContentLoaded", function() {\n',
+        '    document.querySelectorAll(".bs-table-scroll thead th").forEach(function(th) {\n',
+        '      th.addEventListener("click", function() { window.bsSortTable(th); });\n',
+        '    });\n',
+        '  });\n',
         '}\n',
         '</script>\n', sep = "")
     cat('<div class="bs-table-scroll">\n')
@@ -1985,20 +2019,6 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     n_groups <- length(unique(sample_plot_data$Replicate_wrapped))
     x_font_size <- if (n_groups > 20) 7 else if (n_groups > 10) 9 else 11
 
-    # For very large experiments, add panel column before creating ggplot
-    use_faceting <- n_groups > 30
-    if (use_faceting) {
-      sample_plot_data$panel <- ceiling(as.numeric(factor(sample_plot_data$Replicate)) / 15)
-    }
-
-    # Dynamic figure height: taller when faceted
-    fig_h <- if (use_faceting) {
-      n_panels <- max(sample_plot_data$panel)
-      max(7, n_panels * 4.5)
-    } else {
-      7
-    }
-
     # Create boxplot
     sample_box <- ggplot(sample_plot_data,
                         aes(x = factor(Replicate_wrapped),
@@ -2047,13 +2067,6 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         })
     }
 
-    # Add faceting for large experiments (no strip titles)
-    if (use_faceting) {
-      sample_box <- sample_box +
-        facet_wrap(~panel, scales = "free_x", ncol = 1) +
-        theme(strip.text = element_blank())
-    }
-
     n_unique_replicates <- length(unique(sample_plot_data$Replicate))
     .box_subtitle <- sprintf("Replicate groups, n=%d each", round(nrow(sample_plot_data) / n_unique_replicates))
     sample_box <- sample_box +
@@ -2075,10 +2088,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
 ```{r sample-boxplot-render, fig.width=10, fig.height=5, warning=FALSE, message=FALSE}
 # Separate chunk so render_plot() return value is visible to knitr
 if (exists("sample_box") && !is.null(sample_box)) {
-  fig_h_px <- if (exists("use_faceting") && isTRUE(use_faceting)) {
-    n_panels <- max(sample_plot_data$panel)
-    max(480, n_panels * 432)
-  } else { 480 }
+  fig_h_px <- 480L
   render_plot(sample_box, tooltip = "text", height = fig_h_px,
               plotly_layout = list(margin = list(b = 120, l = 80)))
 }
@@ -2172,8 +2182,7 @@ tryCatch({
 `r section_close()`
 
 ```{r plate-positional-qc, results='asis', eval=!is_compact}
-section_start("Click to expand plate positional quality")
-emit_heading("Plate Positional Quality", 4)
+section_start("Plate Positional Quality")
 positional <- if (exists("data_long")) assess_plate_positional(data_long) else NULL
 if (!is.null(positional)) {
   if (positional$flagged_rows > 0 || positional$flagged_cols > 0) {

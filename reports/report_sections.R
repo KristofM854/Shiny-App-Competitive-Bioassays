@@ -533,7 +533,6 @@ render_qc_traffic_light_section <- function(model_fit, standards_for_model,
     names(qc_df) <- c(tr("qc_metric", lang), tr("qc_value", lang),
                       tr("qc_status", lang))
 
-    emit_heading(tr("qc_card_title", lang), 4)
     cat(sprintf("*%s: %s*\n\n", tr("regression_label", lang), weight_desc))
     render_table(qc_df, caption = tr("qc_card_title", lang),
                  escape = !is_html_out())
