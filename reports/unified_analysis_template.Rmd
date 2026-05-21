@@ -1618,7 +1618,7 @@ if (exists("model_stats") && exists("write_json_safe")) {
 render_table_legend()
 ```
 
-```{r summary-results-table}
+```{r summary-results-table, results='asis'}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
 
   # Item 9: compute row-highlight indices BEFORE formatting (need raw numerics)
@@ -1781,11 +1781,50 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
   # Item 9: row_highlight wires amber/red-left treatments via render_table()
   # escape=FALSE is required so the HTML span injected into replicate_group renders
-  render_table(summary_display,
-               caption       = tr("detailed_caption", lang),
-               escape        = !is_html_out(),
-               row_highlight = list(amber_rows    = .amber_rows,
-                                    red_left_rows = .red_rows))
+  .tbl <- render_table(summary_display,
+                       caption       = tr("detailed_caption", lang),
+                       escape        = !is_html_out(),
+                       row_highlight = list(amber_rows    = .amber_rows,
+                                            red_left_rows = .red_rows))
+
+  if (is_html_out()) {
+    # HTML branch: emit a client-side filter input above the table and wrap
+    # the table in a fixed-height scroll container (sticky thead via CSS).
+    # The JS is guarded so re-rendering doesn't redefine the function.
+    # TODO i18n: hard-coded English placeholder; localise alongside the other
+    # Section-B wording changes in Phase 2.
+    cat('<div class="bs-table-filter">',
+        '<input type="text" class="bs-filter-input"',
+        ' placeholder="Filter rows…"',
+        ' aria-label="Filter the sample results table"',
+        ' oninput="bsFilterTable(this)">',
+        '</div>\n', sep = "")
+    cat('<script>\n',
+        'if (typeof window.bsFilterTable !== "function") {\n',
+        '  window.bsFilterTable = function(input) {\n',
+        '    var q = (input.value || "").toLowerCase();\n',
+        '    var wrap = input.closest(".bs-table-filter");\n',
+        '    if (!wrap) return;\n',
+        '    var scroll = wrap.nextElementSibling;\n',
+        '    if (!scroll) return;\n',
+        '    var tbl = scroll.querySelector("table");\n',
+        '    if (!tbl || !tbl.tBodies[0]) return;\n',
+        '    var rows = tbl.tBodies[0].rows;\n',
+        '    for (var i = 0; i < rows.length; i++) {\n',
+        '      var text = rows[i].textContent.toLowerCase();\n',
+        '      rows[i].style.display = (q === "" || text.indexOf(q) >= 0) ? "" : "none";\n',
+        '    }\n',
+        '  };\n',
+        '}\n',
+        '</script>\n', sep = "")
+    cat('<div class="bs-table-scroll">\n')
+    cat(as.character(.tbl))
+    cat('\n</div>\n')
+    invisible(NULL)
+  } else {
+    # DOCX/PDF: emit the table directly; no scroll wrap, no JS.
+    .tbl
+  }
 }
 ```
 
