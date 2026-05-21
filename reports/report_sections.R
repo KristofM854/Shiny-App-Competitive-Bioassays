@@ -808,13 +808,21 @@ render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
     overall_word <- "Review"; overall_role <- "fail"
   }
 
+  # Per-tile color thresholds
+  r2_role   <- if (is.null(R2) || is.na(R2)) "" else
+               if (R2 >= 0.99)                    "pass" else
+               if (R2 >= qc_profile$r2_threshold) "warn" else "fail"
+  lloq_role <- if (is.null(formal_lloq) || is.na(formal_lloq)) "warn" else "pass"
+  uloq_role <- if (is.null(formal_uloq) || is.na(formal_uloq)) "warn" else "pass"
+
   # HTML strip: 5 tiles in a flex row. Colors come from CSS custom properties
   # declared in report_style.css (--c-pass, --c-warn, --c-fail).
   cat('<div class="bs-kpi-strip">\n')
 
   tile <- function(label, value, unit = "", color_role = NULL) {
     tile_cls <- paste0("bs-kpi-tile",
-                       if (!is.null(color_role)) paste0(" is-", color_role) else "")
+                       if (!is.null(color_role) && nzchar(color_role))
+                         paste0(" is-", color_role) else "")
     cat(sprintf('<div class="%s">', tile_cls))
     cat(sprintf('<div class="bs-kpi-label">%s</div>', label))
     cat(sprintf('<div class="bs-kpi-value">%s</div>', value))
@@ -822,10 +830,10 @@ render_kpi_strip <- function(R2, RMSE, formal_lloq, formal_uloq,
     cat('</div>\n')
   }
 
-  tile("R² · curve fit", fmt_r2, "")
-  tile("RMSE",                      fmt_rmse, "")
-  tile("Cal. low",                   fmt_lloq, conc_unit)
-  tile("Cal. high",                  fmt_uloq, conc_unit)
+  tile("R² · curve fit", fmt_r2,  "",        r2_role)
+  tile("RMSE",           fmt_rmse, "",        NULL)
+  tile("Cal. low",       fmt_lloq, conc_unit, lloq_role)
+  tile("Cal. high",      fmt_uloq, conc_unit, uloq_role)
 
   # Status tile: .bs-status-pill instead of emoji dot
   tile_cls  <- if (nzchar(overall_role)) paste0("bs-kpi-tile is-", overall_role) else "bs-kpi-tile"
