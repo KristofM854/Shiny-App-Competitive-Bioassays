@@ -268,6 +268,31 @@ R packages listed below.
 | **Analysis** | drc, knitr, rmarkdown, kableExtra |
 | **I/O** | readxl, jsonlite, digest |
 
+### Reproducible environment (renv)
+
+The project uses [`renv`](https://rstudio.github.io/renv/) for JOSS-grade
+reproducibility — `renv.lock` captures the exact package versions used to
+produce the reference report outputs (`tests/testthat/test-report-numbers.R`
+golden values + the example reports in `examples/`).
+
+After cloning, restore the locked environment with:
+
+```r
+Rscript -e 'renv::restore()'
+```
+
+To refresh the lockfile after a deliberate dependency change:
+
+```r
+Rscript -e 'renv::snapshot()'
+```
+
+To bootstrap renv from scratch (only needed once, by the maintainer):
+
+```r
+Rscript scripts/init_renv.R
+```
+
 ### Known Issue: MASS::select Masking
 
 The `drc` package loads `MASS`, which masks `dplyr::select()`. All `select()` calls in this codebase use the explicit `dplyr::select()` form. If you add new code, always use `dplyr::select()`.
