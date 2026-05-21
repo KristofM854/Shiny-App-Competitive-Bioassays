@@ -52,11 +52,13 @@ Chunk pipeline (in execution order):
   model-stats                     - 4PL coefficient table
   save-model-stats                - write model_stats.json (partial)
   standard-backcalculation        - per-standard recovery table
-  data-quality-overview           - quick data quality panel
   sample-analysis                 - MAIN SAMPLE QUANTIFICATION (defines:
                                     sample_results, replicate_stats,
                                     outlier_flags, replicate_summary,
                                     tissue-normalized columns if ELISA)
+  qc-summary-card                 - merged severity-coded QC card
+                                    (well counts + exclusions + outliers
+                                    + high-CV groups in one banner)
   sample-results-table            - rendered sample table + CSV writes
   outlier-results                 - outlier detection report block
   ci-method-note                  - CI method footnote
@@ -1312,28 +1314,6 @@ if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
 
 ## `r tr("sample_results", lang)`
 
-```{r data-quality-overview, results='asis'}
-total_wells <- nrow(data_long)
-std_wells <- sum(data_long$SampleType == "Standard", na.rm = TRUE)
-sample_wells <- sum(data_long$SampleType == "Sample", na.rm = TRUE)
-blank_wells <- sum(data_long$SampleType %in% c("Blank", "NSB", "B0"), na.rm = TRUE)
-excluded_wells <- sum(is.na(data_long$MeasurementValue) | !is.finite(data_long$MeasurementValue))
-
-dq_lines <- c(
-  "**Data Quality Overview**  ",
-  sprintf("Total wells: %d | Standards: %d | Samples: %d | Controls: %d  ",
-          total_wells, std_wells, sample_wells, blank_wells)
-)
-if (excluded_wells > 0) {
-  dq_lines <- c(dq_lines, sprintf("**Excluded wells:** %d (missing or non-finite values)  ", excluded_wells))
-}
-if (exists("outlier_flags") && nrow(outlier_flags) > 0) {
-  dq_lines <- c(dq_lines, sprintf("**Outliers flagged:** %d  ", nrow(outlier_flags)))
-}
-emit_styled_block(dq_lines,
-  html_style = "background: #E3F2FD; padding: 12px; border-radius: 8px; border-left: 4px solid #1976D2; margin: 15px 0;")
-```
-
 ```{r sample-analysis, include=FALSE}
 # M1.1: quantify_samples() in reports/analysis_pipeline.R does the per-well
 # delta-method prediction, optional outlier detection (Shapiro->MAD/Dixon's Q/
@@ -1364,6 +1344,72 @@ if (file.exists(.samp_cache_path)) {
   saveRDS(.samp_res, .samp_cache_path)
 }
 list2env(.samp_res, envir = environment())
+```
+
+```{r qc-summary-card, results='asis'}
+# Section A1 of the v2 refactor: merges the pre-analysis "Data Quality
+# Overview" panel (well counts + exclusions) with the post-table "Quality
+# Alert" emit (high-CV warning) into a single severity-coded card placed
+# after sample-analysis runs so all signals are available. Uses the
+# .bs-status-banner is-pass / is-warn classes already in report_style.css.
+.qc_total_wells    <- nrow(data_long)
+.qc_std_wells      <- sum(data_long$SampleType == "Standard",                na.rm = TRUE)
+.qc_sample_wells   <- sum(data_long$SampleType == "Sample",                  na.rm = TRUE)
+.qc_control_wells  <- sum(data_long$SampleType %in% c("Blank", "NSB", "B0"), na.rm = TRUE)
+.qc_excluded_wells <- sum(is.na(data_long$MeasurementValue) |
+                          !is.finite(data_long$MeasurementValue))
+.qc_outliers_n     <- if (exists("outlier_flags") && !is.null(outlier_flags))
+                        nrow(outlier_flags) else 0L
+.qc_high_cv_groups <- if (exists("replicate_stats") && !is.null(replicate_stats) &&
+                          "cv_percent" %in% names(replicate_stats))
+                        replicate_stats$Replicate[
+                          !is.na(replicate_stats$cv_percent) &
+                          replicate_stats$cv_percent > 30] else character(0)
+.qc_high_cv_n      <- length(.qc_high_cv_groups)
+
+.qc_severity <- if (.qc_excluded_wells == 0L && .qc_outliers_n == 0L &&
+                    .qc_high_cv_n == 0L) "pass" else "warn"
+.qc_title_key <- if (.qc_severity == "pass") "quality_pass" else "quality_alert"
+
+if (is_html_out()) {
+  cat(sprintf('<div class="bs-status-banner is-%s">\n', .qc_severity))
+  cat(sprintf('  <strong>%s</strong>\n', tr(.qc_title_key, lang)))
+  cat(sprintf('  <p>Total wells: %d &middot; Standards: %d &middot; Samples: %d &middot; Controls: %d</p>\n',
+              .qc_total_wells, .qc_std_wells, .qc_sample_wells, .qc_control_wells))
+  if (.qc_severity == "warn") {
+    cat('  <ul>\n')
+    if (.qc_excluded_wells > 0L) cat(sprintf('    <li>%d excluded wells (missing or non-finite)</li>\n',
+                                              .qc_excluded_wells))
+    if (.qc_outliers_n     > 0L) cat(sprintf('    <li>%d outliers flagged</li>\n',
+                                              .qc_outliers_n))
+    if (.qc_high_cv_n      > 0L) cat(sprintf('    <li>%s</li>\n',
+                                              tr("high_cv_groups", lang,
+                                                 paste(.qc_high_cv_groups, collapse = ", "))))
+    cat('  </ul>\n')
+    if (.qc_high_cv_n > 0L) {
+      cat(sprintf('  <small>%s</small>\n', tr("check_preparation", lang)))
+    }
+  }
+  cat('</div>\n')
+} else {
+  # DOCX / PDF: plain markdown fallback (no banner styling).
+  cat("\n**", tr(.qc_title_key, lang), "**\n\n", sep = "")
+  cat(sprintf("Total wells: %d | Standards: %d | Samples: %d | Controls: %d\n\n",
+              .qc_total_wells, .qc_std_wells, .qc_sample_wells, .qc_control_wells))
+  if (.qc_severity == "warn") {
+    if (.qc_excluded_wells > 0L) cat(sprintf("- %d excluded wells (missing or non-finite)\n",
+                                              .qc_excluded_wells))
+    if (.qc_outliers_n     > 0L) cat(sprintf("- %d outliers flagged\n", .qc_outliers_n))
+    if (.qc_high_cv_n      > 0L) cat("- ",
+                                     tr("high_cv_groups", lang,
+                                        paste(.qc_high_cv_groups, collapse = ", ")),
+                                     "\n", sep = "")
+    if (.qc_high_cv_n      > 0L) cat("- ", tr("check_preparation", lang), "\n", sep = "")
+    cat("\n")
+  }
+}
+
+rm(list = ls(pattern = "^\\.qc_"))
 ```
 
 ### `r tr("detailed_summary", lang)`
@@ -1485,23 +1531,7 @@ tryCatch({
     cat("\n**", tr("output_files_created", lang), "**\n", sep = "")
     cat("- ", tr("individual_results", lang), "\n", sep = "")
     cat("- ", tr("summary_results", lang), "\n\n", sep = "")
-    
-    # Display quality assessment (robust to NA in cv_percent)
-    high_cv_groups <- tryCatch({
-      replicate_stats %>% 
-        dplyr::filter(!is.na(cv_percent) & cv_percent > 30)
-    }, error = function(e) {
-      data.frame()
-    })
-    
-    if (!is.null(high_cv_groups) && nrow(high_cv_groups) > 0) {
-      cat("**", tr("quality_alert", lang), "**\n", sep = "")
-      cat("- ", tr("high_cv_groups", lang, paste(high_cv_groups$Replicate, collapse = ", ")), "\n", sep = "")
-      cat("- ", tr("check_preparation", lang), "\n\n", sep = "")
-    } else {
-      cat("**", tr("quality_pass", lang), "**\n\n", sep = "")
-    }
-    
+
   } else {
     cat("*", tr("no_samples_quantified", lang), "*\n\n", sep = "")
     
