@@ -345,8 +345,13 @@ table[style*="width: auto !important"] {
 }
 
 /* ============================================================
-   ITEM 16 — Print stylesheet
+   ITEM 16 — Print stylesheet  (Save-as-PDF without LaTeX)
+   Users print from Chrome/Firefox → "Save as PDF". This block hides
+   the TOC, forces every <details> open, tightens margins, and keeps
+   the KPI strip / tables / figures from breaking mid-page.
    ============================================================ */
+@page { margin: 0.5in; }
+
 @media print {
   /* Hide TOC sidebar */
   #TOC,
@@ -375,7 +380,7 @@ table[style*="width: auto !important"] {
   table { page-break-inside: avoid; }
   figure { page-break-inside: avoid; }
 
-  .bs-kpi-strip { flex-wrap: wrap; }
+  .bs-kpi-strip { flex-wrap: wrap; page-break-inside: avoid; }
 }
 
 /* ============================================================
