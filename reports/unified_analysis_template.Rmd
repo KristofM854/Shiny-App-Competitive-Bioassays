@@ -110,19 +110,8 @@ if (!requireNamespace("kableExtra", quietly = TRUE)) {
   }
   rm(.rmd_repos)
 }
-# DT guard: attempt silent install; set .has_DT flag for graceful fallback.
-# Never call library(DT) unconditionally — a failed install would make that
-# line throw a fatal error and abort the entire render.
+# DT: installed by global.R before render; guard against direct rmarkdown::render() calls.
 .has_DT <- requireNamespace("DT", quietly = TRUE)
-if (!.has_DT) {
-  tryCatch({
-    .rmd_repos <- c("https://packagemanager.posit.co/cran/latest",
-                    "https://cloud.r-project.org")
-    install.packages("DT", repos = .rmd_repos, quiet = TRUE)
-    rm(.rmd_repos)
-  }, error = function(e) NULL, warning = function(w) NULL)
-  .has_DT <- requireNamespace("DT", quietly = TRUE)
-}
 if (.has_DT) library(DT)
 library(dplyr)
 library(tidyr)
