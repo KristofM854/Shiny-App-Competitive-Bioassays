@@ -226,6 +226,10 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
   color: var(--c-fail);
   background: var(--c-fail-soft);
 }
+.bs-status-pill.is-info {
+  color: var(--c-info);
+  background: var(--c-info-soft);
+}
 
 /* ============================================================
    ITEM 15 — KPI strip classes

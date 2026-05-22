@@ -189,10 +189,17 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 # can target tr.is-extrapolated > td and tr.is-high-cv > td:first-child
 # independently — the red border only appears on the left edge of the row.
 .inject_row_classes <- function(kbl, amber_rows, red_rows) {
+  message(sprintf(
+    ".inject_row_classes: amber=%d  red=%d  (kbl length=%d)",
+    length(amber_rows), length(red_rows), nchar(as.character(kbl))
+  ))
   if (length(amber_rows) == 0 && length(red_rows) == 0) return(kbl)
   html     <- as.character(kbl)
   tbody_at <- regexpr("<tbody>", html, fixed = TRUE)
-  if (tbody_at[1L] < 0L) return(kbl)
+  if (tbody_at[1L] < 0L) {
+    message(".inject_row_classes: no <tbody> found — skipping class injection")
+    return(kbl)
+  }
 
   pre  <- substr(html, 1L, tbody_at[1L] + 6L)          # up to and including <tbody>
   body <- substr(html, tbody_at[1L] + 7L, nchar(html))  # everything after
