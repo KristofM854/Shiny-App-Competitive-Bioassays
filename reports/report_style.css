@@ -226,6 +226,10 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
   color: var(--c-fail);
   background: var(--c-fail-soft);
 }
+.bs-status-pill.is-info {
+  color: var(--c-info);
+  background: var(--c-info-soft);
+}
 
 /* ============================================================
    ITEM 15 — KPI strip classes
@@ -488,4 +492,18 @@ table.dataTable thead th { text-align: left; }
 /* Responsive TOC sidebar — replicate Bootstrap md breakpoint */
 @media (min-width: 992px) {
   #TOC { position: fixed; width: 200px; }
+}
+
+/* ============================================================
+   body.compact — compact-mode overrides (set via JS in compact renders)
+   ============================================================ */
+body.compact {
+  max-width: none;
+  padding: 0 12px;
+}
+
+body.compact .tocify,
+body.compact .tocify-wrapper,
+body.compact #TOC {
+  display: none !important;
 }
