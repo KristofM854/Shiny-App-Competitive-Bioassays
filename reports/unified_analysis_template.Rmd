@@ -688,6 +688,15 @@ list2env(.samp_res, envir = environment())
 
 ```{r save-model-stats, include=FALSE}
 # Save model statistics for multiwavelength executive summary
+# standards_data: all unique defined concentrations (including high-variability ones
+# excluded from fitting). Computed here so it's available in both compact and full mode
+# (the standards-table display chunk is gated eval=!is_compact).
+if (!exists("standards_data")) {
+  standards_data <- data_long %>%
+    dplyr::filter(SampleType == "Standard", !is.na(StandardConc)) %>%
+    dplyr::arrange(desc(StandardConc)) %>%
+    dplyr::distinct(StandardConc)
+}
 model_stats <- list(
   r_squared = R2,
   rmse = RMSE,
