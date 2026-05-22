@@ -132,9 +132,10 @@ for HTML in "$@"; do
   # B.7  4PL table present, p-value not always shown with all-NA
   assert_present "B.7  4PL coefficient table" 'four_pl_coefficients|Hill slope|Hill&nbsp;slope|bs-kpi' "$HTML"
 
-  # B.10 Exclusion Audit section rendered (dagger footnote is data-dependent — just
-  #       check the section container is present)
-  assert_present "B.10 Exclusion Audit section rendered" 'exclusion.audit|Exclusion.Audit' "$HTML"
+  if [ "$IS_COMPACT" -eq 0 ]; then
+    # B.10 Exclusion Audit section rendered (full only — compact omits these sections)
+    assert_present "B.10 Exclusion Audit section rendered" 'exclusion.audit|Exclusion.Audit' "$HTML"
+  fi
 
   # C6   bsSortTable click-to-sort JS present in summary table
   assert_present "C6   bsSortTable JS present" 'bsSortTable' "$HTML"
@@ -173,7 +174,7 @@ for HTML in "$@"; do
 
   if [ "$IS_COMPACT" -eq 1 ]; then
     assert_lte "D.6  Compact ≤ 500 KB" "$BYTES" 512000
-    assert_absent "D.7  Compact: no Plotly widget" 'HTMLWidgets\.widget\b|class="plotly\b' "$HTML"
+    assert_absent "D.7  Compact: no Plotly widget" 'class="plotly html-widget|plotly-graph-div' "$HTML"
     assert_absent "D.8  Compact: no plate heatmap" 'heatmap_title|Plate.*Heatmap' "$HTML"
   else
     assert_lte "D.6  Full ≤ 3 MB" "$BYTES" 3000000

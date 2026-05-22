@@ -545,6 +545,12 @@ if (.has_notes) {
 ```
 
 
+```{r compact-body-class, results='asis', eval=is_compact}
+if (is_html_out()) {
+  cat('<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.add("compact");});</script>\n')
+}
+```
+
 ```{r model-fitting, include=FALSE}
 # M1.2: fit_all_models() in reports/analysis_pipeline.R handles the
 # modelling work (high-variability filtering, weight setup, H2 auto pick,
@@ -925,7 +931,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     }
     
     # Render plot - interactive for HTML, static for DOCX/PDF
-    render_plot(combined_drc, tooltip = "text")
+    render_plot(combined_drc, tooltip = "text", compact = is_compact)
   }
 }
 ```
@@ -1510,7 +1516,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
 `r section_close()`
 
-```{r section-methods-open, results='asis'}
+```{r section-methods-open, results='asis', eval=!is_compact}
 if (is_html_out()) {
   cat('<details>\n<summary><strong>', tr("methods_title", lang), '</strong></summary>\n\n')
 } else {
@@ -1518,9 +1524,9 @@ if (is_html_out()) {
 }
 ```
 
-`r section_open(tr("std_concentrations", lang))`
+`r if (!is_compact) section_open(tr("std_concentrations", lang)) else ""`
 
-```{r standards-table}
+```{r standards-table, eval=!is_compact}
 # Extract and display standard concentrations
 standards_data <- data_long %>%
   filter(SampleType == "Standard", !is.na(StandardConc)) %>%
@@ -1551,9 +1557,9 @@ render_table(
 )
 ```
 
-`r section_close()`
+`r if (!is_compact) section_close() else ""`
 
-```{r methods-section, results='asis'}
+```{r methods-section, results='asis', eval=!is_compact}
 # Item 10: expanded Methods section covering model, weighting, LLOQ/ULOQ
 # criteria, CI method, outlier rule, and software. Replaces the former single
 # sentence. render_methods_section() lives in reports/report_sections.R.
@@ -1565,7 +1571,7 @@ render_methods_section(
 )
 ```
 
-```{r lloq-uloq, results='asis', warning=FALSE}
+```{r lloq-uloq, results='asis', warning=FALSE, eval=!is_compact}
 # Formal LLOQ/ULOQ determination by back-calculated standard accuracy.
 # M1.3: compute lives in determine_lloq_uloq() in reports/analysis_pipeline.R;
 # this chunk handles localisation, formatting, and rendering.
@@ -1648,11 +1654,11 @@ tryCatch({
 })
 ```
 
-```{r section-methods-close, results='asis'}
+```{r section-methods-close, results='asis', eval=!is_compact}
 if (is_html_out()) cat('</details>\n\n')
 ```
 
-```{r section-curve-diagnostics-open, results='asis'}
+```{r section-curve-diagnostics-open, results='asis', eval=!is_compact}
 if (is_html_out()) {
   cat('<details>\n<summary><strong>', tr("section_curve_diagnostics", lang), '</strong></summary>\n\n')
 } else {
@@ -1660,9 +1666,9 @@ if (is_html_out()) {
 }
 ```
 
-`r section_open(tr("four_pl_coefficients", lang), default_open = TRUE)`
+`r if (!is_compact) section_open(tr("four_pl_coefficients", lang), default_open = TRUE) else ""`
 
-```{r model-stats, warning=FALSE}
+```{r model-stats, warning=FALSE, eval=!is_compact}
 # Extract and display model coefficients with correct parameter order
 tryCatch({
   
@@ -1719,15 +1725,20 @@ tryCatch({
 })
 ```
 
-`r section_close()`
+```{r model-fit-stats-display, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
+cat(sprintf("\n**%s**\n\n", tr("model_fit_stats", lang)))
+cat(sprintf("- **R\u00b2** = %.3f\n", R2))
+cat(sprintf("- **RMSE** = %.3f %s\n", RMSE, labels$y_unit))
+n_uniq  <- length(unique(standards_for_model$StandardConc))
+n_reps  <- round(nrow(standards_for_model) / max(n_uniq, 1))
+n_total <- nrow(standards_for_model)
+n_def   <- length(unique(standards_data$StandardConc))
+cat(sprintf("- **%s** = %d %s \u00d7 %d replicates = %d wells (of %d defined levels)\n\n",
+            tr("standards_used", lang), n_uniq, tr("std_levels", lang), n_reps, n_total, n_def))
+```
 
-**`r tr("model_fit_stats", lang)`**
-
-- **R²** = `r round(R2, 3)`
-- **RMSE** = `r round(RMSE, 3)` `r labels$y_unit`
-- **`r tr("standards_used", lang)`** = `r length(unique(standards_for_model$StandardConc))` `r tr("std_levels", lang)` × `r round(nrow(standards_for_model)/max(length(unique(standards_for_model$StandardConc)),1))` replicates = `r nrow(standards_for_model)` wells (of `r length(unique(standards_data$StandardConc))` defined levels)
-
-```{r weighting-suitability, results='asis', warning=FALSE}
+```{r weighting-suitability, results='asis', warning=FALSE, eval=!is_compact}
 # H2: document the auto-weighting decision (if taken) at the top of the
 # weighting-suitability section, before the full diagnostic block below.
 if (!is.null(auto_weighting_result)) {
@@ -2056,7 +2067,7 @@ section_end()
 ```
 
 
-```{r qc-traffic-light, results='asis', warning=FALSE}
+```{r qc-traffic-light, results='asis', warning=FALSE, eval=!is_compact}
 # M1.6: traffic-light QC summary card (R^2 / Hill / max CV / mean recovery).
 # Compute + presentation are inseparable here so the helper does both;
 # wrap whole block in a tryCatch that prints a one-line "could not be
@@ -2071,7 +2082,7 @@ render_qc_traffic_light_section(model_fit          = model_fit,
                                 lang               = lang)
 ```
 
-```{r section-curve-diagnostics-close, results='asis'}
+```{r section-curve-diagnostics-close, results='asis', eval=!is_compact}
 if (is_html_out()) cat('</details>\n\n')
 ```
 
@@ -2083,7 +2094,7 @@ if (is_html_out()) {
 }
 ```
 
-```{r sample-boxplot, fig.width=10, fig.height=7, results='asis', warning=FALSE, message=FALSE}
+```{r sample-boxplot, fig.width=10, fig.height=7, results='asis', warning=FALSE, message=FALSE, eval=!is_compact}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   sample_plot_data <- sample_results %>%
@@ -2167,7 +2178,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
   }
 }
 
-```{r sample-boxplot-render, fig.width=10, fig.height=5, warning=FALSE, message=FALSE}
+```{r sample-boxplot-render, fig.width=10, fig.height=5, warning=FALSE, message=FALSE, eval=!is_compact}
 # Separate chunk so render_plot() return value is visible to knitr
 if (exists("sample_box") && !is.null(sample_box)) {
   fig_h_px <- 480L
@@ -2176,7 +2187,7 @@ if (exists("sample_box") && !is.null(sample_box)) {
 }
 ```
 
-```{r sample-boxplot-close, results='asis'}
+```{r sample-boxplot-close, results='asis', eval=!is_compact}
 if (exists("sample_box") && !is.null(sample_box)) {
   if (is_html_out()) cat("</details>\n\n") else section_end()
 }
@@ -2373,7 +2384,7 @@ render_tissue_normalization_section(
 if (is_html_out()) cat('</details>\n\n')
 ```
 
-```{r section-exclusion-open, results='asis'}
+```{r section-exclusion-open, results='asis', eval=!is_compact}
 if (is_html_out()) {
   cat('<details>\n<summary><strong>', tr("exclusion_audit_caption", lang), '</strong></summary>\n\n')
 } else {
@@ -2406,11 +2417,11 @@ if (exists(".dagger_groups") && length(.dagger_groups) > 0) {
 }
 ```
 
-```{r section-exclusion-close, results='asis'}
+```{r section-exclusion-close, results='asis', eval=!is_compact}
 if (is_html_out()) cat('</details>\n\n')
 ```
 
-```{r section-abbreviations-open, results='asis'}
+```{r section-abbreviations-open, results='asis', eval=!is_compact}
 if (is_html_out()) {
   cat('<details>\n<summary><strong>Abbreviations</strong></summary>\n\n')
 } else {
@@ -2418,12 +2429,12 @@ if (is_html_out()) {
 }
 ```
 
-```{r abbreviations, results='asis'}
+```{r abbreviations, results='asis', eval=!is_compact}
 # Item 11: collapsed Abbreviations block above the report footer.
 render_abbreviations_block()
 ```
 
-```{r section-abbreviations-close, results='asis'}
+```{r section-abbreviations-close, results='asis', eval=!is_compact}
 if (is_html_out()) cat('</details>\n\n')
 ```
 
