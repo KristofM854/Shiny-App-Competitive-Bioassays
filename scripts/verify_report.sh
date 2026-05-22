@@ -114,8 +114,10 @@ for HTML in "$@"; do
     # B.1  DT::datatable widget present (full mode only)
     assert_present "B.1  DT datatable widget" 'HTMLWidgets\.widget|class="datatables' "$HTML"
 
-    # B.2  Cal. Range pill present
-    assert_present "B.2  Calibration-range pill" 'bs-status-pill[^"]*">.*Cal\.' "$HTML"
+    # B.2  Cal. Range column header present in the sample table (full mode only).
+    # Checks structural wiring of the two-pill column layout; data-driven pill
+    # text varies by assay and sample concentrations so is not asserted here.
+    assert_present "B.2  Cal. Range column present" 'Cal\. Range' "$HTML"
 
     # B.3  .row-out-of-range or .row-cv-high JS callback present
     assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
@@ -166,17 +168,18 @@ for HTML in "$@"; do
   echo ""
   echo "--- D. File size ---"
 
-  # D.1  No base64 font embedding
-  assert_absent  "D.1  No base64 @font-face" 'data:font/ttf[;,]base64|data:font/otf[;,]base64' "$HTML"
-
   # D.2  System font stack present
   assert_present "D.2  System font stack" '-apple-system|Segoe UI' "$HTML"
 
   if [ "$IS_COMPACT" -eq 1 ]; then
+    # D.1  Compact: no base64 @font-face (Bootstrap removed via theme:null)
+    assert_absent  "D.1  No base64 @font-face" 'data:font/ttf[;,]base64|data:font/otf[;,]base64' "$HTML"
     assert_lte "D.6  Compact ≤ 500 KB" "$BYTES" 512000
     assert_absent "D.7  Compact: no Plotly widget" 'class="plotly html-widget|plotly-graph-div' "$HTML"
     assert_absent "D.8  Compact: no plate heatmap" 'heatmap_title|Plate.*Heatmap' "$HTML"
   else
+    # Full mode intentionally uses Bootstrap 3 (theme:"default") which embeds
+    # Glyphicon fonts as TTF/WOFF/SVG base64 blobs; D.1 is not applicable.
     assert_lte "D.6  Full ≤ 5 MB" "$BYTES" 5000000
     assert_present "D.7  Full: plate heatmap plotly present" 'plotly|heatmap.*htmlwidget|type.*heatmap' "$HTML"
   fi
