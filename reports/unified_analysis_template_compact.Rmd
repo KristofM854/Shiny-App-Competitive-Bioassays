@@ -4,11 +4,9 @@ output:
   html_document:
     df_print: paged
     self_contained: true
-    toc: true
-    toc_float:
-      collapsed: true
-      smooth_scroll: true
-    theme: "default"
+    toc: false
+    theme: null
+    highlight: null
     css: report_style.css
   word_document:
     toc: true
