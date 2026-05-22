@@ -114,10 +114,12 @@ for HTML in "$@"; do
     # B.1  DT::datatable widget present (full mode only)
     assert_present "B.1  DT datatable widget" 'HTMLWidgets\.widget|class="datatables' "$HTML"
 
-    # B.2  Cal. Range column header present in the sample table (full mode only).
-    # Checks structural wiring of the two-pill column layout; data-driven pill
-    # text varies by assay and sample concentrations so is not asserted here.
-    assert_present "B.2  Cal. Range column present" 'Cal\. Range' "$HTML"
+    # B.2  Sample-table status pill present (full mode only).
+    # Matches any sample-table pill: Cal./Quant. pills (when samples are
+    # interpolated) or "Not estimable" pill (when samples cannot be quantified).
+    # The three text markers Cal., Quant., and estimable only appear inside
+    # sample-table pills, never in KPI/exec-card/QC pills.
+    assert_present "B.2  Sample-table status pill" 'bs-status-pill[^"]*">[^<]*(Cal\.|Quant\.|estimable)' "$HTML"
 
     # B.3  .row-out-of-range or .row-cv-high JS callback present
     assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
