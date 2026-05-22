@@ -181,6 +181,15 @@ for HTML in "$@"; do
     assert_present "D.7  Full: plate heatmap plotly present" 'plotly|heatmap.*htmlwidget|type.*heatmap' "$HTML"
   fi
 
+  if [ "$IS_COMPACT" -eq 1 ]; then
+    # A.9  Compact: no Methods section header
+    assert_absent "A.9  Compact: no Methods section" '<strong>Methods</strong>' "$HTML"
+    # A.10  Compact: no Curve Diagnostics section header
+    assert_absent "A.10 Compact: no Curve Diagnostics" '<strong>Curve Diagnostics</strong>' "$HTML"
+    # A.11  Compact: Interpretation section IS present (always open)
+    assert_present "A.11 Compact: Interpretation present" 'Interpretation|<details open>' "$HTML"
+  fi
+
   echo ""
   echo "--- E. Print ---"
   assert_present "E.1  @media print block" '@media print' "$HTML"
