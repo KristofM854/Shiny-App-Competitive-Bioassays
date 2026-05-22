@@ -47,7 +47,7 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL,
   # standalone Rmd renders where global.R is NOT sourced.
   if (exists("theme_rba", mode = "function")) gg <- gg + theme_rba()
 
-  if (is_html_out() && !compact) {
+  if (is_html_out()) {
     # Strip the ggplot title before conversion: plotly renders it inside the
     # figure frame which clashes with the surrounding Rmd section heading.
     gg <- gg + ggplot2::labs(title = NULL)
@@ -189,34 +189,27 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 # can target tr.is-extrapolated > td and tr.is-high-cv > td:first-child
 # independently — the red border only appears on the left edge of the row.
 .inject_row_classes <- function(kbl, amber_rows, red_rows) {
-  message(sprintf(
-    ".inject_row_classes: amber=%d  red=%d  (kbl length=%d)",
-    length(amber_rows), length(red_rows), nchar(as.character(kbl))
-  ))
   if (length(amber_rows) == 0 && length(red_rows) == 0) return(kbl)
   html     <- as.character(kbl)
   tbody_at <- regexpr("<tbody>", html, fixed = TRUE)
-  if (tbody_at[1L] < 0L) {
-    message(".inject_row_classes: no <tbody> found — skipping class injection")
-    return(kbl)
-  }
+  if (tbody_at[1L] < 0L) return(kbl)
 
   pre  <- substr(html, 1L, tbody_at[1L] + 6L)          # up to and including <tbody>
   body <- substr(html, tbody_at[1L] + 7L, nchar(html))  # everything after
 
-  parts  <- strsplit(body, "(?=<tr\\b)", perl = TRUE)[[1L]]
+  parts  <- strsplit(body, "(?=<tr[\\s>])", perl = TRUE)[[1L]]
   tr_idx <- 0L
   parts  <- vapply(parts, function(p) {
-    if (!grepl("^<tr\\b", p, perl = TRUE)) return(p)
+    if (!grepl("^<tr[\\s>]", p, perl = TRUE)) return(p)
     # <<- bumps the closure-scoped row counter (tr_idx, initialised just above
     # this vapply) so amber/red CSS classes match 1-based table-body rows.
     tr_idx <<- tr_idx + 1L
     cls <- c(
-      if (tr_idx %in% amber_rows) "is-extrapolated" else character(0L),
-      if (tr_idx %in% red_rows)   "is-high-cv"      else character(0L)
+      if (tr_idx %in% amber_rows) "row-out-of-range" else character(0L),
+      if (tr_idx %in% red_rows)   "row-cv-high"      else character(0L)
     )
     if (length(cls) > 0L)
-      sub("<tr\\b", sprintf('<tr class="%s"', paste(cls, collapse = " ")), p, perl = TRUE)
+      sub("<tr(?=[\\s>])", sprintf('<tr class="%s"', paste(cls, collapse = " ")), p, perl = TRUE)
     else
       p
   }, character(1L), USE.NAMES = FALSE)

@@ -57,9 +57,12 @@ td:last-child {
 
 /* Row-level QC highlighting: apply background/border via <tr> classes
    so the red border appears only on the left edge (first-child), not on
-   every cell. kableExtra injects these classes via post-processing. */
-tr.is-extrapolated > td              { background: var(--c-warn-soft); }
-tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
+   every cell. kableExtra injects these classes via post-processing.
+   Aliases kept for backwards compatibility. */
+tr.row-out-of-range > td,
+tr.is-extrapolated  > td              { background: var(--c-warn-soft); }
+tr.row-cv-high      > td:first-child,
+tr.is-high-cv       > td:first-child  { border-left: 3px solid var(--c-fail); }
 
 /* Replicate-group sub-line: sample IDs + n shown below the group label */
 .bs-replicate-meta {
@@ -279,8 +282,8 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
   font-feature-settings: 'tnum' 0;
 }
 
-/* Overall status box (replaces green-gradient inline style) */
-.bs-status-banner {
+/* Overall status / executive summary card */
+.exec-summary-card {
   padding: 16px 20px;
   border-radius: 8px;
   margin: 15px 0 25px 0;
@@ -288,20 +291,23 @@ tr.is-high-cv      > td:first-child  { border-left: 3px solid var(--c-fail); }
   background: var(--c-pass-soft);
   border-left: 4px solid var(--c-pass);
 }
-.bs-status-banner.is-warn {
+.exec-summary-card.is-warn {
   background: var(--c-warn-soft);
   border-left-color: var(--c-warn);
 }
-.bs-status-banner.is-fail {
+.exec-summary-card.is-fail {
   background: var(--c-fail-soft);
   border-left-color: var(--c-fail);
 }
 
 /* Merged QC summary card — tighter spacing for nested elements */
-.bs-status-banner p   { margin: 6px 0 0; }
-.bs-status-banner ul  { margin: 8px 0 0; padding-left: 20px; }
-.bs-status-banner ul li + li { margin-top: 2px; }
-.bs-status-banner small { display: block; margin-top: 6px; color: #5b6573; }
+.exec-summary-card p   { margin: 6px 0 0; }
+.exec-summary-card ul  { margin: 8px 0 0; padding-left: 20px; }
+.exec-summary-card ul li + li { margin-top: 2px; }
+.exec-summary-card small { display: block; margin-top: 6px; color: #5b6573; }
+
+/* Deprecated alias — use .exec-summary-card */
+.bs-status-banner { /* see .exec-summary-card */ }
 
 /* Report header flex layout */
 .bs-header-flex {
@@ -380,6 +386,7 @@ table[style*="width: auto !important"] {
 
   /* No gradients in print */
   .exec-summary,
+  .exec-summary-card,
   .bs-status-banner {
     background: white !important;
     border: 1px solid #ccc !important;
@@ -460,12 +467,6 @@ table[style*="width: auto !important"] {
    Sample-results table row-level and cell-level QC classes
    Applied by the DT rowCallback JS and by the pill generator.
    ============================================================ */
-
-/* Amber background: sample outside calibration or quantifiable range */
-tr.row-out-of-range > td { background-color: var(--c-warn-soft) !important; }
-
-/* Red left-border: CV exceeds limit */
-tr.row-cv-high > td:first-child { border-left: 3px solid var(--c-fail) !important; }
 
 /* CI cell greyed out with dashed underline when CV renders CI uninformative */
 .ci-uninformative {

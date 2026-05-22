@@ -303,7 +303,7 @@ render_overall_status_box <- function(drc_failed_completely, R2, RMSE,
   }
 
   if (is_html_out()) {
-    cat(sprintf('<div class="bs-status-banner is-%s">\n\n', overall_role))
+    cat(sprintf('<div class="exec-summary-card is-%s">\n\n', overall_role))
   } else {
     cat("---\n\n")
   }
