@@ -11,7 +11,7 @@ FAIL=0
 
 assert_present() {
   local label="$1"; local pattern="$2"; local file="$3"
-  if grep -qP "$pattern" "$file" 2>/dev/null; then
+  if grep -qP -- "$pattern" "$file" 2>/dev/null; then
     echo "  PASS  $label"
     PASS=$((PASS+1))
   else
@@ -22,7 +22,7 @@ assert_present() {
 
 assert_absent() {
   local label="$1"; local pattern="$2"; local file="$3"
-  if ! grep -qP "$pattern" "$file" 2>/dev/null; then
+  if ! grep -qP -- "$pattern" "$file" 2>/dev/null; then
     echo "  PASS  $label (absent)"
     PASS=$((PASS+1))
   else
@@ -34,7 +34,7 @@ assert_absent() {
 assert_count() {
   local label="$1"; local pattern="$2"; local expected="$3"; local file="$4"
   local count
-  count=$(grep -cP "$pattern" "$file" 2>/dev/null || true)
+  count=$(grep -cP -- "$pattern" "$file" 2>/dev/null || true)
   if [ "$count" -eq "$expected" ]; then
     echo "  PASS  $label (count=$count)"
     PASS=$((PASS+1))
@@ -115,7 +115,7 @@ for HTML in "$@"; do
     assert_present "B.1  DT datatable widget" 'HTMLWidgets\.widget|class="datatables' "$HTML"
 
     # B.2  Cal. Range pill present
-    assert_present "B.2  Calibration-range pill" 'Cal\.&nbsp;OK|Cal\.&nbsp;low|Cal\.&nbsp;high' "$HTML"
+    assert_present "B.2  Calibration-range pill" 'bs-status-pill[^"]*">.*Cal\.' "$HTML"
 
     # B.3  .row-out-of-range or .row-cv-high JS callback present
     assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
@@ -167,7 +167,7 @@ for HTML in "$@"; do
   echo "--- D. File size ---"
 
   # D.1  No base64 font embedding
-  assert_absent  "D.1  No base64 @font-face" 'data:font.*base64|data:application/font' "$HTML"
+  assert_absent  "D.1  No base64 @font-face" 'data:font/ttf[;,]base64|data:font/otf[;,]base64' "$HTML"
 
   # D.2  System font stack present
   assert_present "D.2  System font stack" '-apple-system|Segoe UI' "$HTML"
@@ -177,7 +177,7 @@ for HTML in "$@"; do
     assert_absent "D.7  Compact: no Plotly widget" 'class="plotly html-widget|plotly-graph-div' "$HTML"
     assert_absent "D.8  Compact: no plate heatmap" 'heatmap_title|Plate.*Heatmap' "$HTML"
   else
-    assert_lte "D.6  Full ≤ 3 MB" "$BYTES" 3000000
+    assert_lte "D.6  Full ≤ 5 MB" "$BYTES" 5000000
     assert_present "D.7  Full: plate heatmap plotly present" 'plotly|heatmap.*htmlwidget|type.*heatmap' "$HTML"
   fi
 

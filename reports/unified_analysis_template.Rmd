@@ -1072,7 +1072,7 @@ tryCatch({
     rs <- rs %>%
       dplyr::mutate(
         .qs    = if ("quant_status" %in% names(.)) as.character(quant_status) else "Unknown",
-        .rf    = if ("range_flag"   %in% names(.)) as.character(range_flag)   else "",
+        .rf    = if ("range_flag"   %in% names(.)) ifelse(is.na(range_flag), "", as.character(range_flag)) else "",
         .wr    = if ("within_range" %in% names(.)) as.character(within_range) else "Unknown",
         Status = mapply(.cal_pill, .qs, .rf, SIMPLIFY = TRUE),
         Status2 = mapply(.quant_pill, .wr, SIMPLIFY = TRUE),
@@ -1136,7 +1136,7 @@ tryCatch({
     oor_col_idx <- which(names(results_display) == ".oor") - 1L
     cv_col_idx  <- which(names(results_display) == ".cv")  - 1L
 
-    if (isTRUE(.has_DT) && is_html_out()) {
+    if (isTRUE(.has_DT) && is_html_out() && !isTRUE(is_compact)) {
       # Convert logical flag cols to numeric for JS comparison
       results_display[[".oor"]] <- as.integer(results_display[[".oor"]])
       results_display[[".cv"]]  <- as.integer(results_display[[".cv"]])
