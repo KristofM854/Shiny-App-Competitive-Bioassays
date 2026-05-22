@@ -149,11 +149,20 @@ jobs:
             any::tidyr
             any::withr
 
+      # Chrome is required only by shinytest2 tests (which use chromote).
+      # On the windows-latest runner (currently Windows Server 2025 / build
+      # 26100), `browser-actions/setup-chrome@v1` terminates the runner
+      # silently mid-job — no log lines, no exit code, post-cleanup fires
+      # immediately and the remaining workflow steps never start. The
+      # shinytest2 tests skip themselves when chromote can't find a browser,
+      # so on Windows we let them skip rather than install Chrome.
       - name: Install Chrome
+        if: runner.os != 'Windows'
         uses: browser-actions/setup-chrome@v1
 
       - name: Run tests
         run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
+        shell: bash
 
       - name: R CMD check
         run: |
