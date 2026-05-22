@@ -493,3 +493,17 @@ table.dataTable thead th { text-align: left; }
 @media (min-width: 992px) {
   #TOC { position: fixed; width: 200px; }
 }
+
+/* ============================================================
+   body.compact — compact-mode overrides (set via JS in compact renders)
+   ============================================================ */
+body.compact {
+  max-width: none;
+  padding: 0 12px;
+}
+
+body.compact .tocify,
+body.compact .tocify-wrapper,
+body.compact #TOC {
+  display: none !important;
+}
