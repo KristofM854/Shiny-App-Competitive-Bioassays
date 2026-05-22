@@ -8,7 +8,7 @@ output:
     toc_float:
       collapsed: true
       smooth_scroll: true
-    theme: null
+    theme: "default"
     css: report_style.css
   word_document:
     toc: true
