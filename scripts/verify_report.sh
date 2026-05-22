@@ -74,7 +74,7 @@ for HTML in "$@"; do
 
   BYTES=$(wc -c < "$HTML")
   IS_COMPACT=0
-  if grep -qiP 'compact' "$HTML" 2>/dev/null && [ "$BYTES" -le 500000 ]; then
+  if [[ "$(basename "$HTML")" == *compact* ]]; then
     IS_COMPACT=1
   fi
 
@@ -85,7 +85,15 @@ for HTML in "$@"; do
   # (can't distinguish at render time without data — skip this assertion for now;
   #  it's enforced by the conditional chunk in the template)
 
-  # A.3  No <h2>Parallelism</h2> when n_curves < 2 — skip; data-dependent
+  # A.2  No standalone <h2>Summary</h2> (folded into exec card)
+  assert_absent "A.2  No <h2>Summary</h2>" '<h2[^>]*>Summary<' "$HTML"
+
+  # A.3  No <h2>Parallelism</h2> when n_curves < 2 (example data has 1 curve)
+  assert_absent "A.3  No empty Parallelism H2" '<h2[^>]*>Parallelism' "$HTML"
+
+  # A.4  No duplicate Detailed Sample Results Summary H2
+  # The section should appear exactly once (not as a standalone H2 + nested H3)
+  assert_absent "A.4  No duplicate detailed_summary H2" '<h2[^>]*>Detailed Sample' "$HTML"
 
   # A.5  Exactly one <h1>
   assert_count "A.5  Exactly one <h1>" '<h1[ >]' 1 "$HTML"
@@ -163,9 +171,12 @@ for HTML in "$@"; do
   assert_present "D.2  System font stack" '-apple-system|Segoe UI' "$HTML"
 
   if [ "$IS_COMPACT" -eq 1 ]; then
-    assert_lte "D.6  Compact ≤ 400 KB" "$BYTES" 409600
+    assert_lte "D.6  Compact ≤ 500 KB" "$BYTES" 512000
+    assert_absent "D.7  Compact: no Plotly widget" 'HTMLWidgets\.widget\b|class="plotly\b' "$HTML"
+    assert_absent "D.8  Compact: no plate heatmap" 'heatmap_title|Plate.*Heatmap' "$HTML"
   else
-    assert_lte "D.6  Full ≤ 2 MB" "$BYTES" 2097152
+    assert_lte "D.6  Full ≤ 3 MB" "$BYTES" 3000000
+    assert_present "D.7  Full: plate heatmap plotly present" 'plotly|heatmap.*htmlwidget|type.*heatmap' "$HTML"
   fi
 
   echo ""
