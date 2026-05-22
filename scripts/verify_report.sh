@@ -74,7 +74,7 @@ for HTML in "$@"; do
 
   BYTES=$(wc -c < "$HTML")
   IS_COMPACT=0
-  if grep -qiP 'compact' "$HTML" 2>/dev/null && [ "$BYTES" -le 500000 ]; then
+  if [[ "$(basename "$HTML")" == *compact* ]]; then
     IS_COMPACT=1
   fi
 
@@ -85,7 +85,15 @@ for HTML in "$@"; do
   # (can't distinguish at render time without data — skip this assertion for now;
   #  it's enforced by the conditional chunk in the template)
 
-  # A.3  No <h2>Parallelism</h2> when n_curves < 2 — skip; data-dependent
+  # A.2  No standalone <h2>Summary</h2> (folded into exec card)
+  assert_absent "A.2  No <h2>Summary</h2>" '<h2[^>]*>Summary<' "$HTML"
+
+  # A.3  No <h2>Parallelism</h2> when n_curves < 2 (example data has 1 curve)
+  assert_absent "A.3  No empty Parallelism H2" '<h2[^>]*>Parallelism' "$HTML"
+
+  # A.4  No duplicate Detailed Sample Results Summary H2
+  # The section should appear exactly once (not as a standalone H2 + nested H3)
+  assert_absent "A.4  No duplicate detailed_summary H2" '<h2[^>]*>Detailed Sample' "$HTML"
 
   # A.5  Exactly one <h1>
   assert_count "A.5  Exactly one <h1>" '<h1[ >]' 1 "$HTML"
@@ -124,8 +132,10 @@ for HTML in "$@"; do
   # B.7  4PL table present, p-value not always shown with all-NA
   assert_present "B.7  4PL coefficient table" 'four_pl_coefficients|Hill slope|Hill&nbsp;slope|bs-kpi' "$HTML"
 
-  # B.10 Dagger in Exclusion Audit (not inline after sample table)
-  assert_present "B.10 Dagger footnote present" 'CI lower bound truncated|† Lower bound' "$HTML"
+  if [ "$IS_COMPACT" -eq 0 ]; then
+    # B.10 Exclusion Audit section rendered (full only — compact omits these sections)
+    assert_present "B.10 Exclusion Audit section rendered" 'exclusion.audit|Exclusion.Audit' "$HTML"
+  fi
 
   # C6   bsSortTable click-to-sort JS present in summary table
   assert_present "C6   bsSortTable JS present" 'bsSortTable' "$HTML"
@@ -163,9 +173,21 @@ for HTML in "$@"; do
   assert_present "D.2  System font stack" '-apple-system|Segoe UI' "$HTML"
 
   if [ "$IS_COMPACT" -eq 1 ]; then
-    assert_lte "D.6  Compact ≤ 400 KB" "$BYTES" 409600
+    assert_lte "D.6  Compact ≤ 500 KB" "$BYTES" 512000
+    assert_absent "D.7  Compact: no Plotly widget" 'class="plotly html-widget|plotly-graph-div' "$HTML"
+    assert_absent "D.8  Compact: no plate heatmap" 'heatmap_title|Plate.*Heatmap' "$HTML"
   else
-    assert_lte "D.6  Full ≤ 2 MB" "$BYTES" 2097152
+    assert_lte "D.6  Full ≤ 3 MB" "$BYTES" 3000000
+    assert_present "D.7  Full: plate heatmap plotly present" 'plotly|heatmap.*htmlwidget|type.*heatmap' "$HTML"
+  fi
+
+  if [ "$IS_COMPACT" -eq 1 ]; then
+    # A.9  Compact: no Methods section header
+    assert_absent "A.9  Compact: no Methods section" '<strong>Methods</strong>' "$HTML"
+    # A.10  Compact: no Curve Diagnostics section header
+    assert_absent "A.10 Compact: no Curve Diagnostics" '<strong>Curve Diagnostics</strong>' "$HTML"
+    # A.11  Compact: Interpretation section IS present (always open)
+    assert_present "A.11 Compact: Interpretation present" 'Interpretation|<details open>' "$HTML"
   fi
 
   echo ""

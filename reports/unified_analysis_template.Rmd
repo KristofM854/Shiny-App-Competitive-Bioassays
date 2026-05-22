@@ -544,58 +544,12 @@ if (.has_notes) {
 }
 ```
 
-## `r tr("std_curve_config", lang)`
 
-`r section_open(tr("std_concentrations", lang))`
-
-```{r standards-table}
-# Extract and display standard concentrations
-standards_data <- data_long %>%
-  filter(SampleType == "Standard", !is.na(StandardConc)) %>%
-  arrange(desc(StandardConc)) %>%
-  distinct(StandardConc)
-
-# Format concentrations based on assay type
-if (isTRUE(is_elisa)) {
-  # ELISA: Use regular number formatting (no scientific notation)
-  standard_table <- data.frame(
-    StandardNumber = seq_len(nrow(standards_data)),
-    Concentration = format(standards_data$StandardConc, digits = 4, nsmall = 1, big.mark = ",")
-  )
-  unit_label <- paste0("Concentration (", assay_config$units %||% "pg/mL", ")")
-} else {
-  # RBA: Use scientific notation  
-  standard_table <- data.frame(
-    StandardNumber = seq_len(nrow(standards_data)),
-    Concentration = format(standards_data$StandardConc, scientific = TRUE, digits = 3)
-  )
-  unit_label <- "Concentration (mol/L)"
+```{r compact-body-class, results='asis', eval=is_compact}
+if (is_html_out()) {
+  cat('<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.add("compact");});</script>\n')
 }
-
-render_table(
-  standard_table, 
-  caption = tr("std_concentrations_table", lang),
-  col_names = c(tr("col_standards", lang), unit_label)
-)
 ```
-
-`r section_close()`
-
-## `r tr("methods_title", lang)`
-
-```{r methods-section, results='asis'}
-# Item 10: expanded Methods section covering model, weighting, LLOQ/ULOQ
-# criteria, CI method, outlier rule, and software. Replaces the former single
-# sentence. render_methods_section() lives in reports/report_sections.R.
-render_methods_section(
-  analysis_config = analysis_config,
-  assay_config    = assay_config,
-  is_elisa        = is_elisa,
-  lang            = lang
-)
-```
-
-## `r tr("drc_analysis", lang)`
 
 ```{r model-fitting, include=FALSE}
 # M1.2: fit_all_models() in reports/analysis_pipeline.R handles the
@@ -691,6 +645,81 @@ formal_lloq <- if (!is.null(.lloq_res)) .lloq_res$formal_lloq else NA_real_
 formal_uloq <- if (!is.null(.lloq_res)) .lloq_res$formal_uloq else NA_real_
 ```
 
+```{r standard-backcalculation-compute, include=FALSE}
+.recovery <- compute_standard_recovery(data_long       = data_long,
+                                       model_fit       = model_fit,
+                                       response_var    = response_var,
+                                       is_elisa        = is_elisa)
+standards_backcalc <- .recovery$standards_backcalc
+recovery_summary   <- .recovery$recovery_summary
+```
+
+```{r sample-analysis, include=FALSE}
+# M1.1: quantify_samples() in reports/analysis_pipeline.R does the per-well
+# delta-method prediction, optional outlier detection (Shapiro->MAD/Dixon's Q/
+# Grubbs), replicate-group layered uncertainty (HP5/HP6), within-range and
+# LLOQ/ULOQ flagging, and (for ELISA + tissue_weights.json) pg/g tissue.
+# classify_range and flag_range are passed in so the function calls them
+# without re-creating the chunk-scoped closures.
+#
+# H4 cache: as for fit_all_models, all variants in a single render_reports()
+# run share the same per-well quantification; serialise the first render's
+# result and short-circuit the rest. Pipeline clears the file at run start.
+.samp_cache_path <- file.path(output_dir, ".quantify_samples_cache.rds")
+if (file.exists(.samp_cache_path)) {
+  .samp_res <- readRDS(.samp_cache_path)
+} else {
+  .samp_res <- quantify_samples(
+    data_long           = data_long,
+    response_var        = response_var,
+    model_fit           = model_fit,
+    standards_for_model = standards_for_model,
+    analysis_config     = analysis_config,
+    STATS_CONFIG        = STATS_CONFIG,
+    is_elisa            = is_elisa,
+    output_dir          = output_dir,
+    classify_range      = classify_range,
+    flag_range          = flag_range
+  )
+  saveRDS(.samp_res, .samp_cache_path)
+}
+list2env(.samp_res, envir = environment())
+```
+
+```{r save-model-stats, include=FALSE}
+# Save model statistics for multiwavelength executive summary
+model_stats <- list(
+  r_squared = R2,
+  rmse = RMSE,
+  ic50 = coef(model_fit)[4],
+  hill_slope = coef(model_fit)[1],
+  n_standards = nrow(standards_for_model),
+  n_unique_concs = length(unique(standards_data$StandardConc)),
+  weight_method = weight_desc
+)
+
+# Note: mean_sample_cv is computed later in save-sample-stats chunk
+# after replicate_stats is available (BUG_008 fix)
+
+# write_json_safe is defined in global.R (loaded before rendering)
+write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
+
+```
+
+```{r save-sample-stats, include=FALSE}
+# BUG_008 fix: Update model_stats with mean_sample_cv now that replicate_stats exists
+if (exists("model_stats") && exists("replicate_stats") &&
+    !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
+  model_stats$mean_sample_cv <- mean(replicate_stats$cv_percent, na.rm = TRUE)
+} else if (exists("model_stats")) {
+  model_stats$mean_sample_cv <- NA_real_
+}
+# Re-save model_stats with the updated mean_sample_cv
+if (exists("model_stats") && exists("write_json_safe")) {
+  write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
+}
+```
+
 ```{r report-header, results='asis'}
 # Condensed metadata block (left) + KPI strip (right) in a single flex row.
 # Replaces the former stacked pre-fit executive summary box and post-fit
@@ -723,632 +752,6 @@ render_high_variability_info(high_var_standards = high_var_standards,
                              is_elisa           = is_elisa,
                              assay_config       = assay_config,
                              lang               = lang)
-```
-
-```{r qc-traffic-light, results='asis', warning=FALSE}
-# M1.6: traffic-light QC summary card (R^2 / Hill / max CV / mean recovery).
-# Compute + presentation are inseparable here so the helper does both;
-# wrap whole block in a tryCatch that prints a one-line "could not be
-# generated" message instead of crashing the report.
-render_qc_traffic_light_section(model_fit          = model_fit,
-                                standards_for_model = standards_for_model,
-                                response_var       = response_var,
-                                replicate_stats    = if (exists("replicate_stats")) replicate_stats else NULL,
-                                R2                 = R2,
-                                weight_desc        = weight_desc,
-                                assay_config       = assay_config,
-                                lang               = lang)
-```
-
-```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
-# Show comparison of multiple weighting methods if the user selected more than one
-if (multi_weight_mode && length(all_models) > 1) {
-  section_start(tr("weight_comparison_title", lang))
-  cat(tr("weight_comparison_desc", lang), "\n\n")
-
-  # --- Comparison table: R², RMSE, AIC, parameters (+ stability if available) ---
-  comp_rows <- lapply(names(all_models), function(k) {
-    m <- all_models[[k]]
-    coefs <- m$coefs  # b (Hill), c (Bottom), d (Top), e (IC50)
-    if (is.null(coefs)) {
-      row <- data.frame(
-        Method = m$label,
-        R2 = NA, RMSE = NA, AIC = NA,
-        Hill = NA, Bottom = NA, Top = NA, IC50 = NA,
-        stringsAsFactors = FALSE
-      )
-    } else {
-      row <- data.frame(
-        Method = m$label,
-        R2 = round(m$R2, 5),
-        RMSE = round(m$RMSE, 3),
-        AIC = if (!is.null(m$AIC) && !is.na(m$AIC)) round(m$AIC, 1) else NA,
-        Hill = round(abs(coefs[1]), 4),
-        Bottom = round(coefs[2], 2),
-        Top = round(coefs[3], 2),
-        IC50 = if (isTRUE(is_elisa)) format(round(coefs[4], 2), big.mark = ",") else format(coefs[4], scientific = TRUE, digits = 3),
-        stringsAsFactors = FALSE
-      )
-    }
-    # Append stability grade if already assessed
-    if (!is.null(m$stability)) {
-      grade_icon <- function(g) switch(g,
-        good = "\U0001F7E2", acceptable = "\U0001F7E1",
-        unstable = "\U0001F534", failed = "\u274C", "\u2753")
-      row$Stability <- paste(grade_icon(m$stability$stability_grade),
-                              tools::toTitleCase(m$stability$stability_grade))
-    }
-    row
-  })
-  comp_df <- do.call(rbind, comp_rows)
-  col_names <- c(tr("qc_metric", lang), "R\u00B2", "RMSE", "AIC",
-                  tr("hill_slope", lang), tr("bottom", lang), tr("top", lang), tr("ic50", lang))
-  if ("Stability" %in% names(comp_df)) {
-    col_names <- c(col_names, "Stability")
-  }
-  names(comp_df) <- col_names
-
-  render_table(comp_df, caption = tr("weight_comparison_title", lang))
-
-  # --- AIC recommendation note ---
-  aic_vals <- sapply(all_models, function(m) if (!is.null(m$AIC)) m$AIC else NA_real_)
-  if (any(!is.na(aic_vals))) {
-    best_key <- names(which.min(aic_vals))
-    best_label <- all_models[[best_key]]$label
-    best_aic <- min(aic_vals, na.rm = TRUE)
-    cat(sprintf("\n\n**AIC recommends: %s** (lowest AIC = %.1f). ", best_label, best_aic))
-    cat(tr("weight_comparison_primary", lang, all_models[[primary_key]]$label), "\n\n")
-  }
-
-  # --- Overlay DRC curves ---
-  curve_colors <- c("none" = "#000000", "inv_y" = "#0072B2", "inv_y2" = "#D55E00")
-  curve_data_list <- list()
-  for (k in names(all_models)) {
-    if (is.null(all_models[[k]]$model)) next
-    pred_df <- data.frame(conc = conc_range)
-    pred_df$p <- predict(all_models[[k]]$model, newdata = pred_df)
-    pred_df$method <- all_models[[k]]$label
-    curve_data_list[[k]] <- pred_df
-  }
-  if (length(curve_data_list) > 0) {
-  curve_data <- do.call(rbind, curve_data_list)
-  plotted_keys <- names(curve_data_list)
-
-  standards_plot <- data_long %>%
-    dplyr::filter(!is.na(concentration), SampleType == "Standard")
-
-  cmp_plot <- ggplot() +
-    geom_point(data = standards_plot,
-               aes(x = concentration, y = .data[[response_var]]),
-               size = 3, alpha = 0.6, color = "grey40") +
-    geom_line(data = curve_data,
-              aes(x = conc, y = p, color = method),
-              size = 1.1) +
-    scale_color_manual(
-      name = tr("col_weighting_label", lang),
-      values = setNames(
-        curve_colors[plotted_keys],
-        sapply(all_models[plotted_keys], function(m) m$label)
-      )
-    ) +
-    theme_classic() +
-    theme(legend.position = "top",
-          axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(x = labels$x_label, y = labels$y_label)
-
-  if (isTRUE(is_elisa)) {
-    cmp_plot <- cmp_plot +
-      scale_x_log10(
-        labels = function(x) format(x, digits = 3, big.mark = ","),
-        breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
-      )
-  } else {
-    cmp_plot <- cmp_plot +
-      scale_x_log10(
-        limits = c(1e-12, 1e-5),
-        breaks = 10^seq(-12, -5, by = 1),
-        labels = scales::scientific_format(digits = 2)
-      )
-  }
-
-  } # end if (length(curve_data_list) > 0)
-}
-```
-
-```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
-# Separate chunk so render_plot() return value is visible to knitr
-if (exists("cmp_plot") && multi_weight_mode && length(all_models) > 1) {
-  render_plot(cmp_plot)
-}
-```
-
-```{r weight-comparison-close, results='asis', eval=!is_compact}
-if (multi_weight_mode && length(all_models) > 1) {
-  cat(sprintf("\n\n*%s*\n\n",
-      tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
-  section_end()
-}
-
-# Simple heteroscedasticity diagnostic for unweighted model
-if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
-  unw_fit <- all_models[["none"]]$model
-  unw_resid <- residuals(unw_fit)
-  conc_levels <- standards_for_model$StandardConc
-  var_by_level <- tapply(unw_resid^2, conc_levels, mean, na.rm = TRUE)
-  var_ratio <- max(var_by_level, na.rm = TRUE) / max(min(var_by_level[var_by_level > 0], na.rm = TRUE), 1e-10)
-  if (var_ratio > 3) {
-    cat(sprintf("\n\n> **Note:** Residual variance ratio across concentration levels = %.1f (>3), suggesting heteroscedasticity. Weighted regression (1/Y or 1/Y²) is recommended.\n\n", var_ratio))
-  }
-}
-```
-
-```{r weighting-suitability, results='asis', warning=FALSE}
-# H2: document the auto-weighting decision (if taken) at the top of the
-# weighting-suitability section, before the full diagnostic block below.
-if (!is.null(auto_weighting_result)) {
-  weight_labels <- list(none = tr("weight_unweighted", lang), inv_y = "1/Y", inv_y2 = "1/Y²")
-  chosen_label <- weight_labels[[auto_weighting_result$chosen_weight]] %||%
-                  auto_weighting_result$chosen_weight
-  if (isTRUE(auto_weighting_result$fallback)) {
-    cat("\n\n", tr("weight_auto_fallback", lang), "\n\n", sep = "")
-  } else {
-    cat("\n\n", tr("weight_auto_decision", lang,
-                    chosen_label,
-                    auto_weighting_result$test_name %||% "Brown-Forsythe",
-                    auto_weighting_result$statistic %||% NA_real_,
-                    auto_weighting_result$p_value %||% NA_real_),
-        "\n\n", sep = "")
-  }
-  if (isTRUE(auto_weighting_result$degenerate)) {
-    cat("\n\n> **Warning:** The heteroscedasticity test was numerically degenerate",
-        "(at least one replicate group has zero within-group variance — F → ∞).",
-        "The auto-weight selection used the variance ratio as a fallback.",
-        "Inspect your standards for all-identical replicates at any concentration level.",
-        "\n\n", sep = " ")
-  }
-}
-
-# Formal heteroscedasticity diagnostic (assess_heteroscedasticity)
-tryCatch({
-  # Determine which model to assess: prefer the unweighted model, otherwise
-  # use the first available model as a reference
-  hetero_model <- NULL
-  hetero_label <- NULL
-
-  if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
-    hetero_model <- all_models[["none"]]$model
-    hetero_label <- "Unweighted (LL.4/LL.3)"
-  } else if (!drc_failed_completely) {
-    # No unweighted model was fitted; use primary model as proxy
-    hetero_model <- all_models[[primary_key]]$model
-    hetero_label <- all_models[[primary_key]]$label
-  }
-
-  if (!is.null(hetero_model)) {
-    hetero_result <- assess_heteroscedasticity(
-      model = hetero_model,
-      data_long = standards_for_model,
-      response_var = response_var
-    )
-
-    cat(sprintf("\n\n### %s\n\n", tr("weighting_suitability_title", lang)))
-
-    cat(sprintf("**Test:** %s\n\n", hetero_result$test_name %||% "N/A"))
-
-    if (!isTRUE(hetero_result$degenerate) && !is.na(hetero_result$statistic)) {
-      cat(sprintf("**Statistic:** %s", fmt_smart(hetero_result$statistic, 3)))
-      if (!is.na(hetero_result$p_value)) {
-        cat(sprintf(" \u2003 **p-value:** %s", fmt_smart(hetero_result$p_value, 4)))
-      }
-      cat("\n\n")
-    }
-
-    if (!is.na(hetero_result$variance_ratio)) {
-      cat(sprintf("**Variance ratio** (max/min across concentration levels): %.1f\n\n",
-                  hetero_result$variance_ratio))
-    }
-
-    cat(sprintf("**Interpretation:** %s\n\n", hetero_result$interpretation))
-    cat(sprintf("**Recommendation:** %s\n\n", hetero_result$recommendation))
-
-    cat("*Note: This diagnostic is advisory only and does not change the selected model.*\n\n")
-  }
-}, error = function(e) {
-  cat(sprintf("\n\n*Weighting suitability assessment could not be performed: %s*\n\n", e$message))
-})
-```
-
-```{r model-stability-assessment, results='asis', warning=FALSE, eval=!is_compact}
-# Convergence and stability diagnostics for all fitted models
-tryCatch({
-  if (!drc_failed_completely && length(all_models) > 0) {
-
-    # Assess stability for each fitted model
-    stability_results <- lapply(names(all_models), function(k) {
-      assess_model_stability(all_models[[k]], all_models[[k]]$label)
-    })
-    names(stability_results) <- names(all_models)
-
-    emit_heading(tr("model_stability_title", lang), 4)
-
-    # Build summary table
-    grade_icon <- function(g) {
-      switch(g,
-        good       = "\U0001F7E2 Good",
-        acceptable = "\U0001F7E1 Acceptable",
-        unstable   = "\U0001F534 Unstable",
-        failed     = "\u274C Failed",
-        "\u2753 Unknown"
-      )
-    }
-
-    stability_df <- data.frame(
-      Model = sapply(stability_results, function(s) s$model_name),
-      Method = sapply(stability_results, function(s) s$fit_method %||% "N/A"),
-      Converged = sapply(stability_results, function(s) if (s$converged) tr("yes_label", lang) else tr("no_label", lang)),
-      SE_Available = sapply(stability_results, function(s) if (s$se_available) tr("yes_label", lang) else tr("no_label", lang)),
-      Boundary = sapply(stability_results, function(s) if (s$boundary_flag) tr("yes_label", lang) else tr("no_label", lang)),
-      Grade = sapply(stability_results, function(s) grade_icon(s$stability_grade)),
-      stringsAsFactors = FALSE
-    )
-    names(stability_df) <- c(tr("col_model", lang), tr("col_fit_method", lang),
-                              tr("col_converged", lang), tr("col_se_available", lang),
-                              tr("col_boundary_hit", lang), tr("col_stability_grade", lang))
-
-    render_table(stability_df, caption = tr("model_stability_title", lang))
-
-    # Print detailed warnings / suspicious parameters per model
-    for (k in names(stability_results)) {
-      sr <- stability_results[[k]]
-      has_details <- length(sr$suspicious_params) > 0 || length(sr$warnings) > 0
-
-      if (has_details) {
-        cat(sprintf("\n**%s:**\n\n", sr$model_name))
-        for (w in sr$warnings) {
-          cat(sprintf("- %s\n", w))
-        }
-        for (sp in sr$suspicious_params) {
-          cat(sprintf("- %s\n", sp))
-        }
-        cat("\n")
-      }
-    }
-
-    # Store stability info for downstream use (e.g., model comparison table)
-    # Attach to all_models entries
-    for (k in names(stability_results)) {
-      all_models[[k]]$stability <- stability_results[[k]]
-    }
-  }
-}, error = function(e) {
-  cat(sprintf("\n\n*Model stability assessment could not be performed: %s*\n\n", e$message))
-})
-```
-
-```{r lloq-uloq, results='asis', warning=FALSE}
-# Formal LLOQ/ULOQ determination by back-calculated standard accuracy.
-# M1.3: compute lives in determine_lloq_uloq() in reports/analysis_pipeline.R;
-# this chunk handles localisation, formatting, and rendering.
-# GUI refresh §6.2 / Q4(e): determine_lloq_uloq() is now called once
-# in the model-fitting chunk above (so the KPI strip can read its
-# results); this chunk reuses .lloq_res from that call. Falls back
-# to recomputing if the upstream chunk failed.
-tryCatch({
-  section_start(tr("lloq_uloq_title", lang))
-  cat(tr("lloq_uloq_desc", lang), "\n\n")
-
-  if (!exists(".lloq_res") || is.null(.lloq_res)) {
-    .lloq_res <- determine_lloq_uloq(
-      standards_for_model = standards_for_model,
-      model_fit           = model_fit,
-      response_var        = response_var,
-      is_elisa            = is_elisa
-    )
-  }
-  backcalc_results <- .lloq_res$backcalc_results
-  backcalc_summary <- .lloq_res$backcalc_summary
-  passing_concs    <- .lloq_res$passing_concs
-
-  # Add the localised accuracy label to the summary so the rendering code
-  # below stays as-is.
-  if (nrow(backcalc_summary) > 0) {
-    backcalc_summary$accuracy <- ifelse(backcalc_summary$passes,
-                                        tr("qc_green", lang),
-                                        tr("qc_red", lang))
-  }
-
-  if (nrow(backcalc_summary) > 0) {
-    # Display back-calculation table
-    display_bc <- backcalc_summary %>%
-      dplyr::select(nominal_conc, mean_backcalc, mean_recovery, cv_backcalc, accuracy)
-
-    if (isTRUE(is_elisa)) {
-      display_bc$nominal_conc <- format(display_bc$nominal_conc, digits = 4, big.mark = ",")
-      display_bc$mean_backcalc <- format(display_bc$mean_backcalc, digits = 4, big.mark = ",")
-    } else {
-      display_bc$nominal_conc <- format(display_bc$nominal_conc, scientific = TRUE, digits = 3)
-      display_bc$mean_backcalc <- format(display_bc$mean_backcalc, scientific = TRUE, digits = 3)
-    }
-    display_bc$mean_recovery <- paste0(round(as.numeric(backcalc_summary$mean_recovery), 1), "%")
-    display_bc$cv_backcalc <- ifelse(is.na(backcalc_summary$cv_backcalc), "\u2014",
-                                      paste0(round(backcalc_summary$cv_backcalc, 1), "%"))
-
-    units_str <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
-    names(display_bc) <- c(
-      sprintf(tr("col_nominal", lang), units_str),
-      sprintf(tr("col_backcalc", lang), units_str),
-      tr("col_recovery", lang),
-      "CV%",
-      tr("col_accuracy", lang)
-    )
-    render_table(display_bc, caption = tr("backcalc_title", lang))
-
-    # LLOQ/ULOQ already computed by determine_lloq_uloq(). Promote to the
-    # outer chunk env (formal_lloq / formal_uloq are read by a later chunk
-    # via exists() so we set them either way).
-    if (length(passing_concs) >= 2) {
-      formal_lloq <- .lloq_res$formal_lloq
-      formal_uloq <- .lloq_res$formal_uloq
-      cat(sprintf("\n\n**%s:** %s %s\n\n", tr("lloq_label", lang),
-                  if (isTRUE(is_elisa)) format(formal_lloq, digits = 4, big.mark = ",") else format(formal_lloq, scientific = TRUE, digits = 3),
-                  units_str))
-      cat(sprintf("**%s:** %s %s\n\n", tr("uloq_label", lang),
-                  if (isTRUE(is_elisa)) format(formal_uloq, digits = 4, big.mark = ",") else format(formal_uloq, scientific = TRUE, digits = 3),
-                  units_str))
-    } else {
-      cat(tr("lloq_uloq_none", lang), "\n\n")
-    }
-  } else {
-    cat(tr("lloq_uloq_none", lang), "\n\n")
-  }
-
-  section_end()
-}, error = function(e) {
-  cat(sprintf("\n\n*LLOQ/ULOQ determination failed: %s*\n\n", e$message))
-})
-```
-
-`r section_open(tr("drc_analysis", lang), default_open = TRUE)`
-
-```{r dose-response-plots, fig.width=12, fig.height=8, warning=FALSE, fig.cap="Dose-response curve showing fitted 4-parameter logistic model with observed standard concentrations"}
-# Create unified dose-response curve plot
-plot_data <- data_long %>% filter(!is.na(concentration))
-
-drc_plot <- ggplot(plot_data, aes(x = concentration, y = .data[[response_var]], color = high_variability)) +
-  geom_point(size = 3, aes(text = paste0(
-    "Concentration: ", if (isTRUE(is_elisa)) format(concentration, digits = 4, big.mark = ",") else scales::scientific(concentration, digits = 2), "<br>",
-    labels$y_label, ": ", round(.data[[response_var]], 2), "<br>",
-    "Variability: ", high_variability
-  ))) +
-  geom_line(data = model_fits, aes(x = conc, y = p), color = "black", linewidth = 1.2, inherit.aes = FALSE) +
-  scale_color_manual(
-    name = tr("legend_std_quality", lang),
-    values = c(
-      "Normal Variability" = "#2E86AB",
-      "High Variability" = "#E63946"
-    ),
-    labels = c(
-      "Normal Variability" = tr("variability_normal", lang),
-      "High Variability"   = tr("variability_high", lang)
-    )
-  ) +
-  theme_classic() +
-  theme(
-    legend.position = "top",
-    axis.title = element_text(size = 12, face = "bold"),
-    axis.text = element_text(size = 11),
-    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
-    panel.grid.minor = element_line(color = "grey90", size = 0.25),
-    panel.grid.major = element_line(color = "grey85", size = 0.5)
-  )
-
-# Set appropriate axis scaling based on assay type
-if (isTRUE(is_elisa)) {
-  # ELISA: Log scale for wide concentration ranges
-  conc_range_factor <- max(plot_data$concentration, na.rm = TRUE) / min(plot_data$concentration, na.rm = TRUE)
-  drc_plot <- drc_plot + 
-    scale_x_log10(
-      name = labels$x_label,
-      labels = function(x) format(x, digits = 3, big.mark = ","),
-      breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
-    )
-} else {
-  # RBA: Log scale with scientific notation
-  drc_plot <- drc_plot + 
-    scale_x_log10(
-      name = labels$x_label,
-      breaks = scales::trans_breaks("log10", function(x) 10^x),
-      labels = scales::trans_format("log10", scales::math_format(10^.x))
-    )
-}
-
-drc_plot <- drc_plot + 
-  ylab(labels$y_label) +
-  ggtitle(paste(tr("four_pl_coefficients", lang), "-", toupper(assay_config$assay_type)))
-
-# Display plot
-render_plot(drc_plot, tooltip = "text", plotly_layout = list(showlegend = TRUE))
-```
-
-`r section_close()`
-
-## `r tr("model_parameters", lang)`
-
-`r section_open(tr("four_pl_coefficients", lang), default_open = TRUE)`
-
-```{r model-stats, warning=FALSE}
-# Extract and display model coefficients with correct parameter order
-tryCatch({
-  
-  coefficients <- summary(model_fit)$coefficients
-  
-  # Check if coefficients have expected structure
-  if (is.matrix(coefficients) && nrow(coefficients) >= 4) {
-    
-    # DRC package LL.4() parameter order: b (Hill slope), c (Lower asymptote), d (Upper asymptote), e (IC50)
-    actual_param_names <- c(tr("hill_slope", lang), tr("bottom", lang), tr("top", lang), tr("ic50", lang))
-    
-    # Ensure we don't exceed available rows
-    n_params <- min(length(actual_param_names), nrow(coefficients))
-    
-    # Create results data frame with correct parameter mapping
-    pval_col <- if ("Pr(>|t|)" %in% colnames(coefficients)) {
-      coefficients[1:n_params, "Pr(>|t|)"]
-    } else {
-      rep(NA_real_, n_params)
-    }
-    drc_results <- data.frame(
-      Parameter = actual_param_names[1:n_params],
-      Value = coefficients[1:n_params, "Estimate"],
-      StdError = if ("Std. Error" %in% colnames(coefficients)) {
-        coefficients[1:n_params, "Std. Error"]
-      } else {
-        rep(NA_real_, n_params)
-      },
-      stringsAsFactors = FALSE
-    )
-    col_nm <- c(tr("col_parameter", lang), tr("col_estimate", lang), tr("col_std_error", lang))
-
-    # Drop p-value column when all values are NA (e.g. 3-parameter fits)
-    if (!all(is.na(pval_col))) {
-      drc_results$PValue <- pval_col
-      col_nm <- c(col_nm, tr("col_pvalue", lang))
-    }
-
-    render_table(
-      drc_results,
-      caption = tr("four_pl_coefficients", lang),
-      col_names = col_nm
-    )
-    
-  } else {
-    cat("Model coefficients structure unexpected. Available coefficients:\n")
-    print(coefficients)
-  }
-  
-}, error = function(e) {
-  cat("Error extracting model coefficients:", e$message, "\n")
-  cat("Model summary:\n")
-  print(summary(model_fit))
-})
-```
-
-`r section_close()`
-
-**`r tr("model_fit_stats", lang)`**
-
-- **R²** = `r round(R2, 3)`
-- **RMSE** = `r round(RMSE, 3)` `r labels$y_unit`
-- **`r tr("standards_used", lang)`** = `r length(unique(standards_for_model$StandardConc))` `r tr("std_levels", lang)` × `r round(nrow(standards_for_model)/max(length(unique(standards_for_model$StandardConc)),1))` replicates = `r nrow(standards_for_model)` wells (of `r length(unique(standards_data$StandardConc))` defined levels)
-
-```{r save-model-stats, include=FALSE}
-# Save model statistics for multiwavelength executive summary
-model_stats <- list(
-  r_squared = R2,
-  rmse = RMSE,
-  ic50 = coef(model_fit)[4],
-  hill_slope = coef(model_fit)[1],
-  n_standards = nrow(standards_for_model),
-  n_unique_concs = length(unique(standards_data$StandardConc)),
-  weight_method = weight_desc
-)
-
-# Note: mean_sample_cv is computed later in save-sample-stats chunk
-# after replicate_stats is available (BUG_008 fix)
-
-# write_json_safe is defined in global.R (loaded before rendering)
-write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
-
-```
-
-### `r tr("std_backcalc_title", lang)`
-
-`r section_open("Click to expand standard back-calculation and recovery")`
-
-```{r standard-backcalculation, results='asis', warning=FALSE, eval=!is_compact}
-# M1.4: compute_standard_recovery() in reports/analysis_pipeline.R produces
-# both data frames; this chunk now only formats and renders.
-.recovery <- compute_standard_recovery(data_long       = data_long,
-                                       model_fit       = model_fit,
-                                       response_var    = response_var,
-                                       is_elisa        = is_elisa)
-standards_backcalc <- .recovery$standards_backcalc
-recovery_summary   <- .recovery$recovery_summary
-
-# Format for display
-if (isTRUE(is_elisa)) {
-  recovery_display <- recovery_summary %>%
-    dplyr::mutate(
-      `Nominal Conc.` = format(nominal, digits = 4, nsmall = 1, big.mark = ","),
-      `Back-Calculated` = format(mean_backcalc, digits = 4, nsmall = 1, big.mark = ","),
-      `SD` = ifelse(is.na(sd_backcalc), "—", format(sd_backcalc, digits = 3, nsmall = 1)),
-      `Recovery (%)` = ifelse(is.na(mean_recovery), "—", format(mean_recovery, digits = 4, nsmall = 1))
-    ) %>%
-    dplyr::select(`Nominal Conc.`, n, `Back-Calculated`, SD, `Recovery (%)`)
-} else {
-  recovery_display <- recovery_summary %>%
-    dplyr::mutate(
-      `Nominal Conc.` = format(nominal, scientific = TRUE, digits = 3),
-      `Back-Calculated` = format(mean_backcalc, scientific = TRUE, digits = 3),
-      `SD` = ifelse(is.na(sd_backcalc), "—", format(sd_backcalc, scientific = TRUE, digits = 2)),
-      `Recovery (%)` = ifelse(is.na(mean_recovery), "—", format(mean_recovery, digits = 4, nsmall = 1))
-    ) %>%
-    dplyr::select(`Nominal Conc.`, n, `Back-Calculated`, SD, `Recovery (%)`)
-}
-
-conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
-names(recovery_display) <- c(sprintf(tr("col_nominal", lang), conc_unit), tr("col_n", lang),
-                              sprintf(tr("col_backcalc", lang), conc_unit),
-                              paste0("SD (", conc_unit, ")"),
-                              tr("col_recovery", lang))
-
-render_table(recovery_display,
-            caption = tr("std_backcalc_caption", lang))
-
-# Report overall recovery statistics
-mean_overall_recovery <- mean(recovery_summary$mean_recovery, na.rm = TRUE)
-cat(sprintf("\n**%s**\n", tr("overall_recovery", lang, mean_overall_recovery)))
-if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
-  cat(tr("recovery_acceptable", lang), "\n\n")
-} else {
-  cat(tr("recovery_outside", lang), "\n\n")
-}
-```
-
-`r section_close()`
-
-## `r tr("sample_results", lang)`
-
-```{r sample-analysis, include=FALSE}
-# M1.1: quantify_samples() in reports/analysis_pipeline.R does the per-well
-# delta-method prediction, optional outlier detection (Shapiro->MAD/Dixon's Q/
-# Grubbs), replicate-group layered uncertainty (HP5/HP6), within-range and
-# LLOQ/ULOQ flagging, and (for ELISA + tissue_weights.json) pg/g tissue.
-# classify_range and flag_range are passed in so the function calls them
-# without re-creating the chunk-scoped closures.
-#
-# H4 cache: as for fit_all_models, all variants in a single render_reports()
-# run share the same per-well quantification; serialise the first render's
-# result and short-circuit the rest. Pipeline clears the file at run start.
-.samp_cache_path <- file.path(output_dir, ".quantify_samples_cache.rds")
-if (file.exists(.samp_cache_path)) {
-  .samp_res <- readRDS(.samp_cache_path)
-} else {
-  .samp_res <- quantify_samples(
-    data_long           = data_long,
-    response_var        = response_var,
-    model_fit           = model_fit,
-    standards_for_model = standards_for_model,
-    analysis_config     = analysis_config,
-    STATS_CONFIG        = STATS_CONFIG,
-    is_elisa            = is_elisa,
-    output_dir          = output_dir,
-    classify_range      = classify_range,
-    flag_range          = flag_range
-  )
-  saveRDS(.samp_res, .samp_cache_path)
-}
-list2env(.samp_res, envir = environment())
 ```
 
 ```{r qc-summary-card, results='asis'}
@@ -1417,7 +820,162 @@ if (is_html_out()) {
 rm(list = ls(pattern = "^\\.qc_"))
 ```
 
-### `r tr("detailed_summary", lang)`
+## `r tr("section_drc_samples", lang)`
+
+```{r combined-drc, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
+if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
+  
+  standards_plot_data <- data_long %>%
+    dplyr::filter(!is.na(concentration), SampleType == "Standard") %>%
+    # Task 3: pre-compute hover text for the standards layer so plotly's
+    # tooltip="text" picks it up. Inline aes(text = paste0(...)) would also
+    # work but a mutate keeps the response-column dynamic lookup
+    # (.data[[response_var]]) outside the aesthetic mapping.
+    dplyr::mutate(
+      .response_for_hover = .data[[response_var]],
+      .hover_text = paste0(
+        "Standard: ", SampleID, "<br>",
+        "Concentration: ",
+        if (isTRUE(is_elisa)) {
+          format(concentration, digits = 4, big.mark = ",")
+        } else {
+          scales::scientific(concentration, digits = 2)
+        }, "<br>",
+        labels$y_label, ": ", round(.response_for_hover, 2), "<br>",
+        "Variability: ", high_variability
+      )
+    )
+
+  unknown_plot_data <- sample_results %>%
+    dplyr::filter(!is.na(concentration_diluted), is.finite(concentration_diluted)) %>%
+    dplyr::mutate(
+      falls_within_range = mapply(classify_range, response_value, estimated_concentration,
+                                  MoreArgs = list(is_elisa_assay = is_elisa))
+    )
+
+  if (nrow(unknown_plot_data) > 0) {
+
+    combined_drc <- ggplot() +
+      geom_line(data = model_fits, aes(x = conc, y = p),
+               color = "black", linewidth = 1.2) +
+      geom_point(data = standards_plot_data,
+                aes(x = concentration, y = .data[[response_var]],
+                    color = high_variability,
+                    text = .hover_text),
+                size = 3, alpha = 0.7) +
+      geom_point(data = unknown_plot_data,
+                aes(x = concentration_diluted, y = response_value,
+                    shape = falls_within_range,
+                    text = paste0(
+                      "Sample: ", SampleID, "<br>",
+                      "Replicate: ", Replicate, "<br>",
+                      "Dilution: 1:", DilutionFactor, "<br>",
+                      "Actual Concentration: ",
+                      if (isTRUE(is_elisa)) {
+                        format(estimated_concentration, digits = 4, big.mark = ",")
+                      } else {
+                        scales::scientific(estimated_concentration, digits = 2)
+                      }, "<br>",
+                      "Diluted Concentration: ",
+                      if (isTRUE(is_elisa)) {
+                        format(concentration_diluted, digits = 4, big.mark = ",")
+                      } else {
+                        scales::scientific(concentration_diluted, digits = 2)
+                      }, "<br>",
+                      labels$y_label, ": ", round(response_value, 2), "<br>",
+                      if ("concentration_pg_per_g" %in% names(unknown_plot_data) &&
+                          !is.na(concentration_pg_per_g)) {
+                        paste0("Conc. (pg/g tissue): ",
+                               format(concentration_pg_per_g, digits = 4, nsmall = 1, big.mark = ","), "<br>")
+                      } else { "" },
+                      "Range Status: ", falls_within_range
+                    )),
+                size = 3, color = "#E69F00") +
+      scale_shape_manual(name = "Sample Status",
+                        values = c("Within Range" = 16, "Out of Range" = 17, "Unknown" = 18)) +
+      # GUI refresh §6.5: keep variability cue on standards (still
+      # useful) but adopt the Okabe-Ito hexes verbatim.
+      scale_color_manual(name = tr("plot_std_variability", lang),
+                        values = c("Normal Variability" = "#0072b2",
+                                  "High Variability"   = "#d55e00"),
+                        labels = c("Normal Variability" = tr("variability_normal", lang),
+                                   "High Variability"   = tr("variability_high", lang))) +
+      # GUI refresh §6.5: theme_minimal() with the design's gridline
+      # color and a hairline panel border. Replaces the previous
+      # theme_classic() + theme() chain with a single declarative
+      # block.
+      theme_minimal() +
+      theme(
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(color = "#e3e6ea", linewidth = 0.4),
+        panel.border     = element_rect(color = "#e3e6ea", fill = NA, linewidth = 0.5),
+        legend.position  = "top",
+        legend.box       = "vertical",
+        axis.text.x      = element_text(angle = 45, hjust = 1)
+      ) +
+      labs(x = labels$x_label, y = labels$y_label)
+    
+    if (isTRUE(is_elisa)) {
+      combined_drc <- combined_drc + 
+        scale_x_log10(
+          labels = function(x) format(x, digits = 3, big.mark = ","),
+          breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
+        )
+    } else {
+      combined_drc <- combined_drc + 
+        scale_x_log10(
+          limits = c(1e-12, 1e-5),
+          breaks = 10^seq(-12, -5, by = 1),
+          labels = scales::scientific_format(digits = 2)
+        )
+    }
+    
+    # Render plot - interactive for HTML, static for DOCX/PDF
+    render_plot(combined_drc, tooltip = "text", compact = is_compact)
+  }
+}
+```
+
+```{r parallelism-assessment, results='asis', eval=!is_compact}
+# Task C (HP7): Optional parallelism / relative potency assessment.
+# Heading is emitted inside the chunk so it only appears when n_curves >= 2.
+tryCatch({
+  if (exists("model_fit") && !is.null(model_fit) && exists("data_long") && exists("response_var")) {
+    parallelism_result <- assess_parallelism(data_long, model_fit, response_var)
+
+    if (isTRUE(parallelism_result$applicable)) {
+      cat("## ", tr("parallelism_title", lang), "\n\n", sep = "")
+      cat("### Test Results\n\n")
+
+      if (!is.na(parallelism_result$slope_test$p_value)) {
+        if (isTRUE(parallelism_result$slope_test$parallel)) {
+          cat(sprintf("**Slope comparison:** Slopes are not significantly different (t = %.3f, p = %.4f). Curves appear parallel.\n\n",
+                      parallelism_result$slope_test$statistic,
+                      parallelism_result$slope_test$p_value))
+        } else {
+          cat(sprintf("**Slope comparison:** Slopes differ significantly (t = %.3f, p = %.4f). Curves are **not** parallel.\n\n",
+                      parallelism_result$slope_test$statistic,
+                      parallelism_result$slope_test$p_value))
+        }
+      }
+
+      if (!is.na(parallelism_result$potency_ratio$estimate)) {
+        cat(sprintf("**Relative potency (EC50 ratio):** %.4f [95%% CI: %.4f \u2013 %.4f]\n\n",
+                    parallelism_result$potency_ratio$estimate,
+                    parallelism_result$potency_ratio$ci_lower,
+                    parallelism_result$potency_ratio$ci_upper))
+      }
+
+      cat(sprintf("*%d curve groups were compared.*\n\n", parallelism_result$curves_found))
+    }
+    # When not applicable: emit nothing \u2014 section is omitted entirely
+  }
+}, error = function(e) {
+  cat(sprintf("*Parallelism assessment could not be completed: %s*\n\n", e$message))
+})
+```
+
+## `r tr("sample_results", lang)`
 
 ```{r sample-results-table, results='asis', warning=FALSE}
 # .dagger_groups: accumulate CI-truncated group names for Exclusion Audit
@@ -1695,39 +1253,11 @@ cat(sprintf("*%s*\n\n", tr("ci_delta_method_note", lang)))
 cat(sprintf("\n*%s*\n\n", tr("ci_asymmetric_footnote", lang)))
 ```
 
-```{r save-sample-stats, include=FALSE}
-# BUG_008 fix: Update model_stats with mean_sample_cv now that replicate_stats exists
-if (exists("model_stats") && exists("replicate_stats") &&
-    !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
-  model_stats$mean_sample_cv <- mean(replicate_stats$cv_percent, na.rm = TRUE)
-} else if (exists("model_stats")) {
-  model_stats$mean_sample_cv <- NA_real_
-}
-# Re-save model_stats with the updated mean_sample_cv
-if (exists("model_stats") && exists("write_json_safe")) {
-  write_json_safe(model_stats, file.path(output_dir, "model_stats.json"))
-}
-```
-
-```{=openxml}
-<w:p>
-  <w:pPr>
-    <w:sectPr>
-      <w:pgSz w:w="12240" w:h="15840"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"
-               w:header="720" w:footer="720"/>
-    </w:sectPr>
-  </w:pPr>
-</w:p>
-```
-
-## `r tr("detailed_summary", lang)`
-
-`r section_open(tr("detailed_summary", lang), default_open = TRUE)`
-
 ```{r table-legend, results='asis'}
 render_table_legend()
 ```
+
+`r section_open(tr("detailed_summary", lang), default_open = TRUE)`
 
 ```{r summary-results-table, results='asis', warning=FALSE}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
@@ -1986,21 +1516,585 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
 `r section_close()`
 
-```{=openxml}
-<w:p>
-  <w:pPr>
-    <w:sectPr>
-      <w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"
-               w:header="720" w:footer="720"/>
-    </w:sectPr>
-  </w:pPr>
-</w:p>
+```{r section-methods-open, results='asis', eval=!is_compact}
+if (is_html_out()) {
+  cat('<details>\n<summary><strong>', tr("methods_title", lang), '</strong></summary>\n\n')
+} else {
+  cat('## ', tr("methods_title", lang), '\n\n')
+}
 ```
 
-## `r tr("sample_variability", lang)`
+`r if (!is_compact) section_open(tr("std_concentrations", lang)) else ""`
 
-```{r sample-boxplot, fig.width=10, fig.height=7, results='asis', warning=FALSE, message=FALSE}
+```{r standards-table, eval=!is_compact}
+# Extract and display standard concentrations
+standards_data <- data_long %>%
+  filter(SampleType == "Standard", !is.na(StandardConc)) %>%
+  arrange(desc(StandardConc)) %>%
+  distinct(StandardConc)
+
+# Format concentrations based on assay type
+if (isTRUE(is_elisa)) {
+  # ELISA: Use regular number formatting (no scientific notation)
+  standard_table <- data.frame(
+    StandardNumber = seq_len(nrow(standards_data)),
+    Concentration = format(standards_data$StandardConc, digits = 4, nsmall = 1, big.mark = ",")
+  )
+  unit_label <- paste0("Concentration (", assay_config$units %||% "pg/mL", ")")
+} else {
+  # RBA: Use scientific notation  
+  standard_table <- data.frame(
+    StandardNumber = seq_len(nrow(standards_data)),
+    Concentration = format(standards_data$StandardConc, scientific = TRUE, digits = 3)
+  )
+  unit_label <- "Concentration (mol/L)"
+}
+
+render_table(
+  standard_table, 
+  caption = tr("std_concentrations_table", lang),
+  col_names = c(tr("col_standards", lang), unit_label)
+)
+```
+
+`r if (!is_compact) section_close() else ""`
+
+```{r methods-section, results='asis', eval=!is_compact}
+# Item 10: expanded Methods section covering model, weighting, LLOQ/ULOQ
+# criteria, CI method, outlier rule, and software. Replaces the former single
+# sentence. render_methods_section() lives in reports/report_sections.R.
+render_methods_section(
+  analysis_config = analysis_config,
+  assay_config    = assay_config,
+  is_elisa        = is_elisa,
+  lang            = lang
+)
+```
+
+```{r lloq-uloq, results='asis', warning=FALSE, eval=!is_compact}
+# Formal LLOQ/ULOQ determination by back-calculated standard accuracy.
+# M1.3: compute lives in determine_lloq_uloq() in reports/analysis_pipeline.R;
+# this chunk handles localisation, formatting, and rendering.
+# GUI refresh §6.2 / Q4(e): determine_lloq_uloq() is now called once
+# in the model-fitting chunk above (so the KPI strip can read its
+# results); this chunk reuses .lloq_res from that call. Falls back
+# to recomputing if the upstream chunk failed.
+tryCatch({
+  section_start(tr("lloq_uloq_title", lang))
+  cat(tr("lloq_uloq_desc", lang), "\n\n")
+
+  if (!exists(".lloq_res") || is.null(.lloq_res)) {
+    .lloq_res <- determine_lloq_uloq(
+      standards_for_model = standards_for_model,
+      model_fit           = model_fit,
+      response_var        = response_var,
+      is_elisa            = is_elisa
+    )
+  }
+  backcalc_results <- .lloq_res$backcalc_results
+  backcalc_summary <- .lloq_res$backcalc_summary
+  passing_concs    <- .lloq_res$passing_concs
+
+  # Add the localised accuracy label to the summary so the rendering code
+  # below stays as-is.
+  if (nrow(backcalc_summary) > 0) {
+    backcalc_summary$accuracy <- ifelse(backcalc_summary$passes,
+                                        tr("qc_green", lang),
+                                        tr("qc_red", lang))
+  }
+
+  if (nrow(backcalc_summary) > 0) {
+    # Display back-calculation table
+    display_bc <- backcalc_summary %>%
+      dplyr::select(nominal_conc, mean_backcalc, mean_recovery, cv_backcalc, accuracy)
+
+    if (isTRUE(is_elisa)) {
+      display_bc$nominal_conc <- format(display_bc$nominal_conc, digits = 4, big.mark = ",")
+      display_bc$mean_backcalc <- format(display_bc$mean_backcalc, digits = 4, big.mark = ",")
+    } else {
+      display_bc$nominal_conc <- format(display_bc$nominal_conc, scientific = TRUE, digits = 3)
+      display_bc$mean_backcalc <- format(display_bc$mean_backcalc, scientific = TRUE, digits = 3)
+    }
+    display_bc$mean_recovery <- paste0(round(as.numeric(backcalc_summary$mean_recovery), 1), "%")
+    display_bc$cv_backcalc <- ifelse(is.na(backcalc_summary$cv_backcalc), "\u2014",
+                                      paste0(round(backcalc_summary$cv_backcalc, 1), "%"))
+
+    units_str <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
+    names(display_bc) <- c(
+      sprintf(tr("col_nominal", lang), units_str),
+      sprintf(tr("col_backcalc", lang), units_str),
+      tr("col_recovery", lang),
+      "CV%",
+      tr("col_accuracy", lang)
+    )
+    render_table(display_bc, caption = tr("backcalc_title", lang))
+
+    # LLOQ/ULOQ already computed by determine_lloq_uloq(). Promote to the
+    # outer chunk env (formal_lloq / formal_uloq are read by a later chunk
+    # via exists() so we set them either way).
+    if (length(passing_concs) >= 2) {
+      formal_lloq <- .lloq_res$formal_lloq
+      formal_uloq <- .lloq_res$formal_uloq
+      cat(sprintf("\n\n**%s:** %s %s\n\n", tr("lloq_label", lang),
+                  if (isTRUE(is_elisa)) format(formal_lloq, digits = 4, big.mark = ",") else format(formal_lloq, scientific = TRUE, digits = 3),
+                  units_str))
+      cat(sprintf("**%s:** %s %s\n\n", tr("uloq_label", lang),
+                  if (isTRUE(is_elisa)) format(formal_uloq, digits = 4, big.mark = ",") else format(formal_uloq, scientific = TRUE, digits = 3),
+                  units_str))
+    } else {
+      cat(tr("lloq_uloq_none", lang), "\n\n")
+    }
+  } else {
+    cat(tr("lloq_uloq_none", lang), "\n\n")
+  }
+
+  section_end()
+}, error = function(e) {
+  cat(sprintf("\n\n*LLOQ/ULOQ determination failed: %s*\n\n", e$message))
+})
+```
+
+```{r section-methods-close, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
+```
+
+```{r section-curve-diagnostics-open, results='asis', eval=!is_compact}
+if (is_html_out()) {
+  cat('<details>\n<summary><strong>', tr("section_curve_diagnostics", lang), '</strong></summary>\n\n')
+} else {
+  cat('## ', tr("section_curve_diagnostics", lang), '\n\n')
+}
+```
+
+`r if (!is_compact) section_open(tr("four_pl_coefficients", lang), default_open = TRUE) else ""`
+
+```{r model-stats, warning=FALSE, eval=!is_compact}
+# Extract and display model coefficients with correct parameter order
+tryCatch({
+  
+  coefficients <- summary(model_fit)$coefficients
+  
+  # Check if coefficients have expected structure
+  if (is.matrix(coefficients) && nrow(coefficients) >= 4) {
+    
+    # DRC package LL.4() parameter order: b (Hill slope), c (Lower asymptote), d (Upper asymptote), e (IC50)
+    actual_param_names <- c(tr("hill_slope", lang), tr("bottom", lang), tr("top", lang), tr("ic50", lang))
+    
+    # Ensure we don't exceed available rows
+    n_params <- min(length(actual_param_names), nrow(coefficients))
+    
+    # Create results data frame with correct parameter mapping
+    pval_col <- if ("Pr(>|t|)" %in% colnames(coefficients)) {
+      coefficients[1:n_params, "Pr(>|t|)"]
+    } else {
+      rep(NA_real_, n_params)
+    }
+    drc_results <- data.frame(
+      Parameter = actual_param_names[1:n_params],
+      Value = coefficients[1:n_params, "Estimate"],
+      StdError = if ("Std. Error" %in% colnames(coefficients)) {
+        coefficients[1:n_params, "Std. Error"]
+      } else {
+        rep(NA_real_, n_params)
+      },
+      stringsAsFactors = FALSE
+    )
+    col_nm <- c(tr("col_parameter", lang), tr("col_estimate", lang), tr("col_std_error", lang))
+
+    # Drop p-value column when all values are NA (e.g. 3-parameter fits)
+    if (!all(is.na(pval_col))) {
+      drc_results$PValue <- pval_col
+      col_nm <- c(col_nm, tr("col_pvalue", lang))
+    }
+
+    render_table(
+      drc_results,
+      caption = tr("four_pl_coefficients", lang),
+      col_names = col_nm
+    )
+    
+  } else {
+    cat("Model coefficients structure unexpected. Available coefficients:\n")
+    print(coefficients)
+  }
+  
+}, error = function(e) {
+  cat("Error extracting model coefficients:", e$message, "\n")
+  cat("Model summary:\n")
+  print(summary(model_fit))
+})
+```
+
+```{r model-fit-stats-display, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
+cat(sprintf("\n**%s**\n\n", tr("model_fit_stats", lang)))
+cat(sprintf("- **R\u00b2** = %.3f\n", R2))
+cat(sprintf("- **RMSE** = %.3f %s\n", RMSE, labels$y_unit))
+n_uniq  <- length(unique(standards_for_model$StandardConc))
+n_reps  <- round(nrow(standards_for_model) / max(n_uniq, 1))
+n_total <- nrow(standards_for_model)
+n_def   <- length(unique(standards_data$StandardConc))
+cat(sprintf("- **%s** = %d %s \u00d7 %d replicates = %d wells (of %d defined levels)\n\n",
+            tr("standards_used", lang), n_uniq, tr("std_levels", lang), n_reps, n_total, n_def))
+```
+
+```{r weighting-suitability, results='asis', warning=FALSE, eval=!is_compact}
+# H2: document the auto-weighting decision (if taken) at the top of the
+# weighting-suitability section, before the full diagnostic block below.
+if (!is.null(auto_weighting_result)) {
+  weight_labels <- list(none = tr("weight_unweighted", lang), inv_y = "1/Y", inv_y2 = "1/Y²")
+  chosen_label <- weight_labels[[auto_weighting_result$chosen_weight]] %||%
+                  auto_weighting_result$chosen_weight
+  if (isTRUE(auto_weighting_result$fallback)) {
+    cat("\n\n", tr("weight_auto_fallback", lang), "\n\n", sep = "")
+  } else {
+    cat("\n\n", tr("weight_auto_decision", lang,
+                    chosen_label,
+                    auto_weighting_result$test_name %||% "Brown-Forsythe",
+                    auto_weighting_result$statistic %||% NA_real_,
+                    auto_weighting_result$p_value %||% NA_real_),
+        "\n\n", sep = "")
+  }
+  if (isTRUE(auto_weighting_result$degenerate)) {
+    cat("\n\n> **Warning:** The heteroscedasticity test was numerically degenerate",
+        "(at least one replicate group has zero within-group variance — F → ∞).",
+        "The auto-weight selection used the variance ratio as a fallback.",
+        "Inspect your standards for all-identical replicates at any concentration level.",
+        "\n\n", sep = " ")
+  }
+}
+
+# Formal heteroscedasticity diagnostic (assess_heteroscedasticity)
+tryCatch({
+  # Determine which model to assess: prefer the unweighted model, otherwise
+  # use the first available model as a reference
+  hetero_model <- NULL
+  hetero_label <- NULL
+
+  if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
+    hetero_model <- all_models[["none"]]$model
+    hetero_label <- "Unweighted (LL.4/LL.3)"
+  } else if (!drc_failed_completely) {
+    # No unweighted model was fitted; use primary model as proxy
+    hetero_model <- all_models[[primary_key]]$model
+    hetero_label <- all_models[[primary_key]]$label
+  }
+
+  if (!is.null(hetero_model)) {
+    hetero_result <- assess_heteroscedasticity(
+      model = hetero_model,
+      data_long = standards_for_model,
+      response_var = response_var
+    )
+
+    cat(sprintf("\n\n### %s\n\n", tr("weighting_suitability_title", lang)))
+
+    cat(sprintf("**Test:** %s\n\n", hetero_result$test_name %||% "N/A"))
+
+    if (!isTRUE(hetero_result$degenerate) && !is.na(hetero_result$statistic)) {
+      cat(sprintf("**Statistic:** %s", fmt_smart(hetero_result$statistic, 3)))
+      if (!is.na(hetero_result$p_value)) {
+        cat(sprintf(" \u2003 **p-value:** %s", fmt_smart(hetero_result$p_value, 4)))
+      }
+      cat("\n\n")
+    }
+
+    if (!is.na(hetero_result$variance_ratio)) {
+      cat(sprintf("**Variance ratio** (max/min across concentration levels): %.1f\n\n",
+                  hetero_result$variance_ratio))
+    }
+
+    cat(sprintf("**Interpretation:** %s\n\n", hetero_result$interpretation))
+    cat(sprintf("**Recommendation:** %s\n\n", hetero_result$recommendation))
+
+    cat("*Note: This diagnostic is advisory only and does not change the selected model.*\n\n")
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Weighting suitability assessment could not be performed: %s*\n\n", e$message))
+})
+```
+
+```{r weight-comparison, results='asis', fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
+# Show comparison of multiple weighting methods if the user selected more than one
+if (multi_weight_mode && length(all_models) > 1) {
+  section_start(tr("weight_comparison_title", lang))
+  cat(tr("weight_comparison_desc", lang), "\n\n")
+
+  # --- Comparison table: R², RMSE, AIC, parameters (+ stability if available) ---
+  comp_rows <- lapply(names(all_models), function(k) {
+    m <- all_models[[k]]
+    coefs <- m$coefs  # b (Hill), c (Bottom), d (Top), e (IC50)
+    if (is.null(coefs)) {
+      row <- data.frame(
+        Method = m$label,
+        R2 = NA, RMSE = NA, AIC = NA,
+        Hill = NA, Bottom = NA, Top = NA, IC50 = NA,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      row <- data.frame(
+        Method = m$label,
+        R2 = round(m$R2, 5),
+        RMSE = round(m$RMSE, 3),
+        AIC = if (!is.null(m$AIC) && !is.na(m$AIC)) round(m$AIC, 1) else NA,
+        Hill = round(abs(coefs[1]), 4),
+        Bottom = round(coefs[2], 2),
+        Top = round(coefs[3], 2),
+        IC50 = if (isTRUE(is_elisa)) format(round(coefs[4], 2), big.mark = ",") else format(coefs[4], scientific = TRUE, digits = 3),
+        stringsAsFactors = FALSE
+      )
+    }
+    # Append stability grade if already assessed
+    if (!is.null(m$stability)) {
+      grade_icon <- function(g) switch(g,
+        good = "\U0001F7E2", acceptable = "\U0001F7E1",
+        unstable = "\U0001F534", failed = "\u274C", "\u2753")
+      row$Stability <- paste(grade_icon(m$stability$stability_grade),
+                              tools::toTitleCase(m$stability$stability_grade))
+    }
+    row
+  })
+  comp_df <- do.call(rbind, comp_rows)
+  col_names <- c(tr("qc_metric", lang), "R\u00B2", "RMSE", "AIC",
+                  tr("hill_slope", lang), tr("bottom", lang), tr("top", lang), tr("ic50", lang))
+  if ("Stability" %in% names(comp_df)) {
+    col_names <- c(col_names, "Stability")
+  }
+  names(comp_df) <- col_names
+
+  render_table(comp_df, caption = tr("weight_comparison_title", lang))
+
+  # --- AIC recommendation note ---
+  aic_vals <- sapply(all_models, function(m) if (!is.null(m$AIC)) m$AIC else NA_real_)
+  if (any(!is.na(aic_vals))) {
+    best_key <- names(which.min(aic_vals))
+    best_label <- all_models[[best_key]]$label
+    best_aic <- min(aic_vals, na.rm = TRUE)
+    cat(sprintf("\n\n**AIC recommends: %s** (lowest AIC = %.1f). ", best_label, best_aic))
+    cat(tr("weight_comparison_primary", lang, all_models[[primary_key]]$label), "\n\n")
+  }
+
+  # --- Overlay DRC curves ---
+  curve_colors <- c("none" = "#000000", "inv_y" = "#0072B2", "inv_y2" = "#D55E00")
+  curve_data_list <- list()
+  for (k in names(all_models)) {
+    if (is.null(all_models[[k]]$model)) next
+    pred_df <- data.frame(conc = conc_range)
+    pred_df$p <- predict(all_models[[k]]$model, newdata = pred_df)
+    pred_df$method <- all_models[[k]]$label
+    curve_data_list[[k]] <- pred_df
+  }
+  if (length(curve_data_list) > 0) {
+  curve_data <- do.call(rbind, curve_data_list)
+  plotted_keys <- names(curve_data_list)
+
+  standards_plot <- data_long %>%
+    dplyr::filter(!is.na(concentration), SampleType == "Standard")
+
+  cmp_plot <- ggplot() +
+    geom_point(data = standards_plot,
+               aes(x = concentration, y = .data[[response_var]]),
+               size = 3, alpha = 0.6, color = "grey40") +
+    geom_line(data = curve_data,
+              aes(x = conc, y = p, color = method),
+              size = 1.1) +
+    scale_color_manual(
+      name = tr("col_weighting_label", lang),
+      values = setNames(
+        curve_colors[plotted_keys],
+        sapply(all_models[plotted_keys], function(m) m$label)
+      )
+    ) +
+    theme_classic() +
+    theme(legend.position = "top",
+          axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = labels$x_label, y = labels$y_label)
+
+  if (isTRUE(is_elisa)) {
+    cmp_plot <- cmp_plot +
+      scale_x_log10(
+        labels = function(x) format(x, digits = 3, big.mark = ","),
+        breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
+      )
+  } else {
+    cmp_plot <- cmp_plot +
+      scale_x_log10(
+        limits = c(1e-12, 1e-5),
+        breaks = 10^seq(-12, -5, by = 1),
+        labels = scales::scientific_format(digits = 2)
+      )
+  }
+
+  } # end if (length(curve_data_list) > 0)
+}
+```
+
+```{r weight-comparison-plot, fig.width=12, fig.height=7, warning=FALSE, message=FALSE, eval=!is_compact}
+# Separate chunk so render_plot() return value is visible to knitr
+if (exists("cmp_plot") && multi_weight_mode && length(all_models) > 1) {
+  render_plot(cmp_plot)
+}
+```
+
+```{r weight-comparison-close, results='asis', eval=!is_compact}
+if (multi_weight_mode && length(all_models) > 1) {
+  cat(sprintf("\n\n*%s*\n\n",
+      tr("weight_comparison_primary", lang, all_models[[primary_key]]$label)))
+  section_end()
+}
+
+# Simple heteroscedasticity diagnostic for unweighted model
+if ("none" %in% names(all_models) && !is.null(all_models[["none"]]$model)) {
+  unw_fit <- all_models[["none"]]$model
+  unw_resid <- residuals(unw_fit)
+  conc_levels <- standards_for_model$StandardConc
+  var_by_level <- tapply(unw_resid^2, conc_levels, mean, na.rm = TRUE)
+  var_ratio <- max(var_by_level, na.rm = TRUE) / max(min(var_by_level[var_by_level > 0], na.rm = TRUE), 1e-10)
+  if (var_ratio > 3) {
+    cat(sprintf("\n\n> **Note:** Residual variance ratio across concentration levels = %.1f (>3), suggesting heteroscedasticity. Weighted regression (1/Y or 1/Y²) is recommended.\n\n", var_ratio))
+  }
+}
+```
+
+```{r model-stability-assessment, results='asis', warning=FALSE, eval=!is_compact}
+# Convergence and stability diagnostics for all fitted models
+tryCatch({
+  if (!drc_failed_completely && length(all_models) > 0) {
+
+    # Assess stability for each fitted model
+    stability_results <- lapply(names(all_models), function(k) {
+      assess_model_stability(all_models[[k]], all_models[[k]]$label)
+    })
+    names(stability_results) <- names(all_models)
+
+    emit_heading(tr("model_stability_title", lang), 4)
+
+    # Build summary table
+    grade_icon <- function(g) {
+      switch(g,
+        good       = "\U0001F7E2 Good",
+        acceptable = "\U0001F7E1 Acceptable",
+        unstable   = "\U0001F534 Unstable",
+        failed     = "\u274C Failed",
+        "\u2753 Unknown"
+      )
+    }
+
+    stability_df <- data.frame(
+      Model = sapply(stability_results, function(s) s$model_name),
+      Method = sapply(stability_results, function(s) s$fit_method %||% "N/A"),
+      Converged = sapply(stability_results, function(s) if (s$converged) tr("yes_label", lang) else tr("no_label", lang)),
+      SE_Available = sapply(stability_results, function(s) if (s$se_available) tr("yes_label", lang) else tr("no_label", lang)),
+      Boundary = sapply(stability_results, function(s) if (s$boundary_flag) tr("yes_label", lang) else tr("no_label", lang)),
+      Grade = sapply(stability_results, function(s) grade_icon(s$stability_grade)),
+      stringsAsFactors = FALSE
+    )
+    names(stability_df) <- c(tr("col_model", lang), tr("col_fit_method", lang),
+                              tr("col_converged", lang), tr("col_se_available", lang),
+                              tr("col_boundary_hit", lang), tr("col_stability_grade", lang))
+
+    render_table(stability_df, caption = tr("model_stability_title", lang))
+
+    # Print detailed warnings / suspicious parameters per model
+    for (k in names(stability_results)) {
+      sr <- stability_results[[k]]
+      has_details <- length(sr$suspicious_params) > 0 || length(sr$warnings) > 0
+
+      if (has_details) {
+        cat(sprintf("\n**%s:**\n\n", sr$model_name))
+        for (w in sr$warnings) {
+          cat(sprintf("- %s\n", w))
+        }
+        for (sp in sr$suspicious_params) {
+          cat(sprintf("- %s\n", sp))
+        }
+        cat("\n")
+      }
+    }
+
+    # Store stability info for downstream use (e.g., model comparison table)
+    # Attach to all_models entries
+    for (k in names(stability_results)) {
+      all_models[[k]]$stability <- stability_results[[k]]
+    }
+  }
+}, error = function(e) {
+  cat(sprintf("\n\n*Model stability assessment could not be performed: %s*\n\n", e$message))
+})
+```
+
+```{r standard-backcalculation-render, results='asis', warning=FALSE, eval=!is_compact}
+section_start(tr("std_backcalc_title", lang))
+# Format for display
+if (isTRUE(is_elisa)) {
+  recovery_display <- recovery_summary %>%
+    dplyr::mutate(
+      `Nominal Conc.` = format(nominal, digits = 4, nsmall = 1, big.mark = ","),
+      `Back-Calculated` = format(mean_backcalc, digits = 4, nsmall = 1, big.mark = ","),
+      `SD` = ifelse(is.na(sd_backcalc), "—", format(sd_backcalc, digits = 3, nsmall = 1)),
+      `Recovery (%)` = ifelse(is.na(mean_recovery), "—", format(mean_recovery, digits = 4, nsmall = 1))
+    ) %>%
+    dplyr::select(`Nominal Conc.`, n, `Back-Calculated`, SD, `Recovery (%)`)
+} else {
+  recovery_display <- recovery_summary %>%
+    dplyr::mutate(
+      `Nominal Conc.` = format(nominal, scientific = TRUE, digits = 3),
+      `Back-Calculated` = format(mean_backcalc, scientific = TRUE, digits = 3),
+      `SD` = ifelse(is.na(sd_backcalc), "—", format(sd_backcalc, scientific = TRUE, digits = 2)),
+      `Recovery (%)` = ifelse(is.na(mean_recovery), "—", format(mean_recovery, digits = 4, nsmall = 1))
+    ) %>%
+    dplyr::select(`Nominal Conc.`, n, `Back-Calculated`, SD, `Recovery (%)`)
+}
+
+conc_unit <- if (isTRUE(is_elisa)) paste0(assay_config$units %||% "pg/mL") else "mol/L"
+names(recovery_display) <- c(sprintf(tr("col_nominal", lang), conc_unit), tr("col_n", lang),
+                              sprintf(tr("col_backcalc", lang), conc_unit),
+                              paste0("SD (", conc_unit, ")"),
+                              tr("col_recovery", lang))
+
+render_table(recovery_display,
+            caption = tr("std_backcalc_caption", lang))
+
+# Report overall recovery statistics
+mean_overall_recovery <- mean(recovery_summary$mean_recovery, na.rm = TRUE)
+cat(sprintf("\n**%s**\n", tr("overall_recovery", lang, mean_overall_recovery)))
+if (mean_overall_recovery >= 80 && mean_overall_recovery <= 120) {
+  cat(tr("recovery_acceptable", lang), "\n\n")
+} else {
+  cat(tr("recovery_outside", lang), "\n\n")
+}
+section_end()
+```
+
+
+```{r qc-traffic-light, results='asis', warning=FALSE, eval=!is_compact}
+# M1.6: traffic-light QC summary card (R^2 / Hill / max CV / mean recovery).
+# Compute + presentation are inseparable here so the helper does both;
+# wrap whole block in a tryCatch that prints a one-line "could not be
+# generated" message instead of crashing the report.
+render_qc_traffic_light_section(model_fit          = model_fit,
+                                standards_for_model = standards_for_model,
+                                response_var       = response_var,
+                                replicate_stats    = if (exists("replicate_stats")) replicate_stats else NULL,
+                                R2                 = R2,
+                                weight_desc        = weight_desc,
+                                assay_config       = assay_config,
+                                lang               = lang)
+```
+
+```{r section-curve-diagnostics-close, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
+```
+
+```{r section-plate-open, results='asis', eval=!is_compact}
+if (is_html_out()) {
+  cat('<details>\n<summary><strong>', tr("section_plate_diagnostics", lang), '</strong></summary>\n\n')
+} else {
+  cat('## ', tr("section_plate_diagnostics", lang), '\n\n')
+}
+```
+
+```{r sample-boxplot, fig.width=10, fig.height=7, results='asis', warning=FALSE, message=FALSE, eval=!is_compact}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   sample_plot_data <- sample_results %>%
@@ -2083,9 +2177,8 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     cat(sprintf("*%s*\n\n", tr("sample_variability_desc", lang)))
   }
 }
-```
 
-```{r sample-boxplot-render, fig.width=10, fig.height=5, warning=FALSE, message=FALSE}
+```{r sample-boxplot-render, fig.width=10, fig.height=5, warning=FALSE, message=FALSE, eval=!is_compact}
 # Separate chunk so render_plot() return value is visible to knitr
 if (exists("sample_box") && !is.null(sample_box)) {
   fig_h_px <- 480L
@@ -2094,15 +2187,11 @@ if (exists("sample_box") && !is.null(sample_box)) {
 }
 ```
 
-```{r sample-boxplot-close, results='asis'}
+```{r sample-boxplot-close, results='asis', eval=!is_compact}
 if (exists("sample_box") && !is.null(sample_box)) {
   if (is_html_out()) cat("</details>\n\n") else section_end()
 }
 ```
-
-## `r tr("heatmap_title", lang)`
-
-`r section_open(tr("heatmap_title", lang), default_open = TRUE)`
 
 ```{r plate-heatmap, fig.width=10, fig.height=6, results='asis', warning=FALSE, message=FALSE, eval=!is_compact}
 tryCatch({
@@ -2179,8 +2268,6 @@ tryCatch({
 })
 ```
 
-`r section_close()`
-
 ```{r plate-positional-qc, results='asis', eval=!is_compact}
 section_start("Plate Positional Quality")
 positional <- if (exists("data_long")) assess_plate_positional(data_long) else NULL
@@ -2205,201 +2292,17 @@ if (!is.null(positional)) {
 section_end()
 ```
 
-## `r tr("drc_with_samples", lang)`
-
-`r section_open(tr("drc_with_samples", lang), default_open = TRUE)`
-
-```{r drc-with-samples, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
-if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
-  
-  standards_plot_data <- data_long %>%
-    dplyr::filter(!is.na(concentration), SampleType == "Standard") %>%
-    # Task 3: pre-compute hover text for the standards layer so plotly's
-    # tooltip="text" picks it up. Inline aes(text = paste0(...)) would also
-    # work but a mutate keeps the response-column dynamic lookup
-    # (.data[[response_var]]) outside the aesthetic mapping.
-    dplyr::mutate(
-      .response_for_hover = .data[[response_var]],
-      .hover_text = paste0(
-        "Standard: ", SampleID, "<br>",
-        "Concentration: ",
-        if (isTRUE(is_elisa)) {
-          format(concentration, digits = 4, big.mark = ",")
-        } else {
-          scales::scientific(concentration, digits = 2)
-        }, "<br>",
-        labels$y_label, ": ", round(.response_for_hover, 2), "<br>",
-        "Variability: ", high_variability
-      )
-    )
-
-  unknown_plot_data <- sample_results %>%
-    dplyr::filter(!is.na(concentration_diluted), is.finite(concentration_diluted)) %>%
-    dplyr::mutate(
-      falls_within_range = mapply(classify_range, response_value, estimated_concentration,
-                                  MoreArgs = list(is_elisa_assay = is_elisa))
-    )
-
-  if (nrow(unknown_plot_data) > 0) {
-
-    combined_drc <- ggplot() +
-      geom_line(data = model_fits, aes(x = conc, y = p),
-               color = "black", linewidth = 1.2) +
-      geom_point(data = standards_plot_data,
-                aes(x = concentration, y = .data[[response_var]],
-                    color = high_variability,
-                    text = .hover_text),
-                size = 3, alpha = 0.7) +
-      geom_point(data = unknown_plot_data,
-                aes(x = concentration_diluted, y = response_value,
-                    shape = falls_within_range,
-                    text = paste0(
-                      "Sample: ", SampleID, "<br>",
-                      "Replicate: ", Replicate, "<br>",
-                      "Dilution: 1:", DilutionFactor, "<br>",
-                      "Actual Concentration: ",
-                      if (isTRUE(is_elisa)) {
-                        format(estimated_concentration, digits = 4, big.mark = ",")
-                      } else {
-                        scales::scientific(estimated_concentration, digits = 2)
-                      }, "<br>",
-                      "Diluted Concentration: ",
-                      if (isTRUE(is_elisa)) {
-                        format(concentration_diluted, digits = 4, big.mark = ",")
-                      } else {
-                        scales::scientific(concentration_diluted, digits = 2)
-                      }, "<br>",
-                      labels$y_label, ": ", round(response_value, 2), "<br>",
-                      if ("concentration_pg_per_g" %in% names(unknown_plot_data) &&
-                          !is.na(concentration_pg_per_g)) {
-                        paste0("Conc. (pg/g tissue): ",
-                               format(concentration_pg_per_g, digits = 4, nsmall = 1, big.mark = ","), "<br>")
-                      } else { "" },
-                      "Range Status: ", falls_within_range
-                    )),
-                size = 3, color = "#E69F00") +
-      scale_shape_manual(name = "Sample Status",
-                        values = c("Within Range" = 16, "Out of Range" = 17, "Unknown" = 18)) +
-      # GUI refresh §6.5: keep variability cue on standards (still
-      # useful) but adopt the Okabe-Ito hexes verbatim.
-      scale_color_manual(name = tr("plot_std_variability", lang),
-                        values = c("Normal Variability" = "#0072b2",
-                                  "High Variability"   = "#d55e00"),
-                        labels = c("Normal Variability" = tr("variability_normal", lang),
-                                   "High Variability"   = tr("variability_high", lang))) +
-      # GUI refresh §6.5: theme_minimal() with the design's gridline
-      # color and a hairline panel border. Replaces the previous
-      # theme_classic() + theme() chain with a single declarative
-      # block.
-      theme_minimal() +
-      theme(
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_line(color = "#e3e6ea", linewidth = 0.4),
-        panel.border     = element_rect(color = "#e3e6ea", fill = NA, linewidth = 0.5),
-        legend.position  = "top",
-        legend.box       = "vertical",
-        axis.text.x      = element_text(angle = 45, hjust = 1)
-      ) +
-      labs(x = labels$x_label, y = labels$y_label)
-    
-    if (isTRUE(is_elisa)) {
-      combined_drc <- combined_drc + 
-        scale_x_log10(
-          labels = function(x) format(x, digits = 3, big.mark = ","),
-          breaks = scales::trans_breaks("log10", function(x) 10^x, n = 6)
-        )
-    } else {
-      combined_drc <- combined_drc + 
-        scale_x_log10(
-          limits = c(1e-12, 1e-5),
-          breaks = 10^seq(-12, -5, by = 1),
-          labels = scales::scientific_format(digits = 2)
-        )
-    }
-    
-    # Render plot - interactive for HTML, static for DOCX/PDF
-    render_plot(combined_drc, tooltip = "text")
-  }
-}
+```{r section-plate-close, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
 ```
 
-`r section_close()`
-
-```{r parallelism-assessment, results='asis', eval=!is_compact}
-# Task C (HP7): Optional parallelism / relative potency assessment.
-# Heading is emitted inside the chunk so it only appears when n_curves >= 2.
-tryCatch({
-  if (exists("model_fit") && !is.null(model_fit) && exists("data_long") && exists("response_var")) {
-    parallelism_result <- assess_parallelism(data_long, model_fit, response_var)
-
-    if (isTRUE(parallelism_result$applicable)) {
-      cat("## ", tr("parallelism_title", lang), "\n\n", sep = "")
-      cat("### Test Results\n\n")
-
-      if (!is.na(parallelism_result$slope_test$p_value)) {
-        if (isTRUE(parallelism_result$slope_test$parallel)) {
-          cat(sprintf("**Slope comparison:** Slopes are not significantly different (t = %.3f, p = %.4f). Curves appear parallel.\n\n",
-                      parallelism_result$slope_test$statistic,
-                      parallelism_result$slope_test$p_value))
-        } else {
-          cat(sprintf("**Slope comparison:** Slopes differ significantly (t = %.3f, p = %.4f). Curves are **not** parallel.\n\n",
-                      parallelism_result$slope_test$statistic,
-                      parallelism_result$slope_test$p_value))
-        }
-      }
-
-      if (!is.na(parallelism_result$potency_ratio$estimate)) {
-        cat(sprintf("**Relative potency (EC50 ratio):** %.4f [95%% CI: %.4f \u2013 %.4f]\n\n",
-                    parallelism_result$potency_ratio$estimate,
-                    parallelism_result$potency_ratio$ci_lower,
-                    parallelism_result$potency_ratio$ci_upper))
-      }
-
-      cat(sprintf("*%d curve groups were compared.*\n\n", parallelism_result$curves_found))
-    }
-    # When not applicable: emit nothing \u2014 section is omitted entirely
-  }
-}, error = function(e) {
-  cat(sprintf("*Parallelism assessment could not be completed: %s*\n\n", e$message))
-})
-```
-
-## Summary
-
-```{r report-summary, results='asis'}
-assay_type_label <- toupper(assay_config$assay_type %||% "Unknown")
-analyte_label <- assay_config$analyte %||% assay_config$toxin_standard_label %||% "Unknown"
-cat(sprintf("- **Assay:** %s \u2014 %s\n", assay_type_label, analyte_label))
-
-n_std_used <- if (exists("model_stats") && !is.null(model_stats)) model_stats$n_standards %||% NA_integer_ else NA_integer_
-n_std_total <- if (exists("model_stats") && !is.null(model_stats)) model_stats$n_unique_concs %||% NA_integer_ else NA_integer_
-if (!is.na(n_std_used) && !is.na(n_std_total)) {
-  cat(sprintf("- **Standards:** %d used (after exclusions) out of %d\n", n_std_used, n_std_total))
-}
-
-weight_info <- if (exists("model_stats") && !is.null(model_stats)) model_stats$weight_method %||% "none" else "none"
-cat(sprintf("- **Model:** 4PL logistic with %s weighting\n", weight_info))
-
-if (exists("replicate_stats") && !is.null(replicate_stats) && nrow(replicate_stats) > 0) {
-  n_total <- nrow(replicate_stats)
-  n_quantified <- if ("within_range" %in% names(replicate_stats)) sum(replicate_stats$within_range == "Within Range", na.rm = TRUE) else NA_integer_
-  n_flagged <- if (!is.na(n_quantified)) n_total - n_quantified else NA_integer_
-  if (!is.na(n_quantified)) {
-    cat(sprintf("- **Samples analyzed:** %d total, %d within range, %d flagged\n", n_total, n_quantified, n_flagged))
-  } else {
-    cat(sprintf("- **Samples analyzed:** %d total\n", n_total))
-  }
-}
-
-if (exists("formal_lloq") && exists("formal_uloq") && !is.na(formal_lloq) && !is.na(formal_uloq)) {
-  conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
-  lloq_fmt <- if (isTRUE(is_elisa)) format(formal_lloq, digits = 4, big.mark = ",") else format(formal_lloq, scientific = TRUE, digits = 3)
-  uloq_fmt <- if (isTRUE(is_elisa)) format(formal_uloq, digits = 4, big.mark = ",") else format(formal_uloq, scientific = TRUE, digits = 3)
-  cat(sprintf("- **LLOQ:** %s %s, **ULOQ:** %s %s\n", lloq_fmt, conc_unit, uloq_fmt, conc_unit))
+```{r section-interpretation-open, results='asis'}
+if (is_html_out()) {
+  cat('<details open>\n<summary><strong>Interpretation &amp; Recommendations</strong></summary>\n\n')
+} else {
+  cat('## Interpretation & Recommendations\n\n')
 }
 ```
-
-## Interpretation & Recommendations
 
 ```{r report-interpretation, results='asis'}
 tryCatch({
@@ -2477,9 +2380,17 @@ render_tissue_normalization_section(
 )
 ```
 
-### Exclusion Audit
+```{r section-interpretation-close, results='asis'}
+if (is_html_out()) cat('</details>\n\n')
+```
 
-`r section_open(tr("exclusion_audit_caption", lang))`
+```{r section-exclusion-open, results='asis', eval=!is_compact}
+if (is_html_out()) {
+  cat('<details>\n<summary><strong>', tr("exclusion_audit_caption", lang), '</strong></summary>\n\n')
+} else {
+  cat('## ', tr("exclusion_audit_caption", lang), '\n\n')
+}
+```
 
 ```{r exclusion-audit, results='asis', eval=!is_compact}
 # M5: Formal Exclusion Audit Table
@@ -2506,11 +2417,25 @@ if (exists(".dagger_groups") && length(.dagger_groups) > 0) {
 }
 ```
 
-`r section_close()`
+```{r section-exclusion-close, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
+```
 
-```{r abbreviations, results='asis'}
+```{r section-abbreviations-open, results='asis', eval=!is_compact}
+if (is_html_out()) {
+  cat('<details>\n<summary><strong>Abbreviations</strong></summary>\n\n')
+} else {
+  cat('## Abbreviations\n\n')
+}
+```
+
+```{r abbreviations, results='asis', eval=!is_compact}
 # Item 11: collapsed Abbreviations block above the report footer.
 render_abbreviations_block()
+```
+
+```{r section-abbreviations-close, results='asis', eval=!is_compact}
+if (is_html_out()) cat('</details>\n\n')
 ```
 
 ---
