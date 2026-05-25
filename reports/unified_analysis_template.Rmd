@@ -1026,37 +1026,51 @@ tryCatch({
     base_cols <- c("Replicate", "sampleID", "n_replicates",
                    "mean_conc_formatted", "ci_formatted", "cv_formatted")
 
-    # Status: combine calibration-range pill + quantifiable-range pill
-    .cal_pill <- function(qs, rf) {
+    # Status: two stacked pills \u2014 Cal. Range (top) + Quant. Range (bottom)
+    .status_pills <- function(qs, rf) {
       qs_str <- if (!is.na(qs) && nzchar(qs)) as.character(qs) else "Unknown"
       rf_str <- if (!is.na(rf)) as.character(rf) else ""
-      if (is_html_out()) {
-        cal <- if (qs_str %in% c("Interpolated", "Within Range") && rf_str == "") {
-          '<span class="bs-status-pill is-pass">\u2713&nbsp;Cal.&nbsp;OK</span>'
-        } else if (rf_str == "<LLOQ" || qs_str == "Extrapolated (below)") {
-          '<span class="bs-status-pill is-warn">\u25b2&nbsp;&lt;Cal.&nbsp;low</span>'
-        } else if (rf_str == ">ULOQ" || qs_str == "Extrapolated (above)") {
-          '<span class="bs-status-pill is-warn">\u25b2&nbsp;&gt;Cal.&nbsp;high</span>'
-        } else if (qs_str == "Not estimable") {
-          '<span class="bs-status-pill is-fail">\u25cf&nbsp;Not&nbsp;estimable</span>'
-        } else {
-          paste0('<span class="bs-status-pill is-warn">', qs_str, '</span>')
-        }
-        cal
-      } else {
-        if (rf_str != "") rf_str else qs_str
-      }
-    }
+      .pill  <- function(label, role)
+        sprintf('<span class="bs-status-pill is-%s">%s</span>', role, label)
 
-    .quant_pill <- function(wr) {
-      if (!is_html_out()) return(as.character(wr %||% ""))
-      wr_str <- as.character(wr %||% "Unknown")
-      if (wr_str == "Within Range") {
-        '<span class="bs-status-pill is-pass">\u2713&nbsp;Quant.&nbsp;OK</span>'
-      } else if (wr_str == "Out of Range") {
-        '<span class="bs-status-pill is-warn">\u25b2&nbsp;Out&nbsp;of&nbsp;range</span>'
+      if (is_html_out()) {
+        # Cal. Range \u2014 calibration curve coverage (interpolated vs extrapolated)
+        cal_html <- if (qs_str %in% c("Interpolated", "Within Range") && rf_str == "") {
+          .pill(tr("cal_in_range", lang), "pass")
+        } else if (rf_str == "<LLOQ" || qs_str == "Extrapolated (below)") {
+          .pill(tr("cal_below", lang), "warn")
+        } else if (rf_str == ">ULOQ" || qs_str == "Extrapolated (above)") {
+          .pill(tr("cal_above", lang), "warn")
+        } else if (qs_str == "Not estimable") {
+          .pill("Not\u00a0estimable", "fail")
+        } else {
+          .pill(qs_str, "warn")
+        }
+
+        # Quant. Range \u2014 EC20-EC80 / %B/B0 20-80% quantifiable window
+        quant_html <- if (qs_str == "Not estimable") {
+          .pill("N/A", "fail")
+        } else if (rf_str == "<LLOQ") {
+          .pill(tr("quant_below_lloq", lang), "warn")
+        } else if (rf_str == ">ULOQ") {
+          .pill(tr("quant_above_uloq", lang), "warn")
+        } else if (qs_str %in% c("Extrapolated (below)", "Extrapolated (above)") &&
+                   rf_str == "") {
+          # Extrapolated from calibration curve but still within quantifiable range
+          .pill(tr("quant_extrapolated", lang), "info")
+        } else {
+          .pill(tr("quant_in_range", lang), "pass")
+        }
+
+        paste0(cal_html, '<br>', quant_html)
       } else {
-        paste0('<span class="bs-status-pill is-warn">', wr_str, '</span>')
+        # DOCX/PDF plain text
+        rf_part <- if (nzchar(rf_str)) rf_str else qs_str
+        qr_part <- if (qs_str == "Not estimable") "N/A"
+                   else if (rf_str == "<LLOQ")     "< LLOQ"
+                   else if (rf_str == ">ULOQ")     "> ULOQ"
+                   else                            "Within quantifiable"
+        paste0(rf_part, " / ", qr_part)
       }
     }
 
@@ -1074,22 +1088,20 @@ tryCatch({
       dplyr::mutate(
         .qs    = if ("quant_status" %in% names(.)) as.character(quant_status) else "Unknown",
         .rf    = if ("range_flag"   %in% names(.)) ifelse(is.na(range_flag), "", as.character(range_flag)) else "",
-        .wr    = if ("within_range" %in% names(.)) as.character(within_range) else "Unknown",
-        Status = mapply(.cal_pill, .qs, .rf, SIMPLIFY = TRUE),
-        Status2 = mapply(.quant_pill, .wr, SIMPLIFY = TRUE),
+        Status = mapply(.status_pills, .qs, .rf, SIMPLIFY = TRUE),
         ci_display = mapply(.ci_cell, ci_formatted, .cv_num, SIMPLIFY = TRUE)
       )
 
     results_display <- rs %>%
       dplyr::select(Replicate, sampleID, n_replicates,
                     mean_conc_formatted, ci_display, cv_formatted,
-                    Status, Status2, .oor_flag, .cv_flag)
+                    Status, .oor_flag, .cv_flag)
 
     names(results_display) <- c(
       tr("col_replicate_group", lang), tr("col_sample_ids", lang),
       tr("col_n", lang), conc_col_name,
       tr("col_ci", lang), tr("col_cv", lang),
-      "Cal. Range", "Quant. Range",
+      "Status",
       ".oor", ".cv"
     )
 
@@ -2353,8 +2365,6 @@ tryCatch({
   # M6: Quantification status counts
   if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0 &&
       "quantification_status" %in% names(sample_results)) {
-    # Phase 1.4: explain why two apparently overlapping range indicators exist
-    cat(tr("range_indicators_explanation", lang), "\n\n", sep = "")
     status_counts <- table(sample_results$quantification_status)
     cat("**Quantification status breakdown (per well):**\n\n")
     for (s in names(status_counts)) {

@@ -114,16 +114,31 @@ for HTML in "$@"; do
     # B.1  DT::datatable widget present (full mode only)
     assert_present "B.1  DT datatable widget" 'HTMLWidgets\.widget|class="datatables' "$HTML"
 
-    # B.2  Sample-table status pill present (full mode only).
-    # Matches any sample-table pill: Cal./Quant. pills (when samples are
-    # interpolated) or "Not estimable" pill (when samples cannot be quantified).
-    # The three text markers Cal., Quant., and estimable only appear inside
-    # sample-table pills, never in KPI/exec-card/QC pills.
-    assert_present "B.2  Sample-table status pill" 'bs-status-pill[^"]*">[^<]*(Cal\.|Quant\.|estimable)' "$HTML"
+    # B.2  Two pills per replicate row (Cal + Quant stacked)
+    N_PILLS=$(grep -cP '<span class="bs-status-pill' "$HTML" 2>/dev/null || true)
+    N_ROWS=$(grep -cP 'class="bs-replicate-meta"' "$HTML" 2>/dev/null || true)
+    EXPECTED=$((N_ROWS * 2))
+    if [ "$N_PILLS" -ge "$EXPECTED" ]; then
+      echo "  PASS  B.2  Two pills per row (pills=$N_PILLS rows=$N_ROWS)"
+      PASS=$((PASS+1))
+    else
+      echo "  FAIL  B.2  Pill count $N_PILLS < expected >= $EXPECTED (2 * $N_ROWS rows)"
+      FAIL=$((FAIL+1))
+    fi
+
+    # B.2b  Quant-range pill renders (skip when no quantified rows exist)
+    if [ "$N_ROWS" -gt 0 ]; then
+      assert_present "B.2b Quant-range pill present" 'Within quantifiable|bs-status-pill is-info|estimable' "$HTML"
+    fi
 
     # B.3  .row-out-of-range or .row-cv-high JS callback present
     assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
     assert_present "B.3  row-cv-high CSS class wired" 'row-cv-high' "$HTML"
+    # B.3a/b  Check static <tr class=""> injection in summary table (kable path)
+    # Only meaningful when there are quantified rows with flags (skip if N_ROWS==0)
+    if [ "$N_ROWS" -gt 0 ]; then
+      assert_present "B.3a row-out-of-range on <tr>" '<tr[^>]*class="[^"]*row-out-of-range' "$HTML"
+    fi
   fi
 
   # B.5  CV formatted to 1 decimal (e.g. 9.6% not 9.635)
