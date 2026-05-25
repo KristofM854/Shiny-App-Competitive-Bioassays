@@ -42,7 +42,7 @@ jobs:
         shell: bash
 
       - name: Verify reports
-        run: Rscript scripts/verify_report.R check-renders/rba_full.html check-renders/rba_compact.html check-renders/elisa_full.html check-renders/elisa_compact.html
+        run: Rscript scripts/verify_report.R check-renders/rba_full.html check-renders/rba_compact.html check-renders/elisa_full.html check-renders/elisa_compact.html check-renders/elisa_full_es.html
         shell: bash
 
       - name: Upload renders and audit log
