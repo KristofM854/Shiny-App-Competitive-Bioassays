@@ -8,5 +8,11 @@
 ^LICENSE\.md$
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
+<<<<<<< HEAD
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.positai$
+=======
 ^renv$
 ^renv\.lock$
+>>>>>>> 9a10c9d443872c828fb60495dc0d6a9e0fd7b3dc
