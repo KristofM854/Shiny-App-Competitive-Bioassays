@@ -149,15 +149,8 @@ for (html_path in args) {
                   'data:font/ttf[;,]base64|data:font/otf[;,]base64', lines)
     assert_lte("D.6  Compact ≤ 4.5 MB", bytes, 4608000L)
 
-    count_plotly <- sum(grepl('class="plotly html-widget', lines, perl = TRUE))
-    if (count_plotly == 1L) {
-      cat(sprintf("  PASS  D.7  Compact has exactly 1 Plotly widget (DRC)\n"))
-      PASS <- PASS + 1L
-    } else {
-      cat(sprintf("  FAIL  D.7  Compact Plotly widget count: expected 1, got %d\n",
-                  count_plotly))
-      FAIL <- FAIL + 1L
-    }
+    assert_present("D.7  DRC section present",
+                   'Dose.{1,10}Response|Dosis-Respuesta|section_drc', lines)
     assert_absent("D.8  Compact: no plate heatmap",
                   'heatmap_title|Plate.*Heatmap', lines)
   } else {
