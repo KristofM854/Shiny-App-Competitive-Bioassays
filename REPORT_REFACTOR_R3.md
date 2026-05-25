@@ -114,11 +114,11 @@ Goal: compact ≤ 500 KB, no Plotly, no plate heatmap, no diagnostics, no detail
 
 ### PR 4 — Polish & verification
 
-**Files:** `reports/unified_analysis_template.Rmd`, `scripts/verify_report.sh`, `reports/report_style.css`.
+**Files:** `reports/unified_analysis_template.Rmd`, `scripts/verify_report.R`, `reports/report_style.css`.
 
 1. **Plate heatmap inversion fix:** chunk gate is `eval = !is_compact`; the chunk renders Plotly when `is_html_out()`. Verify both: compact omits the chunk; full renders Plotly. (Current state is reversed.)
 2. **Consolidate naming:** rename `bs-status-banner` → `exec-summary-card` (CSS + R helpers) to match the spec. Keep the existing class name as an alias if back-compat matters.
-3. **Extend `scripts/verify_report.sh`** with assertions for every item in PRs 1–3, against the rendered HTML for both example datasets in both modes:
+3. **Extend `scripts/verify_report.R`** with assertions for every item in PRs 1–3, against the rendered HTML for both example datasets in both modes:
    - `! grep -q "<h2>Sample Concentration Results</h2>" $f && grep -q "Detailed Sample Results" $f` → merged
    - `! grep -q "<h2>Parallelism" $f` → empty section hidden
    - `! grep -q "<h2>Summary</h2>" $f` → summary folded into exec card
@@ -128,7 +128,7 @@ Goal: compact ≤ 500 KB, no Plotly, no plate heatmap, no diagnostics, no detail
    - compact: `! grep -q "plotly" $f` and `! grep -q "data:font/ttf;base64" $f`
    - compact: `wc -c $f` < 512000
    - full: `wc -c $f` < 3_000_000
-4. **Print verify_report.sh full output and `wc -c` for all 4 HTMLs in the PR description.**
+4. **Print verify_report.R full output and `wc -c` for all 4 HTMLs in the PR description.**
 
 ---
 
@@ -138,7 +138,7 @@ A change is "done" only if it satisfies *all three*:
 
 1. Source code edited and committed.
 2. Re-rendered HTML (after `unlink("*_cache", recursive=TRUE); unlink(".fit_all_models_cache.rds"); unlink(".quantify_samples_cache.rds")`) shows the change.
-3. `scripts/verify_report.sh` has an assertion that fails when the change is reverted.
+3. `scripts/verify_report.R` has an assertion that fails when the change is reverted.
 
 Items reported "done" in commit `331237a` that turned out to be invisible in the rendered HTML are the reason we now require all three.
 

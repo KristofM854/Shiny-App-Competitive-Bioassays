@@ -438,19 +438,11 @@ cat("\nDone. HTMLs are in:", out_dir, "\n")
 
 
 # ---------------------------------------------------------------------------
-
-# Run verify_report.R (pure R; no bash) and capture output to audit/
-
+# Run verify_report.R and capture output to audit/
 # ---------------------------------------------------------------------------
-
 cat("\n=== Running verify_report.R ===\n")
-
-html_files <- file.path(out_dir, c(
-  "rba_full.html", "rba_compact.html",
-
-  "elisa_full.html", "elisa_compact.html"
-))
-
+html_files <- file.path(out_dir, c("rba_full.html", "rba_compact.html",
+                                   "elisa_full.html", "elisa_compact.html"))
 html_files <- html_files[file.exists(html_files)]
 
 
@@ -468,20 +460,19 @@ sha <- tryCatch(
 )
 
 sha <- if (length(sha) > 0L && nzchar(sha[[1L]])) sha[[1L]] else "nogit"
+stamp      <- format(Sys.time(), "%Y%m%d-%H%M%S")
+audit_dir  <- file.path(repo_root, "audit")
+audit_file <- file.path(audit_dir, sprintf("verify_report_%s_%s.txt", stamp, sha))
+dir.create(audit_dir, recursive = TRUE, showWarnings = FALSE)
+verify_r   <- file.path(repo_root, "scripts", "verify_report.R")
 
-stamp <- format(Sys.time(), "%Y%m%d-%H%M%S")
-
-audit_file <- file.path(
-  repo_root, "audit",
-
-  sprintf("verify_report_%s_%s.txt", stamp, sha)
-)
-
-
-
-status <- verify_reports(html_files, log_file = audit_file)
-
-cat(sprintf("Verify exit status: %d  (file: %s)\n", status, audit_file))
-
-#--------------------------------------------------------------------
-
+rscript_exe <- Sys.which("Rscript")
+if (!nzchar(rscript_exe)) {
+  cat("Rscript not found in PATH — skipping verify_report.R\n")
+} else {
+  exit_code <- system2(rscript_exe, c(verify_r, html_files),
+                       stdout = audit_file, stderr = audit_file)
+  cat(sprintf("Verify exit code: %d\n", exit_code))
+  cat(sprintf("Verify log written: %s\n", audit_file))
+  cat(readLines(audit_file, warn = FALSE), sep = "\n")
+}
