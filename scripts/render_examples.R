@@ -241,7 +241,15 @@ if (!nzchar(bash_exe)) {
 if (!nzchar(bash_exe)) {
   cat("bash not found — skipping verify_report.sh (install Git for Windows or add bash to PATH)\n")
 } else {
-  exit_code <- system2(bash_exe, c(verify_sh, html_files),
+  # Use bash -c "cmd" so bash itself handles argument parsing after shQuote()
+  # has converted Windows paths (spaces, colons, backslashes) to POSIX-safe
+  # quoted strings.  Passing paths as separate argv elements triggers bash's
+  # colon-as-separator parsing on Windows (e.g. "C:\path" → "C" + "\path").
+  to_bash <- function(p) shQuote(gsub("\\\\", "/", p), type = "sh")
+  cmd <- paste(c(to_bash(verify_sh),
+                 vapply(html_files, to_bash, character(1L))),
+               collapse = " ")
+  exit_code <- system2(bash_exe, c("-c", cmd),
                        stdout = audit_file, stderr = audit_file)
   cat(sprintf("Verify exit code: %d\n", exit_code))
   cat(sprintf("Verify log written: %s\n", audit_file))
