@@ -191,11 +191,16 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 .inject_row_classes <- function(kbl, amber_rows, red_rows) {
   if (length(amber_rows) == 0 && length(red_rows) == 0) return(kbl)
   html     <- as.character(kbl)
-  tbody_at <- regexpr("<tbody>", html, fixed = TRUE)
+  # Match <tbody> or <tbody class="..."> — kableExtra with Bootstrap options
+  # emits <tbody class="..."> so a fixed-string match on "<tbody>" silently fails.
+  tbody_at <- regexpr("<tbody[^>]*>", html, perl = TRUE)
+  message(sprintf("[inject_row_classes] amber=%d red=%d tbody_pos=%d",
+                  length(amber_rows), length(red_rows), tbody_at[1L]))
   if (tbody_at[1L] < 0L) return(kbl)
 
-  pre  <- substr(html, 1L, tbody_at[1L] + 6L)          # up to and including <tbody>
-  body <- substr(html, tbody_at[1L] + 7L, nchar(html))  # everything after
+  match_end <- tbody_at[1L] + attr(tbody_at, "match.length")[1L] - 1L
+  pre  <- substr(html, 1L, match_end)                # up to and including <tbody...>
+  body <- substr(html, match_end + 1L, nchar(html))  # everything after
 
   parts  <- strsplit(body, "(?=<tr[\\s>])", perl = TRUE)[[1L]]
   tr_idx <- 0L
