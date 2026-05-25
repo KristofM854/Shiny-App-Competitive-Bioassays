@@ -1284,8 +1284,15 @@ render_table_legend()
 ```{r summary-results-table, results='asis', warning=FALSE}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
 
-  # Item 9: compute row-highlight indices BEFORE formatting (need raw numerics)
+  # Item 9: compute row-highlight indices BEFORE formatting (need raw numerics).
+  # Use within_range first (mirrors DT rowCallback; covers samples where
+  # range_flag may be NA because replicate_range filtered !is.na(estimated_conc)),
+  # then fall through to range_flag / quant_status for belt-and-suspenders coverage.
   .amber_rows <- which(
+    (if ("within_range" %in% names(replicate_summary))
+       !is.na(replicate_summary$within_range) &
+       replicate_summary$within_range == "Out of Range"
+     else rep(FALSE, nrow(replicate_summary))) |
     (if ("range_flag" %in% names(replicate_summary))
        !is.na(replicate_summary$range_flag) &
        replicate_summary$range_flag %in% c(">ULOQ", "<LLOQ")
