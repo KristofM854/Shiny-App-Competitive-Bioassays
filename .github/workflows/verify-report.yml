@@ -32,40 +32,10 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          packages: local::.
           extra-packages: |
-            any::car
-            any::digest
-            any::dplyr
-            any::drc
-            any::DT
-            any::ggplot2
-            any::ggrepel
-            any::ggtext
-            any::ggthemes
-            any::glue
-            any::htmltools
-            any::htmlwidgets
-            any::jsonlite
             any::kableExtra
-            any::knitr
-            any::patchwork
             any::plotly
-            any::purrr
-            any::readr
-            any::readxl
-            any::remotes
-            any::rhandsontable
-            any::rintrojs
-            any::rmarkdown
-            any::scales
-            any::shiny
-            any::shinyFeedback
-            any::shinycssloaders
-            any::shinyjs
-            any::stringr
-            any::tibble
-            any::tidyr
-            any::withr
 
       - name: Render example reports
         run: Rscript scripts/render_examples.R --out check-renders
