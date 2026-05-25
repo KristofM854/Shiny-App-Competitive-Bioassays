@@ -189,25 +189,32 @@ emit_styled_block <- function(content, html_style = NULL, html_tag = "div") {
 # can target tr.is-extrapolated > td and tr.is-high-cv > td:first-child
 # independently — the red border only appears on the left edge of the row.
 .inject_row_classes <- function(kbl, amber_rows, red_rows) {
+  # Diagnostic at entry point — fires regardless of empty-guard so the console
+  # log distinguishes "never called", "called with zeros", and "called with hits".
+  message(sprintf("[inject_row_classes] amber=%d red=%d input_chars=%d",
+                  length(amber_rows %||% integer(0)),
+                  length(red_rows   %||% integer(0)),
+                  nchar(as.character(kbl))))
   if (length(amber_rows) == 0 && length(red_rows) == 0) return(kbl)
   html     <- as.character(kbl)
-  # Match <tbody> or <tbody class="..."> — kableExtra with Bootstrap options
-  # emits <tbody class="..."> so a fixed-string match on "<tbody>" silently fails.
   tbody_at <- regexpr("<tbody[^>]*>", html, perl = TRUE)
-  message(sprintf("[inject_row_classes] amber=%d red=%d tbody_pos=%d",
-                  length(amber_rows), length(red_rows), tbody_at[1L]))
-  if (tbody_at[1L] < 0L) return(kbl)
+  if (tbody_at[1L] < 0L) {
+    message("[inject_row_classes] <tbody> NOT found — returning unchanged")
+    return(kbl)
+  }
 
   match_end <- tbody_at[1L] + attr(tbody_at, "match.length")[1L] - 1L
-  pre  <- substr(html, 1L, match_end)                # up to and including <tbody...>
-  body <- substr(html, match_end + 1L, nchar(html))  # everything after
+  pre  <- substr(html, 1L, match_end)
+  body <- substr(html, match_end + 1L, nchar(html))
+  # Diagnostic: show what the first <tr> opening tag looks like so path-3
+  # (regex doesn't match) can be diagnosed without re-running.
+  message(sprintf("[inject_row_classes] first 120 chars after <tbody>: %s",
+                  substr(body, 1L, 120L)))
 
   parts  <- strsplit(body, "(?=<tr[\\s>])", perl = TRUE)[[1L]]
   tr_idx <- 0L
   parts  <- vapply(parts, function(p) {
     if (!grepl("^<tr[\\s>]", p, perl = TRUE)) return(p)
-    # <<- bumps the closure-scoped row counter (tr_idx, initialised just above
-    # this vapply) so amber/red CSS classes match 1-based table-body rows.
     tr_idx <<- tr_idx + 1L
     cls <- c(
       if (tr_idx %in% amber_rows) "row-out-of-range" else character(0L),
