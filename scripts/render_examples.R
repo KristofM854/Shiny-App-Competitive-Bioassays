@@ -213,9 +213,9 @@ for (f in c("rba_full.html", "rba_compact.html", "elisa_full.html", "elisa_compa
 cat("\nDone. HTMLs are in:", out_dir, "\n")
 
 # ---------------------------------------------------------------------------
-# Run verify_report.sh and capture output to audit/
+# Run verify_report.R and capture output to audit/
 # ---------------------------------------------------------------------------
-cat("\n=== Running verify_report.sh ===\n")
+cat("\n=== Running verify_report.R ===\n")
 html_files <- file.path(out_dir, c("rba_full.html", "rba_compact.html",
                                    "elisa_full.html", "elisa_compact.html"))
 html_files <- html_files[file.exists(html_files)]
@@ -228,31 +228,15 @@ stamp      <- format(Sys.time(), "%Y%m%d-%H%M%S")
 audit_dir  <- file.path(repo_root, "audit")
 audit_file <- file.path(audit_dir, sprintf("verify_report_%s_%s.txt", stamp, sha))
 dir.create(audit_dir, recursive = TRUE, showWarnings = FALSE)
-verify_sh  <- file.path(repo_root, "scripts", "verify_report.sh")
+verify_r   <- file.path(repo_root, "scripts", "verify_report.R")
 
-bash_exe <- Sys.which("bash")
-if (!nzchar(bash_exe)) {
-  for (p in c("C:/Program Files/Git/bin/bash.exe",
-              "C:/Program Files/Git/usr/bin/bash.exe",
-              file.path(Sys.getenv("LOCALAPPDATA"), "Programs/Git/bin/bash.exe"))) {
-    if (file.exists(p)) { bash_exe <- p; break }
-  }
-}
-if (!nzchar(bash_exe)) {
-  cat("bash not found — skipping verify_report.sh (install Git for Windows or add bash to PATH)\n")
+rscript_exe <- Sys.which("Rscript")
+if (!nzchar(rscript_exe)) {
+  cat("Rscript not found in PATH — skipping verify_report.R\n")
 } else {
-  # Use bash -c "cmd" so bash itself handles argument parsing after shQuote()
-  # has converted Windows paths (spaces, colons, backslashes) to POSIX-safe
-  # quoted strings.  Passing paths as separate argv elements triggers bash's
-  # colon-as-separator parsing on Windows (e.g. "C:\path" → "C" + "\path").
-  to_bash <- function(p) shQuote(gsub("\\\\", "/", p), type = "sh")
-  cmd <- paste(c(to_bash(verify_sh),
-                 vapply(html_files, to_bash, character(1L))),
-               collapse = " ")
-  exit_code <- system2(bash_exe, c("-c", cmd),
+  exit_code <- system2(rscript_exe, c(verify_r, html_files),
                        stdout = audit_file, stderr = audit_file)
   cat(sprintf("Verify exit code: %d\n", exit_code))
   cat(sprintf("Verify log written: %s\n", audit_file))
-  # Echo the log to stdout so CI captures it
   cat(readLines(audit_file, warn = FALSE), sep = "\n")
 }
