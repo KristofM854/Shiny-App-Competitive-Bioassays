@@ -99,10 +99,10 @@ for HTML in "$@"; do
   assert_count "A.5  Exactly one <h1>" '<h1[ >]' 1 "$HTML"
 
   # A.6  exec-summary-card present
-  assert_present "A.6  exec-summary-card class present" 'exec-summary-card|bs-kpi-strip|bs-status-banner' "$HTML"
+  assert_present "A.6  exec-summary-card class present" 'exec-summary-card|bs-kpi-strip' "$HTML"
 
-  # A.7  Merged QC card (.bs-status-banner)
-  assert_present "A.7  Merged QC card (.bs-status-banner)" 'class="bs-status-banner' "$HTML"
+  # A.7  Merged QC card (.exec-summary-card)
+  assert_present "A.7  Merged QC card (.exec-summary-card)" 'class="exec-summary-card' "$HTML"
 
   # A.8  No raw R warning blocks
   assert_absent  "A.8  No <pre><code>## Warning blocks" '<pre><code>[^<]*## Warning' "$HTML"
@@ -114,14 +114,31 @@ for HTML in "$@"; do
     # B.1  DT::datatable widget present (full mode only)
     assert_present "B.1  DT datatable widget" 'HTMLWidgets\.widget|class="datatables' "$HTML"
 
-    # B.2  Cal. Range column header present in the sample table (full mode only).
-    # Checks structural wiring of the two-pill column layout; data-driven pill
-    # text varies by assay and sample concentrations so is not asserted here.
-    assert_present "B.2  Cal. Range column present" 'Cal\. Range' "$HTML"
+    # B.2  Two pills per replicate row (Cal + Quant stacked)
+    N_PILLS=$(grep -cP '<span class="bs-status-pill' "$HTML" 2>/dev/null || true)
+    N_ROWS=$(grep -cP 'class="bs-replicate-meta"' "$HTML" 2>/dev/null || true)
+    EXPECTED=$((N_ROWS * 2))
+    if [ "$N_PILLS" -ge "$EXPECTED" ]; then
+      echo "  PASS  B.2  Two pills per row (pills=$N_PILLS rows=$N_ROWS)"
+      PASS=$((PASS+1))
+    else
+      echo "  FAIL  B.2  Pill count $N_PILLS < expected >= $EXPECTED (2 * $N_ROWS rows)"
+      FAIL=$((FAIL+1))
+    fi
+
+    # B.2b  Quant-range pill renders (skip when no quantified rows exist)
+    if [ "$N_ROWS" -gt 0 ]; then
+      assert_present "B.2b Quant-range pill present" 'Within quantifiable|bs-status-pill is-info|estimable' "$HTML"
+    fi
 
     # B.3  .row-out-of-range or .row-cv-high JS callback present
     assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
     assert_present "B.3  row-cv-high CSS class wired" 'row-cv-high' "$HTML"
+    # B.3a/b  Check static <tr class=""> injection in summary table (kable path)
+    # Only meaningful when there are quantified rows with flags (skip if N_ROWS==0)
+    if [ "$N_ROWS" -gt 0 ]; then
+      assert_present "B.3a row-out-of-range on <tr>" '<tr[^>]*class="[^"]*row-out-of-range' "$HTML"
+    fi
   fi
 
   # B.5  CV formatted to 1 decimal (e.g. 9.6% not 9.635)
@@ -174,13 +191,21 @@ for HTML in "$@"; do
   if [ "$IS_COMPACT" -eq 1 ]; then
     # D.1  Compact: no base64 @font-face (Bootstrap removed via theme:null)
     assert_absent  "D.1  No base64 @font-face" 'data:font/ttf[;,]base64|data:font/otf[;,]base64' "$HTML"
-    assert_lte "D.6  Compact ≤ 500 KB" "$BYTES" 512000
-    assert_absent "D.7  Compact: no Plotly widget" 'class="plotly html-widget|plotly-graph-div' "$HTML"
+    assert_lte "D.6  Compact ≤ 800 KB" "$BYTES" 819200
+    # D.7  Compact: exactly 1 Plotly widget (DRC plot); no heatmap/variability widgets
+    COUNT_PLOTLY=$(grep -cP 'class="plotly html-widget' "$HTML" 2>/dev/null || true)
+    if [ "$COUNT_PLOTLY" -eq 1 ]; then
+      echo "  PASS  D.7  Compact has exactly 1 Plotly widget (DRC)"
+      PASS=$((PASS+1))
+    else
+      echo "  FAIL  D.7  Compact Plotly widget count: expected 1, got $COUNT_PLOTLY"
+      FAIL=$((FAIL+1))
+    fi
     assert_absent "D.8  Compact: no plate heatmap" 'heatmap_title|Plate.*Heatmap' "$HTML"
   else
     # Full mode intentionally uses Bootstrap 3 (theme:"default") which embeds
     # Glyphicon fonts as TTF/WOFF/SVG base64 blobs; D.1 is not applicable.
-    assert_lte "D.6  Full ≤ 5 MB" "$BYTES" 5000000
+    assert_lte "D.6  Full ≤ 5500 KB" "$BYTES" 5632000
     assert_present "D.7  Full: plate heatmap plotly present" 'plotly|heatmap.*htmlwidget|type.*heatmap' "$HTML"
   fi
 

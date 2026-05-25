@@ -508,6 +508,15 @@ get_translations <- function() {
         "technically extrapolated (if the user provided few standards). Both ",
         "flags should be considered when interpreting results."),
 
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "In range",
+      cal_below          = "<Cal. low",
+      cal_above          = ">Cal. high",
+      quant_in_range     = "Within quantifiable",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      quant_extrapolated = "Extrapolated",
+
       # Bootstrap CI (report)
       ci_bootstrap_note = "95% confidence intervals calculated using bootstrap resampling (1000 iterations).",
       ci_tdist_note = "95% confidence intervals calculated using t-distribution.",
@@ -1128,6 +1137,15 @@ get_translations <- function() {
         "est\u00E1ndares). Ambos indicadores deben considerarse al interpretar los ",
         "resultados."),
 
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "En rango",
+      cal_below          = "<Cal. bajo",
+      cal_above          = ">Cal. alto",
+      quant_in_range     = "Dentro cuantificable",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      quant_extrapolated = "Extrapolado",
+
       # Bootstrap CI (report)
       ci_bootstrap_note = "Intervalos de confianza del 95% calculados mediante remuestreo bootstrap (1000 iteraciones).",
       ci_tdist_note = "Intervalos de confianza del 95% calculados mediante distribuci\u00F3n t.",
@@ -1744,6 +1762,15 @@ Format : %s%s",
 ",
         "> Un échantillon peut être interpolé mais hors de la plage quantifiable, ou dans la plage quantifiable mais techniquement extrapolé. Les deux indicateurs doivent être considérés lors de l’interprétation des résultats."),
 
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "Dans la plage",
+      cal_below          = "<Cal. bas",
+      cal_above          = ">Cal. haut",
+      quant_in_range     = "Dans quantifiable",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      quant_extrapolated = "Extrapolé",
+
       # Bootstrap CI
       ci_bootstrap_note = "Intervalles de confiance à 95% calculés par rééchantillonnage bootstrap (1000 itérations).",
       ci_tdist_note = "Intervalles de confiance à 95% calculés par la distribution t.",
@@ -2359,6 +2386,15 @@ Format : %s%s",
 ",
         "> Образец может быть интерполирован, но находиться вне количественно определяемого диапазона, или находиться в количественно определяемом диапазоне, но технически быть экстраполированным. При интерпретации результатов следует учитывать оба индикатора."),
 
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "В диапазоне",
+      cal_below          = "<Кал. низко",
+      cal_above          = ">Кал. высоко",
+      quant_in_range     = "В кол-во диапазоне",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      quant_extrapolated = "Экстраполировано",
+
       # Bootstrap CI
       ci_bootstrap_note = "95% доверительные интервалы рассчитаны с использованием бутстрап-повторной выборки (1000 итераций).",
       ci_tdist_note = "95% доверительные интервалы рассчитаны с использованием t-распределения.",
@@ -2973,6 +3009,15 @@ Format : %s%s",
 >
 ",
         "> 样品可能被内插但超出可定量范围，或在可定量范围内但技术上被外推。解读结果时应同时考虑两个指标。"),
+
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "在范围内",
+      cal_below          = "<校准低",
+      cal_above          = ">校准高",
+      quant_in_range     = "在可定量范围内",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      quant_extrapolated = "外推",
 
       # Bootstrap CI
       ci_bootstrap_note = "使用Bootstrap重采样（1000次迭代）计算95%置信区间。",
