@@ -17,6 +17,9 @@ tests/testthat/Rplots.pdf
 # Generated report output (standalone mode runs)
 reports/runs/
 
+# CI uploads the latest verify log as a workflow artifact; don't commit per-run logs.
+audit/verify_report_*.txt
+
 # OS files
 .DS_Store
 Thumbs.db
