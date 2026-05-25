@@ -45,6 +45,7 @@ out_dir <- if (length(out_flag) > 0L && length(args) >= out_flag + 1L) {
 
 
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+out_dir <- normalizePath(out_dir, mustWork = FALSE)
 
 cat("Output directory:", out_dir, "\n")
 
@@ -444,10 +445,6 @@ cat("\n=== Running verify_report.R ===\n")
 html_files <- file.path(out_dir, c("rba_full.html", "rba_compact.html",
                                    "elisa_full.html", "elisa_compact.html"))
 html_files <- html_files[file.exists(html_files)]
-
-
-
-source(file.path(repo_root, "scripts", "verify_report.R"))
 
 
 
