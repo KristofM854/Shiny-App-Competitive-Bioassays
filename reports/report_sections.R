@@ -626,8 +626,8 @@ render_methods_section <- function(analysis_config, assay_config, is_elisa, lang
 render_table_legend <- function() {
   if (is_html_out()) {
     cat(paste0(
-      '<div class="bs-table-legend">\n',
-      '<h5>How to read this table</h5>\n',
+      '<details open class="bs-table-legend">\n',
+      '<summary>How to read this table</summary>\n',
       '<p>Each row\'s <strong>Status</strong> cell carries two independent pills:</p>\n',
       '<ul>\n',
       '<li><strong>Cal. Range</strong> (top pill) — calibration curve coverage.\n',
@@ -654,7 +654,7 @@ render_table_legend <- function() {
       '<em>In range / &lt;LLOQ</em> (interpolated but below the linear window) or ',
       '<em>&gt;Cal. high / Within quantifiable</em> (extrapolated from the curve yet ',
       'within EC20–EC80). Both pills together describe reporting quality.</p>\n',
-      '</div>\n\n'
+      '</details>\n\n'
     ))
   } else {
     cat(paste0(

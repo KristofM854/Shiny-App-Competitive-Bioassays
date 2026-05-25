@@ -1,5 +1,7 @@
 /* Report-specific overrides */
 
+.bs-plot-caption { font-size: 12px; color: #5b6573; margin: -8px 0 18px; }
+
 /* ============================================================
    ITEM 19 — Four-token colour palette
    ============================================================ */

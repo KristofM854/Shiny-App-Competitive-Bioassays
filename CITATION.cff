@@ -17,7 +17,7 @@ authors:
     given-names: "Arnold"
     affiliation: "Universidad de Costa Rica"
 version: "1.0.0"
-date-released: "2026-05-07"
+date-released: "2026-05-25"
 license: MIT
 repository-code: "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays"
 url: "https://github.com/KristofM854/Shiny-App-Competitive-Bioassays"
@@ -36,4 +36,4 @@ identifiers:
     description: "Concept DOI (always resolves to the latest version)"
   - type: doi
     value: "10.5281/zenodo.19691223"
-    description: "Version DOI for v0.9.0"
+    description: "Version DOI for v1.0.0"
