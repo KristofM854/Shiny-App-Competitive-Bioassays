@@ -211,3 +211,28 @@ for (f in c("rba_full.html", "rba_compact.html", "elisa_full.html", "elisa_compa
 }
 
 cat("\nDone. HTMLs are in:", out_dir, "\n")
+
+# ---------------------------------------------------------------------------
+# Run verify_report.sh and capture output to audit/
+# ---------------------------------------------------------------------------
+cat("\n=== Running verify_report.sh ===\n")
+html_files <- file.path(out_dir, c("rba_full.html", "rba_compact.html",
+                                   "elisa_full.html", "elisa_compact.html"))
+html_files <- html_files[file.exists(html_files)]
+sha <- tryCatch(
+  system2("git", c("rev-parse", "--short", "HEAD"), stdout = TRUE, stderr = FALSE),
+  error = function(e) "nogit"
+)
+sha <- if (length(sha) > 0L && nzchar(sha[[1L]])) sha[[1L]] else "nogit"
+stamp      <- format(Sys.time(), "%Y%m%d-%H%M%S")
+audit_dir  <- file.path(repo_root, "audit")
+audit_file <- file.path(audit_dir, sprintf("verify_report_%s_%s.txt", stamp, sha))
+dir.create(audit_dir, recursive = TRUE, showWarnings = FALSE)
+verify_sh  <- file.path(repo_root, "scripts", "verify_report.sh")
+
+exit_code <- system2("bash", c(verify_sh, html_files),
+                     stdout = audit_file, stderr = audit_file)
+cat(sprintf("Verify exit code: %d\n", exit_code))
+cat(sprintf("Verify log written: %s\n", audit_file))
+# Echo the log to stdout so CI captures it
+cat(readLines(audit_file, warn = FALSE), sep = "\n")
