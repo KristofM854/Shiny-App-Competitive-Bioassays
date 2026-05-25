@@ -230,9 +230,21 @@ audit_file <- file.path(audit_dir, sprintf("verify_report_%s_%s.txt", stamp, sha
 dir.create(audit_dir, recursive = TRUE, showWarnings = FALSE)
 verify_sh  <- file.path(repo_root, "scripts", "verify_report.sh")
 
-exit_code <- system2("bash", c(verify_sh, html_files),
-                     stdout = audit_file, stderr = audit_file)
-cat(sprintf("Verify exit code: %d\n", exit_code))
-cat(sprintf("Verify log written: %s\n", audit_file))
-# Echo the log to stdout so CI captures it
-cat(readLines(audit_file, warn = FALSE), sep = "\n")
+bash_exe <- Sys.which("bash")
+if (!nzchar(bash_exe)) {
+  for (p in c("C:/Program Files/Git/bin/bash.exe",
+              "C:/Program Files/Git/usr/bin/bash.exe",
+              file.path(Sys.getenv("LOCALAPPDATA"), "Programs/Git/bin/bash.exe"))) {
+    if (file.exists(p)) { bash_exe <- p; break }
+  }
+}
+if (!nzchar(bash_exe)) {
+  cat("bash not found — skipping verify_report.sh (install Git for Windows or add bash to PATH)\n")
+} else {
+  exit_code <- system2(bash_exe, c(verify_sh, html_files),
+                       stdout = audit_file, stderr = audit_file)
+  cat(sprintf("Verify exit code: %d\n", exit_code))
+  cat(sprintf("Verify log written: %s\n", audit_file))
+  # Echo the log to stdout so CI captures it
+  cat(readLines(audit_file, warn = FALSE), sep = "\n")
+}
