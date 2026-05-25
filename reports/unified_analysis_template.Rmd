@@ -942,6 +942,9 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     
     # Render plot - interactive for HTML, static for DOCX/PDF
     render_plot(combined_drc, tooltip = "text")
+    if (is_html_out()) {
+      cat(paste0('<p class="bs-plot-caption"><em>', tr("drc_legend_hint", lang), '</em></p>\n'))
+    }
   }
 }
 ```
@@ -1335,6 +1338,7 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
     # and internal cols.
     dplyr::select(-ci_lower_95, -ci_upper_95, -std_dev, -std_error,
                   -any_of(c("within_range", "range_flag", "quant_status", "mean_response",
+                            "sample_type",
                             "ci_lower_model",      "ci_upper_model",
                             "ci_lower_replicate",  "ci_upper_replicate",
                             "ci_lower_raw",        "ci_upper_raw",
@@ -1401,12 +1405,12 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
   conc_unit <- if (isTRUE(is_elisa)) assay_config$units %||% "pg/mL" else "mol/L"
 
   if (is_html_out()) {
-    base_names <- c("Group", "Sample Type",
+    base_names <- c("Group",
                     paste0("Mean (", conc_unit, ")"),
                     paste0("SD (", conc_unit, ")"), "SE",
                     "95% CI", "CV [%]")
   } else {
-    base_names <- c("Group", "Sample IDs", "Sample Type",
+    base_names <- c("Group", "Sample IDs",
                     paste0("Mean (", conc_unit, ")"),
                     paste0("SD (", conc_unit, ")"), "SE",
                     "95% CI", "CV [%]")

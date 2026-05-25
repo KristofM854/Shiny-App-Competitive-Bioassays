@@ -516,6 +516,7 @@ get_translations <- function() {
       quant_below_lloq   = "<LLOQ",
       quant_above_uloq   = ">ULOQ",
       quant_extrapolated = "Extrapolated",
+      drc_legend_hint    = "Click legend items to hide or show standards and samples.",
 
       # Bootstrap CI (report)
       ci_bootstrap_note = "95% confidence intervals calculated using bootstrap resampling (1000 iterations).",
@@ -1145,6 +1146,7 @@ get_translations <- function() {
       quant_below_lloq   = "<LLOQ",
       quant_above_uloq   = ">ULOQ",
       quant_extrapolated = "Extrapolado",
+      drc_legend_hint    = "Haga clic en la leyenda para ocultar o mostrar estándares y muestras.",
 
       # Bootstrap CI (report)
       ci_bootstrap_note = "Intervalos de confianza del 95% calculados mediante remuestreo bootstrap (1000 iteraciones).",
