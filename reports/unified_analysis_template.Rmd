@@ -361,8 +361,9 @@ table.kable tbody tr:hover, table.dataframe tbody tr:hover {
 
 /* GUI refresh §6.3: executive summary card — quiet 1 px line, no
    tinted gradient (the .Rmd helper renders inline styling for
-   email-safe fallback, this overrides for live HTML). */
-.exec-summary-card, div[style*="linear-gradient(135deg, #E8F5E9"] {
+   email-safe fallback, this overrides for live HTML).
+   Exclude is-warn/is-fail so QC-alert cards keep their colour. */
+.exec-summary-card:not(.is-warn):not(.is-fail), div[style*="linear-gradient(135deg, #E8F5E9"] {
   background: #ffffff !important;
   border: 1px solid #e3e6ea !important;
   border-left: 4px solid #009e73 !important;
@@ -768,7 +769,7 @@ render_high_variability_info(high_var_standards = high_var_standards,
 # Overview" panel (well counts + exclusions) with the post-table "Quality
 # Alert" emit (high-CV warning) into a single severity-coded card placed
 # after sample-analysis runs so all signals are available. Uses the
-# .bs-status-banner is-pass / is-warn classes already in report_style.css.
+# .exec-summary-card is-pass / is-warn classes defined in report_style.css.
 .qc_total_wells    <- nrow(data_long)
 .qc_std_wells      <- sum(data_long$SampleType == "Standard",                na.rm = TRUE)
 .qc_sample_wells   <- sum(data_long$SampleType == "Sample",                  na.rm = TRUE)
@@ -789,7 +790,7 @@ render_high_variability_info(high_var_standards = high_var_standards,
 .qc_title_key <- if (.qc_severity == "pass") "quality_pass" else "quality_alert"
 
 if (is_html_out()) {
-  cat(sprintf('<div class="bs-status-banner is-%s">\n', .qc_severity))
+  cat(sprintf('<div class="exec-summary-card is-%s">\n', .qc_severity))
   cat(sprintf('  <strong>%s</strong>\n', tr(.qc_title_key, lang)))
   cat(sprintf('  <p>Total wells: %d &middot; Standards: %d &middot; Samples: %d &middot; Controls: %d</p>\n',
               .qc_total_wells, .qc_std_wells, .qc_sample_wells, .qc_control_wells))
@@ -940,7 +941,7 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     }
     
     # Render plot - interactive for HTML, static for DOCX/PDF
-    render_plot(combined_drc, tooltip = "text", compact = is_compact)
+    render_plot(combined_drc, tooltip = "text")
   }
 }
 ```
