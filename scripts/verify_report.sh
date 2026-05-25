@@ -134,10 +134,12 @@ for HTML in "$@"; do
     # B.3  .row-out-of-range or .row-cv-high JS callback present
     assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
     assert_present "B.3  row-cv-high CSS class wired" 'row-cv-high' "$HTML"
-    # B.3a/b  Check static <tr class=""> injection in summary table (kable path)
-    # Only meaningful when there are quantified rows with flags (skip if N_ROWS==0)
-    if [ "$N_ROWS" -gt 0 ]; then
-      assert_present "B.3a row-out-of-range on <tr>" '<tr[^>]*class="[^"]*row-out-of-range' "$HTML"
+    # B.3a  Check static <tr class=""> injection in summary table (kable path).
+    # Only meaningful for ELISA fixtures which have out-of-range samples in the
+    # example data; RBA example data is entirely within the calibration range so
+    # no amber rows are produced and the assertion would vacuously fail.
+    if [ "$N_ROWS" -gt 0 ] && [[ "$(basename "$HTML")" == *elisa* ]]; then
+      assert_present "B.3a row-out-of-range on <tr> (ELISA)" '<tr[^>]*class="[^"]*row-out-of-range' "$HTML"
     fi
   fi
 
