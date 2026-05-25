@@ -1165,13 +1165,7 @@ tryCatch({
           columnDefs = list(
             list(targets = c(oor_col_idx, cv_col_idx), visible = FALSE)
           ),
-          rowCallback = DT::JS(sprintf(
-            "function(row, data) {
-               if (parseInt(data[%d]) === 1) $(row).addClass('row-out-of-range');
-               if (parseInt(data[%d]) === 1) $(row).addClass('row-cv-high');
-             }",
-            oor_col_idx, cv_col_idx
-          ))
+          rowCallback = DT::JS("function(row, data) { }")
         )
       )
       htmltools::tagList(dt_obj)
@@ -1284,31 +1278,7 @@ render_table_legend()
 ```{r summary-results-table, results='asis', warning=FALSE}
 if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate_summary) > 0) {
 
-  # Item 9: compute row-highlight indices BEFORE formatting (need raw numerics).
-  # Use within_range first (mirrors DT rowCallback; covers samples where
-  # range_flag may be NA because replicate_range filtered !is.na(estimated_conc)),
-  # then fall through to range_flag / quant_status for belt-and-suspenders coverage.
-  .amber_rows <- which(
-    (if ("within_range" %in% names(replicate_summary))
-       !is.na(replicate_summary$within_range) &
-       replicate_summary$within_range == "Out of Range"
-     else rep(FALSE, nrow(replicate_summary))) |
-    (if ("range_flag" %in% names(replicate_summary))
-       !is.na(replicate_summary$range_flag) &
-       replicate_summary$range_flag %in% c(">ULOQ", "<LLOQ")
-     else rep(FALSE, nrow(replicate_summary))) |
-    (if ("quant_status" %in% names(replicate_summary))
-       !is.na(replicate_summary$quant_status) &
-       replicate_summary$quant_status %in% c("Extrapolated (above)", "Extrapolated (below)")
-     else rep(FALSE, nrow(replicate_summary)))
-  )
   .raw_cv <- if ("cv_percent" %in% names(replicate_summary)) as.numeric(replicate_summary$cv_percent) else rep(NA_real_, nrow(replicate_summary))
-  .red_rows <- if ("cv_percent" %in% names(replicate_summary)) {
-    which(!is.na(replicate_summary$cv_percent) &
-          as.numeric(replicate_summary$cv_percent) > 30)
-  } else {
-    integer(0)
-  }
 
   # B4: pre-extract flag/status columns before the mutate to avoid data-masking issues
   .rf_col <- if ("range_flag"   %in% names(replicate_summary)) replicate_summary[["range_flag"]]   else rep(NA_character_, nrow(replicate_summary))
@@ -1473,13 +1443,9 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
 
   names(summary_display) <- base_names[1:ncol(summary_display)]
 
-  # Item 9: row_highlight wires amber/red-left treatments via render_table()
-  # escape=FALSE is required so the HTML span injected into replicate_group renders
   .tbl <- render_table(summary_display,
-                       caption       = tr("detailed_caption", lang),
-                       escape        = !is_html_out(),
-                       row_highlight = list(amber_rows    = .amber_rows,
-                                            red_left_rows = .red_rows))
+                       caption = tr("detailed_caption", lang),
+                       escape  = !is_html_out())
 
   if (is_html_out()) {
     # HTML branch: emit a one-line legend explaining SD vs SE, a client-side
