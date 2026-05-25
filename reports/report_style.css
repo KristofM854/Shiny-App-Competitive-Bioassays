@@ -233,6 +233,8 @@ tr.is-high-cv       > td:first-child  { border-left: 3px solid var(--c-fail); }
   color: var(--c-info);
   background: var(--c-info-soft);
 }
+/* Second pill stacked below first pill (separated by <br>) */
+td .bs-status-pill + br + .bs-status-pill { margin-top: 2px; }
 
 /* ============================================================
    ITEM 15 — KPI strip classes
