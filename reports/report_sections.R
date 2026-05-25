@@ -654,9 +654,6 @@ render_table_legend <- function() {
       '<em>In range / &lt;LLOQ</em> (interpolated but below the linear window) or ',
       '<em>&gt;Cal. high / Within quantifiable</em> (extrapolated from the curve yet ',
       'within EC20–EC80). Both pills together describe reporting quality.</p>\n',
-      '<p>Row colouring is also independent: <strong>amber background</strong> — sample ',
-      'falls outside the quantifiable range; <strong>red left-border</strong> — CV between ',
-      'replicates exceeds 30%.</p>\n',
       '</div>\n\n'
     ))
   } else {
@@ -665,8 +662,7 @@ render_table_legend <- function() {
       "Cal. Range shows whether the concentration was interpolated (In range) or ",
       "extrapolated (>Cal. high / <Cal. low) from the standards. ",
       "Quant. Range shows whether the estimate falls within the validated EC20-EC80 window ",
-      "(Within quantifiable / <LLOQ / >ULOQ / Extrapolated). ",
-      "Amber background: outside quantifiable range; red left-border: CV > 30%.\n\n"
+      "(Within quantifiable / <LLOQ / >ULOQ / Extrapolated).\n\n"
     ))
   }
   invisible(NULL)
@@ -692,7 +688,7 @@ render_abbreviations_block <- function() {
       c("ULOQ",      "Upper Limit of Quantification"),
       c("Cal. high", "Upper limit of the calibration curve (concentration of the highest standard)"),
       c("Cal. low",  "Lower limit of the calibration curve (concentration of the lowest standard)"),
-      c("CV",        "Coefficient of variation between replicate wells, %. Replicates with CV > 30% are flagged with a red left-border on the row."),
+      c("CV",        "Coefficient of variation between replicate wells, %."),
       c("SD",        "Standard Deviation"),
       c("SE",     "Standard Error of the Mean"),
       c("CI",     "Confidence Interval")
@@ -706,7 +702,7 @@ render_abbreviations_block <- function() {
       '<dl>\n', dl_items, '\n</dl>\n',
       '</details>\n\n'))
   } else {
-    cat("**Abbreviations:** RBA = Radioligand Binding Assay; ELISA = Enzyme-Linked Immunosorbent Assay; LL.4 = four-parameter log-logistic; IC50 = half-maximal inhibitory concentration; EC20/EC80 = 20%/80% response concentrations; %B/B0 = percent bound relative to B0; LLOQ/ULOQ = Lower/Upper Limit of Quantification; Cal. high/Cal. low = upper/lower calibration range limits; CV = coefficient of variation between replicates (> 30% flagged with red border); SD/SE = Standard Deviation/Error; CI = Confidence Interval.\n\n")
+    cat("**Abbreviations:** RBA = Radioligand Binding Assay; ELISA = Enzyme-Linked Immunosorbent Assay; LL.4 = four-parameter log-logistic; IC50 = half-maximal inhibitory concentration; EC20/EC80 = 20%/80% response concentrations; %B/B0 = percent bound relative to B0; LLOQ/ULOQ = Lower/Upper Limit of Quantification; Cal. high/Cal. low = upper/lower calibration range limits; CV = coefficient of variation between replicates ; SD/SE = Standard Deviation/Error; CI = Confidence Interval.\n\n")
   }
   invisible(NULL)
 }

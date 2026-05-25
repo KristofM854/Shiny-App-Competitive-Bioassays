@@ -133,12 +133,6 @@ for HTML in "$@"; do
       assert_present "B.2b Quant-range pill present" 'Within quantifiable|bs-status-pill is-info|estimable' "$HTML"
     fi
 
-    # B.3  .row-out-of-range or .row-cv-high JS callback present
-    assert_present "B.3  row-out-of-range CSS class wired" 'row-out-of-range' "$HTML"
-    assert_present "B.3  row-cv-high CSS class wired" 'row-cv-high' "$HTML"
-    # B.3a removed: example data produces no out-of-range samples so the
-    # assertion vacuously fails regardless of whether injection works.
-    # The mechanism is covered by B.3 (CSS/JS wired) and unit tests.
   fi
 
   # B.5  CV formatted to 1 decimal (e.g. 9.6% not 9.635)
