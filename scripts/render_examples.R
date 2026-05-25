@@ -98,7 +98,7 @@ compact_template <- file.path(repo_root, "reports", "unified_analysis_template_c
 
 # ---------------------------------------------------------------------------
 
-render_fixture <- function(fixture_dir, out_file, compact) {
+render_fixture <- function(fixture_dir, out_file, compact, lang = "en") {
 
   stopifnot(dir.exists(fixture_dir))
 
@@ -128,7 +128,7 @@ render_fixture <- function(fixture_dir, out_file, compact) {
 
 
 
-  cat(sprintf("  Rendering %s (compact=%s) ...\n", basename(out_file), compact))
+  cat(sprintf("  Rendering %s (compact=%s, lang=%s) ...\n", basename(out_file), compact, lang))
 
   out <- tryCatch(
 
@@ -140,7 +140,7 @@ render_fixture <- function(fixture_dir, out_file, compact) {
 
       output_dir = dirname(out_file),
 
-      params = list(output_dir = fixture_dir, compact = compact, lang = "en"),
+      params = list(output_dir = fixture_dir, compact = compact, lang = lang),
 
       quiet = TRUE,
 
@@ -412,11 +412,13 @@ render_fixture(elisa_dir, file.path(out_dir, "elisa_full.html"), compact = FALSE
 
 render_fixture(elisa_dir, file.path(out_dir, "elisa_compact.html"), compact = TRUE)
 
+render_fixture(elisa_dir, file.path(out_dir, "elisa_full_es.html"), compact = FALSE, lang = "es")
+
 
 
 cat("\n=== File sizes ===\n")
 
-for (f in c("rba_full.html", "rba_compact.html", "elisa_full.html", "elisa_compact.html")) {
+for (f in c("rba_full.html", "rba_compact.html", "elisa_full.html", "elisa_compact.html", "elisa_full_es.html")) {
 
   p <- file.path(out_dir, f)
 
@@ -443,7 +445,8 @@ cat("\nDone. HTMLs are in:", out_dir, "\n")
 # ---------------------------------------------------------------------------
 cat("\n=== Running verify_report.R ===\n")
 html_files <- file.path(out_dir, c("rba_full.html", "rba_compact.html",
-                                   "elisa_full.html", "elisa_compact.html"))
+                                   "elisa_full.html", "elisa_compact.html",
+                                   "elisa_full_es.html"))
 html_files <- html_files[file.exists(html_files)]
 
 
