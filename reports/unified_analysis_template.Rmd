@@ -1395,16 +1395,25 @@ if (exists("replicate_summary") && !is.null(replicate_summary) && nrow(replicate
       dplyr::select(-any_of(c("sample_ids", "n_replicates")))
     rm(.has_n, .has_sid, .sids)
 
-    # B4: convert status_combined to .bs-status-pill HTML spans
-    summary_display <- summary_display %>%
-      dplyr::mutate(
-        status_combined = dplyr::case_when(
-          status_combined == ">ULOQ" ~ '<span class="bs-status-pill is-warn">&gt;Cal.&nbsp;high</span>',
-          status_combined == "<LLOQ" ~ '<span class="bs-status-pill is-warn">&lt;Cal.&nbsp;low</span>',
-          status_combined == "OK"    ~ '<span class="bs-status-pill is-pass">OK</span>',
-          TRUE                       ~ paste0('<span class="bs-status-pill is-warn">', status_combined, '</span>')
+    # B4: convert status columns to two stacked bs-status-pill HTML spans.
+    # .status_pills() is defined in the sample-results-table chunk (which runs
+    # first); fall back to a single pill if somehow it is not in scope.
+    if (exists(".status_pills", mode = "function")) {
+      summary_display <- summary_display %>%
+        dplyr::mutate(
+          status_combined = mapply(.status_pills, .qs_col, .rf_col, SIMPLIFY = TRUE)
         )
-      )
+    } else {
+      summary_display <- summary_display %>%
+        dplyr::mutate(
+          status_combined = dplyr::case_when(
+            status_combined == ">ULOQ" ~ '<span class="bs-status-pill is-warn">&gt;Cal.&nbsp;high</span>',
+            status_combined == "<LLOQ" ~ '<span class="bs-status-pill is-warn">&lt;Cal.&nbsp;low</span>',
+            status_combined == "OK"    ~ '<span class="bs-status-pill is-pass">OK</span>',
+            TRUE                       ~ paste0('<span class="bs-status-pill is-warn">', status_combined, '</span>')
+          )
+        )
+    }
   } else {
     # DOCX/PDF: drop n; keep sample_ids as its own column (no HTML tags)
     summary_display <- summary_display %>%
