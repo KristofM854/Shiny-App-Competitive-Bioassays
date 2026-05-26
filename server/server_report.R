@@ -305,7 +305,7 @@ server_report <- function(input, output, session, shared, config_reactives) {
             )
             if (!is.na(rho) && rho > 0.5) {
               checks[[length(checks) + 1]] <- pf_line(
-                "exclamation-triangle", "#FF9800",
+                "exclamation-triangle", "#D32F2F",
                 "pf_curve_direction_warn", lang, rho
               )
             } else if (!is.na(rho)) {

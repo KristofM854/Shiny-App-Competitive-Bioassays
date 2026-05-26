@@ -1,0 +1,24 @@
+{
+  "_note": "Reference output values from audit/pre-fix-snapshot/ captured at SHA b6db089b on 2026-05-15. These are the pre-audit baseline values and are kept here for historical comparison only. The LIVE regression golden files used by tests/testthat/test-golden-*.R are in tests/testthat/golden/ and are populated by running `Rscript scripts/capture_golden.R`.",
+  "rba_stx": {
+    "r_squared": 0.9957,
+    "rmse": 213.0827,
+    "ic50": "NA",
+    "hill_slope": -1.0314,
+    "n_standards": 24,
+    "n_unique_concs": 8,
+    "weight_method": "Unweighted (LL.3)",
+    "mean_sample_cv": 66.1016
+  },
+  "elisa_cortisol": {
+    "r_squared": 0.9976,
+    "rmse": 1.8271,
+    "ic50_pre_audit005": 205.2275,
+    "ic50_note": "AUDIT-005 removed upperl=c(NA,NA,100,NA) from the ELISA DRC fit. The current IC50 may differ from this pre-fix value. Check tests/testthat/golden/elisa/model_stats.json for the post-audit value.",
+    "hill_slope": 1.2533,
+    "n_standards": 16,
+    "n_unique_concs": 8,
+    "weight_method": "Unweighted (LL.4)",
+    "mean_sample_cv": 37.2231
+  }
+}
