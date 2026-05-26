@@ -1,0 +1,10 @@
+{
+  "r_squared": 0.9963,
+  "rmse": 197.7699,
+  "ic50": 4.4853e-09,
+  "hill_slope": -1.0908,
+  "n_standards": 24,
+  "n_unique_concs": 8,
+  "weight_method": "Unweighted (LL.4)",
+  "mean_sample_cv": 72.632
+}
