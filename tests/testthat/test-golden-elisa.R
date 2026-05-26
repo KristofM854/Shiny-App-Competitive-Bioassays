@@ -84,9 +84,8 @@ test_that("ELISA golden artifacts match snapshot", {
       output_file   = "analysis_report.html",
       output_dir    = fixture_out,
       params        = list(output_dir = fixture_out, lang = "en"),
-      quiet         = TRUE,
-      envir         = new.env(parent = globalenv()),
-      knit_root_dir = testthat::test_path("..", "..", "reports")
+      quiet = TRUE,
+      envir = new.env(parent = globalenv())
     )
   )
 
