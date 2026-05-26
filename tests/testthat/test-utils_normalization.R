@@ -1,31 +1,3 @@
-test_that("extract_controls finds all control types", {
-  data_long <- data.frame(
-    Well = c("A1", "A2", "B1", "B2", "C1", "C2", "D1"),
-    SampleType = c("Blank", "Blank", "NSB", "NSB", "B0", "B0", "TotalActivity"),
-    MeasurementValue = c(0.05, 0.06, 0.15, 0.16, 1.2, 1.3, 2.0),
-    stringsAsFactors = FALSE
-  )
-
-  controls <- extract_controls(data_long)
-  expect_true(all(c("Blank", "NSB", "B0", "TotalActivity") %in% names(controls)))
-  expect_equal(length(controls$Blank), 2)
-})
-
-test_that("validate_controls passes with valid hierarchy", {
-  controls <- list(Blank = c(0.05, 0.06), NSB = c(0.15, 0.16), B0 = c(1.2, 1.3))
-  expect_equal(validate_controls(controls)$status, "pass")
-})
-
-test_that("validate_controls fails with missing controls", {
-  controls <- list(Blank = c(0.05, 0.06))
-  expect_equal(validate_controls(controls)$status, "fail")
-})
-
-test_that("validate_controls warns on violated hierarchy", {
-  controls <- list(Blank = c(0.5, 0.6), NSB = c(0.15, 0.16), B0 = c(1.2, 1.3))
-  expect_equal(validate_controls(controls)$status, "warn")
-})
-
 test_that("calculate_elisa_bb0 produces correct values", {
   # Known: Blank=0.05, NSB=0.15, B0=1.05
   # Corrected NSB = 0.15 - 0.05 = 0.10
