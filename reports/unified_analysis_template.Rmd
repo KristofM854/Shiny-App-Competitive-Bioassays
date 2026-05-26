@@ -15,6 +15,7 @@ output:
     fig_caption: true
     fig_width: 6
     fig_height: 4
+    reference_doc: reference.docx
   pdf_document:
     toc: true
 header-includes:
