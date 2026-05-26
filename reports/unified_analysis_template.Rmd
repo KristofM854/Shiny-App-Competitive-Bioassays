@@ -1905,7 +1905,7 @@ if (multi_weight_mode && length(all_models) > 1) {
                size = 3, alpha = 0.6, color = "grey40") +
     geom_line(data = curve_data,
               aes(x = conc, y = p, color = method),
-              size = 1.1) +
+              linewidth = 1.1) +
     scale_color_manual(
       name = tr("col_weighting_label", lang),
       values = setNames(
