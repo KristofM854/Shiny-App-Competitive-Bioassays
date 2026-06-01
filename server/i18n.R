@@ -489,7 +489,7 @@ get_translations <- function() {
       outlier_method_dixon = "Dixon's Q-test (n=3-5)",
       outlier_method_grubbs = "Grubbs' test (n>=6)",
       outlier_flagged = "Flagged",
-      outlier_flagged_not_removed_note = "Flagged outliers remain visible in the per-well detailed results table and in CSV exports, but are excluded from the calculation of replicate-group mean, SD, CV, and confidence intervals. This preserves full raw-data visibility while preventing outlier contamination of summary statistics.",
+      outlier_flagged_not_removed_note = "Flagged outliers remain visible in the per-well detailed results table and in CSV exports, but are excluded from the calculation of replicate-group mean, SD, CV, and confidence intervals. This preserves full raw-data visibility while preventing outlier contamination of summary statistics."
 
 
     ),
@@ -958,7 +958,7 @@ get_translations <- function() {
       outlier_method_dixon = "Prueba Q de Dixon (n=3-5)",
       outlier_method_grubbs = "Prueba de Grubbs (n>=6)",
       outlier_flagged = "Marcado",
-      outlier_flagged_not_removed_note = "Los valores at\u00EDpicos marcados permanecen visibles en la tabla de resultados detallados por pozo y en las exportaciones a CSV, pero se excluyen del c\u00E1lculo de la media, DE, CV e intervalos de confianza del grupo de r\u00E9plicas. Esto preserva la visibilidad completa de los datos crudos y evita la contaminaci\u00F3n de los estad\u00EDsticos resumen por valores at\u00EDpicos.",
+      outlier_flagged_not_removed_note = "Los valores at\u00EDpicos marcados permanecen visibles en la tabla de resultados detallados por pozo y en las exportaciones a CSV, pero se excluyen del c\u00E1lculo de la media, DE, CV e intervalos de confianza del grupo de r\u00E9plicas. Esto preserva la visibilidad completa de los datos crudos y evita la contaminaci\u00F3n de los estad\u00EDsticos resumen por valores at\u00EDpicos."
 
 
 
@@ -1428,7 +1428,7 @@ Format : %s%s",
       outlier_method_dixon = "Test Q de Dixon (n=3-5)",
       outlier_method_grubbs = "Test de Grubbs (n>=6)",
       outlier_flagged = "Signalé",
-      outlier_flagged_not_removed_note = "Les valeurs aberrantes signalées restent visibles dans le tableau des résultats détaillés par puits et dans les exports CSV, mais sont exclues du calcul de la moyenne, écart-type, CV et intervalles de confiance du groupe de réplicats. Cela préserve la visibilité complète des données brutes tout en évitant la contamination des statistiques récapitulatives par les valeurs aberrantes.",
+      outlier_flagged_not_removed_note = "Les valeurs aberrantes signalées restent visibles dans le tableau des résultats détaillés par puits et dans les exports CSV, mais sont exclues du calcul de la moyenne, écart-type, CV et intervalles de confiance du groupe de réplicats. Cela préserve la visibilité complète des données brutes tout en évitant la contamination des statistiques récapitulatives par les valeurs aberrantes."
 
 
 
@@ -1898,7 +1898,7 @@ Format : %s%s",
       outlier_method_dixon = "Тест Q Диксона (n=3-5)",
       outlier_method_grubbs = "Тест Граббса (n>=6)",
       outlier_flagged = "Отмечен",
-      outlier_flagged_not_removed_note = "Отмеченные выбросы остаются видимыми в таблице детальных результатов по лункам и в CSV-экспортах, но исключаются из расчёта среднего, СО, CV и доверительных интервалов группы повторностей. Это сохраняет полную видимость необработанных данных, предотвращая заражение сводной статистики выбросами.",
+      outlier_flagged_not_removed_note = "Отмеченные выбросы остаются видимыми в таблице детальных результатов по лункам и в CSV-экспортах, но исключаются из расчёта среднего, СО, CV и доверительных интервалов группы повторностей. Это сохраняет полную видимость необработанных данных, предотвращая заражение сводной статистики выбросами."
 
 
 
@@ -2368,7 +2368,7 @@ Format : %s%s",
       outlier_method_dixon = "Dixon Q检验（n=3-5）",
       outlier_method_grubbs = "Grubbs检验（n>=6）",
       outlier_flagged = "已标记",
-      outlier_flagged_not_removed_note = "标记的异常值在每孔详细结果表和CSV导出中仍可见，但不参与重复组均值、SD、CV和置信区间的计算。这在防止异常值污染摘要统计的同时保留了完整的原始数据可见性。",
+      outlier_flagged_not_removed_note = "标记的异常值在每孔详细结果表和CSV导出中仍可见，但不参与重复组均值、SD、CV和置信区间的计算。这在防止异常值污染摘要统计的同时保留了完整的原始数据可见性。"
 
     )
   )
