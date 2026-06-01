@@ -492,6 +492,7 @@ get_translations <- function() {
       outlier_flagged_not_removed_note = "Flagged outliers remain visible in the per-well detailed results table and in CSV exports, but are excluded from the calculation of replicate-group mean, SD, CV, and confidence intervals. This preserves full raw-data visibility while preventing outlier contamination of summary statistics.",
 
 
+    ),
     es = list(
       # App title and metadata
       app_title = "An\u00E1lisis RBA \u2013 Procesamiento de Microplacas y Ajuste de Curvas",
@@ -961,6 +962,7 @@ get_translations <- function() {
 
 
 
+    ),
     fr = list(
       # App title and metadata
       app_title = "Analyse RBA – Traitement de Microplaques & Ajustement de Courbes",
@@ -1430,6 +1432,7 @@ Format : %s%s",
 
 
 
+    ),
     ru = list(
       # App title and metadata
       app_title = "Анализ RBA — обработка микропланшетов и подгонка кривых",
@@ -1899,6 +1902,7 @@ Format : %s%s",
 
 
 
+    ),
     zh = list(
       # App title and metadata
       app_title = "RBA分析 — 微量板处理与曲线拟合",
@@ -2366,6 +2370,7 @@ Format : %s%s",
       outlier_flagged = "已标记",
       outlier_flagged_not_removed_note = "标记的异常值在每孔详细结果表和CSV导出中仍可见，但不参与重复组均值、SD、CV和置信区间的计算。这在防止异常值污染摘要统计的同时保留了完整的原始数据可见性。",
 
+    )
   )
   .TRANSLATIONS_CACHE
 }
