@@ -489,7 +489,16 @@ get_translations <- function() {
       outlier_method_dixon = "Dixon's Q-test (n=3-5)",
       outlier_method_grubbs = "Grubbs' test (n>=6)",
       outlier_flagged = "Flagged",
-      outlier_flagged_not_removed_note = "Flagged outliers remain visible in the per-well detailed results table and in CSV exports, but are excluded from the calculation of replicate-group mean, SD, CV, and confidence intervals. This preserves full raw-data visibility while preventing outlier contamination of summary statistics."
+      outlier_flagged_not_removed_note = "Flagged outliers remain visible in the per-well detailed results table and in CSV exports, but are excluded from the calculation of replicate-group mean, SD, CV, and confidence intervals. This preserves full raw-data visibility while preventing outlier contamination of summary statistics.",
+
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "In range",
+      cal_below          = "<Cal. low",
+      cal_above          = ">Cal. high",
+      quant_in_range     = "Within quantifiable",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      drc_legend_hint    = "Click legend items to hide or show standards and samples."
 
 
     ),
@@ -958,7 +967,16 @@ get_translations <- function() {
       outlier_method_dixon = "Prueba Q de Dixon (n=3-5)",
       outlier_method_grubbs = "Prueba de Grubbs (n>=6)",
       outlier_flagged = "Marcado",
-      outlier_flagged_not_removed_note = "Los valores at\u00EDpicos marcados permanecen visibles en la tabla de resultados detallados por pozo y en las exportaciones a CSV, pero se excluyen del c\u00E1lculo de la media, DE, CV e intervalos de confianza del grupo de r\u00E9plicas. Esto preserva la visibilidad completa de los datos crudos y evita la contaminaci\u00F3n de los estad\u00EDsticos resumen por valores at\u00EDpicos."
+      outlier_flagged_not_removed_note = "Los valores at\u00EDpicos marcados permanecen visibles en la tabla de resultados detallados por pozo y en las exportaciones a CSV, pero se excluyen del c\u00E1lculo de la media, DE, CV e intervalos de confianza del grupo de r\u00E9plicas. Esto preserva la visibilidad completa de los datos crudos y evita la contaminaci\u00F3n de los estad\u00EDsticos resumen por valores at\u00EDpicos.",
+
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "En rango",
+      cal_below          = "<Cal. bajo",
+      cal_above          = ">Cal. alto",
+      quant_in_range     = "Dentro cuantificable",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      drc_legend_hint    = "Haga clic en la leyenda para ocultar o mostrar estándares y muestras."
 
 
 
@@ -1428,7 +1446,16 @@ Format : %s%s",
       outlier_method_dixon = "Test Q de Dixon (n=3-5)",
       outlier_method_grubbs = "Test de Grubbs (n>=6)",
       outlier_flagged = "Signalé",
-      outlier_flagged_not_removed_note = "Les valeurs aberrantes signalées restent visibles dans le tableau des résultats détaillés par puits et dans les exports CSV, mais sont exclues du calcul de la moyenne, écart-type, CV et intervalles de confiance du groupe de réplicats. Cela préserve la visibilité complète des données brutes tout en évitant la contamination des statistiques récapitulatives par les valeurs aberrantes."
+      outlier_flagged_not_removed_note = "Les valeurs aberrantes signalées restent visibles dans le tableau des résultats détaillés par puits et dans les exports CSV, mais sont exclues du calcul de la moyenne, écart-type, CV et intervalles de confiance du groupe de réplicats. Cela préserve la visibilité complète des données brutes tout en évitant la contamination des statistiques récapitulatives par les valeurs aberrantes.",
+
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "Dans la plage",
+      cal_below          = "<Cal. bas",
+      cal_above          = ">Cal. haut",
+      quant_in_range     = "Dans quantifiable",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      drc_legend_hint    = "Cliquez sur les éléments de la légende pour masquer ou afficher les étalons et les échantillons."
 
 
 
@@ -1898,7 +1925,16 @@ Format : %s%s",
       outlier_method_dixon = "Тест Q Диксона (n=3-5)",
       outlier_method_grubbs = "Тест Граббса (n>=6)",
       outlier_flagged = "Отмечен",
-      outlier_flagged_not_removed_note = "Отмеченные выбросы остаются видимыми в таблице детальных результатов по лункам и в CSV-экспортах, но исключаются из расчёта среднего, СО, CV и доверительных интервалов группы повторностей. Это сохраняет полную видимость необработанных данных, предотвращая заражение сводной статистики выбросами."
+      outlier_flagged_not_removed_note = "Отмеченные выбросы остаются видимыми в таблице детальных результатов по лункам и в CSV-экспортах, но исключаются из расчёта среднего, СО, CV и доверительных интервалов группы повторностей. Это сохраняет полную видимость необработанных данных, предотвращая заражение сводной статистики выбросами.",
+
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "В диапазоне",
+      cal_below          = "<Кал. низко",
+      cal_above          = ">Кал. высоко",
+      quant_in_range     = "В кол-во диапазоне",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      drc_legend_hint    = "Нажмите на элементы легенды, чтобы скрыть или показать стандарты и образцы."
 
 
 
@@ -2368,7 +2404,16 @@ Format : %s%s",
       outlier_method_dixon = "Dixon Q检验（n=3-5）",
       outlier_method_grubbs = "Grubbs检验（n>=6）",
       outlier_flagged = "已标记",
-      outlier_flagged_not_removed_note = "标记的异常值在每孔详细结果表和CSV导出中仍可见，但不参与重复组均值、SD、CV和置信区间的计算。这在防止异常值污染摘要统计的同时保留了完整的原始数据可见性。"
+      outlier_flagged_not_removed_note = "标记的异常值在每孔详细结果表和CSV导出中仍可见，但不参与重复组均值、SD、CV和置信区间的计算。这在防止异常值污染摘要统计的同时保留了完整的原始数据可见性。",
+
+      # Status-pill labels (two-pill sample-results table)
+      cal_in_range       = "在范围内",
+      cal_below          = "<校准低",
+      cal_above          = ">校准高",
+      quant_in_range     = "在可定量范围内",
+      quant_below_lloq   = "<LLOQ",
+      quant_above_uloq   = ">ULOQ",
+      drc_legend_hint    = "点击图例项以隐藏或显示标准品和样品。"
 
     )
   )
