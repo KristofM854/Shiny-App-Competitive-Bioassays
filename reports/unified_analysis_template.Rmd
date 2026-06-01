@@ -609,7 +609,17 @@ classify_range <- function(response_val, conc_val, is_elisa_assay) {
   }
 }
 
-# Helper function: get LLOQ/ULOQ flag for a sample
+# Standard curve bounds used by flag_range() to extend <LLOQ / >ULOQ to
+# concentrations outside the range of fitted standards (extrapolated region).
+.std_min_conc <- if (exists("standards_for_model") && nrow(standards_for_model) > 0)
+  min(standards_for_model$concentration, na.rm = TRUE) else NA_real_
+.std_max_conc <- if (exists("standards_for_model") && nrow(standards_for_model) > 0)
+  max(standards_for_model$concentration, na.rm = TRUE) else NA_real_
+
+# Helper function: get LLOQ/ULOQ flag for a sample.
+# For RBA, also flags concentrations outside the standard curve range as
+# <LLOQ (below lowest standard) or >ULOQ (above highest standard), since
+# such estimates are extrapolated and no more reliable than out-of-range ones.
 flag_range <- function(response_val, conc_val, is_elisa_assay) {
   if (isTRUE(is_elisa_assay)) {
     if (is.na(response_val)) return("")
@@ -618,8 +628,8 @@ flag_range <- function(response_val, conc_val, is_elisa_assay) {
     return("")
   } else {
     if (is.na(conc_val) || is.na(ec20) || is.na(ec80)) return("")
-    if (conc_val < ec20) return("<LLOQ")
-    if (conc_val > ec80) return(">ULOQ")
+    if (conc_val < ec20 || (!is.na(.std_min_conc) && conc_val < .std_min_conc)) return("<LLOQ")
+    if (conc_val > ec80 || (!is.na(.std_max_conc) && conc_val > .std_max_conc)) return(">ULOQ")
     return("")
   }
 }
@@ -1038,12 +1048,12 @@ tryCatch({
         sprintf('<span class="bs-status-pill is-%s">%s</span>', role, label)
 
       if (is_html_out()) {
-        # Cal. Range \u2014 calibration curve coverage (interpolated vs extrapolated)
+        # Cal. Range \u2014 calibration curve coverage
         cal_html <- if (qs_str %in% c("Interpolated", "Within Range") && rf_str == "") {
           .pill(tr("cal_in_range", lang), "pass")
-        } else if (rf_str == "<LLOQ" || qs_str == "Extrapolated (below)") {
+        } else if (rf_str == "<LLOQ") {
           .pill(tr("cal_below", lang), "warn")
-        } else if (rf_str == ">ULOQ" || qs_str == "Extrapolated (above)") {
+        } else if (rf_str == ">ULOQ") {
           .pill(tr("cal_above", lang), "warn")
         } else if (qs_str == "Not estimable") {
           .pill("Not\u00a0estimable", "fail")
@@ -1058,10 +1068,6 @@ tryCatch({
           .pill(tr("quant_below_lloq", lang), "warn")
         } else if (rf_str == ">ULOQ") {
           .pill(tr("quant_above_uloq", lang), "warn")
-        } else if (qs_str %in% c("Extrapolated (below)", "Extrapolated (above)") &&
-                   rf_str == "") {
-          # Extrapolated from calibration curve but still within quantifiable range
-          .pill(tr("quant_extrapolated", lang), "info")
         } else {
           .pill(tr("quant_in_range", lang), "pass")
         }
@@ -2358,9 +2364,6 @@ tryCatch({
       cat(sprintf("- %s: %d\n", s, status_counts[[s]]))
     }
     cat("\n")
-    if (any(grepl("Extrapolated", names(status_counts)))) {
-      cat("*Note: Extrapolated values are outside the standard curve range and should be interpreted with caution.*\n\n")
-    }
   }
 
   cat(sprintf("\n*QC profile: %s (R\u00b2 >= %.2f, CV <= %d%%, Hill slope [%.1f, %.1f], Recovery [%d%%, %d%%])*\n\n",

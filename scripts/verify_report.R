@@ -169,7 +169,7 @@ for (html_path in args) {
     cat("\n--- B.4 Spanish smoke-test (no literal i18n keys) ---\n")
     es_keys <- c("cal_in_range", "cal_below", "cal_above",
                  "quant_in_range", "quant_below_lloq", "quant_above_uloq",
-                 "quant_extrapolated", "drc_legend_hint")
+                 "drc_legend_hint")
     for (k in es_keys) {
       assert_absent(paste0("B.4  Key token absent: ", k),
                     paste0("\\b", k, "\\b"), lines)
