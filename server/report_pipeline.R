@@ -324,9 +324,12 @@ render_reports <- function(params, session) {
   # Build format specifications.  For DOCX we use an explicit
   # rmarkdown::word_document() call so we can guarantee fig_caption, PNG
   # device, and high-DPI figures even if the YAML header is overridden.
-  ref_docx_path <- file.path(
-    if (file.exists("reports")) "reports" else file.path(dirname(params$csv_path), "reports"),
-    "reference.docx"
+  ref_docx_path <- normalizePath(
+    file.path(
+      if (file.exists("reports")) "reports" else file.path(dirname(params$csv_path), "reports"),
+      "reference.docx"
+    ),
+    mustWork = FALSE
   )
   docx_fmt <- rmarkdown::word_document(
     toc = TRUE,
