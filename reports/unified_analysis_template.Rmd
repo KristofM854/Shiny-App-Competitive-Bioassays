@@ -617,14 +617,19 @@ classify_range <- function(response_val, conc_val, is_elisa_assay) {
   max(standards_for_model$concentration, na.rm = TRUE) else NA_real_
 
 # Helper function: get LLOQ/ULOQ flag for a sample.
-# For RBA, also flags concentrations outside the standard curve range as
+# Both assay types flag concentrations outside the standard curve range as
 # <LLOQ (below lowest standard) or >ULOQ (above highest standard), since
-# such estimates are extrapolated and no more reliable than out-of-range ones.
+# such estimates are no more reliable than out-of-range ones.
 flag_range <- function(response_val, conc_val, is_elisa_assay) {
   if (isTRUE(is_elisa_assay)) {
     if (is.na(response_val)) return("")
     if (response_val > bb0_upper) return("<LLOQ")
     if (response_val < bb0_lower) return(">ULOQ")
+    # Standard-range coverage check (mirrors the RBA branch below)
+    if (!is.na(conc_val)) {
+      if (!is.na(.std_min_conc) && conc_val < .std_min_conc) return("<LLOQ")
+      if (!is.na(.std_max_conc) && conc_val > .std_max_conc) return(">ULOQ")
+    }
     return("")
   } else {
     if (is.na(conc_val) || is.na(ec20) || is.na(ec80)) return("")
