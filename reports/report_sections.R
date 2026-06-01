@@ -635,7 +635,7 @@ render_table_legend <- function() {
       '  <li><em>In range</em> — response lies between the lowest and highest standards; ',
       'concentration is interpolated from the 4PL fit.</li>\n',
       '  <li><em>&gt;Cal. high / &lt;Cal. low</em> — response is outside the standard ',
-      'range; concentration is extrapolated. Treat as semi-quantitative.</li>\n',
+      'curve range; treat as semi-quantitative.</li>\n',
       '  </ul>\n',
       '</li>\n',
       '<li><strong>Quant. Range</strong> (bottom pill) — validated quantifiable window ',
@@ -643,26 +643,21 @@ render_table_legend <- function() {
       '  <ul>\n',
       '  <li><em>Within quantifiable</em> — estimate falls within the linear reporting ',
       'range.</li>\n',
-      '  <li><em>&lt;LLOQ / &gt;ULOQ</em> — estimate is outside the validated range; ',
-      'results are less reliable.</li>\n',
-      '  <li><em>Extrapolated</em> — concentration is within the quantifiable window but ',
-      'was derived from an extrapolated region of the curve (softer concern).</li>\n',
+      '  <li><em>&lt;LLOQ / &gt;ULOQ</em> — estimate is outside the validated range or ',
+      'derived from beyond the standard curve coverage; results are less reliable.</li>\n',
       '  </ul>\n',
       '</li>\n',
       '</ul>\n',
-      '<p>The two dimensions are <strong>independent</strong>: a sample can be ',
-      '<em>In range / &lt;LLOQ</em> (interpolated but below the linear window) or ',
-      '<em>&gt;Cal. high / Within quantifiable</em> (extrapolated from the curve yet ',
-      'within EC20–EC80). Both pills together describe reporting quality.</p>\n',
+      '<p>Both pills together describe reporting quality.</p>\n',
       '</details>\n\n'
     ))
   } else {
     cat(paste0(
       "**How to read this table:** The Status column contains two pills. ",
-      "Cal. Range shows whether the concentration was interpolated (In range) or ",
-      "extrapolated (>Cal. high / <Cal. low) from the standards. ",
+      "Cal. Range shows whether the response is within the standard curve range ",
+      "(<Cal. low / In range / >Cal. high). ",
       "Quant. Range shows whether the estimate falls within the validated EC20-EC80 window ",
-      "(Within quantifiable / <LLOQ / >ULOQ / Extrapolated).\n\n"
+      "(Within quantifiable / <LLOQ / >ULOQ).\n\n"
     ))
   }
   invisible(NULL)

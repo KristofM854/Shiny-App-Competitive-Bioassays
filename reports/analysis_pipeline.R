@@ -645,19 +645,16 @@ quantify_samples <- function(data_long, response_var, model_fit,
 
   sample_results <- do.call(rbind, sample_predictions_list)
 
-  # M6: interpolation vs extrapolation labels
+  # M6: quantification status — estimable vs not estimable.
+  # Out-of-standard-range estimates are reclassified as <LLOQ / >ULOQ by
+  # flag_range() in the template rather than carrying a separate Extrapolated
+  # status that has no distinct scientific meaning.
   tryCatch({
-    min_std_conc <- min(standards_for_model$concentration, na.rm = TRUE)
-    max_std_conc <- max(standards_for_model$concentration, na.rm = TRUE)
     sample_results$quantification_status <- dplyr::case_when(
       is.na(sample_results$estimated_concentration) ~ "Not estimable",
-      sample_results$estimated_concentration < min_std_conc ~ "Extrapolated (below)",
-      sample_results$estimated_concentration > max_std_conc ~ "Extrapolated (above)",
       TRUE ~ "Interpolated"
     )
   }, error = function(e) {
-    # <<- targets the enclosing function's local `sample_results` (defined
-    # above the tryCatch), not the global environment.
     sample_results$quantification_status <<- "Unknown"
   })
 
