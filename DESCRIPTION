@@ -1,13 +1,10 @@
 Package: RBAElisaApp
 Title: RBA and ELISA Competitive Binding Assay Analysis Suite
 Version: 1.0.0
-Authors@R: c(
+Authors@R:
     person("Kristof", "Moeller",
            email = "kr.moeller@iaea.org",
-           role  = c("aut", "cre")),
-    person("Arnold", "Molina Porras",
-           role  = "aut")
-  )
+           role  = c("aut", "cre"))
 Description: Shiny application for radioligand binding assay (RBA) and
     enzyme-linked immunosorbent assay (ELISA) analysis. Provides 96-well
     plate layout configuration, smart file import, 4-parameter logistic
