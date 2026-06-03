@@ -470,8 +470,7 @@ if (is_html_out()) {
     '<header class="bs-report-meta">\n',
     '<div class="meta-row">',
       '<span class="label">Authors</span>',
-      '<span class="value">Kristof Moeller (IAEA, Monaco)',
-        ' · Arnold Molina Porras (Universidad de Costa Rica)</span>',
+      '<span class="value">Kristof Moeller (IAEA, Monaco)</span>',
     '</div>\n',
     '<div class="meta-row">',
       '<span class="label">Software</span>',
@@ -482,7 +481,7 @@ if (is_html_out()) {
   ))
 } else {
   cat(paste0(
-    "**Authors:** Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)  \n",
+    "**Author:** Kristof Moeller (IAEA, Monaco)  \n",
     sprintf("**Generated:** %s · %s  \n", format(Sys.Date(), "%Y-%m-%d"), Sys.info()[["user"]]),
     sprintf("**Assay:** %s  \n", .assay_lbl),
     sprintf("**Software:** Bioassay Analysis App v%s · %s · drc v%s  \n\n",
