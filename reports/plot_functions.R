@@ -41,7 +41,8 @@ is_docx_out <- function() {
 #' @param plotly_layout Named list of additional plotly::layout() args (HTML only)
 #' @return For HTML: an htmltools tagList (knitr renders as interactive widget).
 #'         For DOCX/PDF: invisible NULL (static plot is a side-effect of print()).
-render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL, compact = FALSE) {
+render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL,
+                        compact = FALSE, plotly_postprocess = NULL) {
   # Apply the house theme per-call (AUDIT-011): avoids relying on the
   # process-global theme_set() that was removed from global.R, and works in
   # standalone Rmd renders where global.R is NOT sourced.
@@ -64,7 +65,8 @@ render_plot <- function(gg, tooltip = NULL, height = NULL, plotly_layout = NULL,
         legend = list(orientation = "h", x = 0, y = 1.08)
       )
       combined_layout <- utils::modifyList(default_layout, plotly_layout %||% list())
-      do.call(plotly::layout, c(list(px), combined_layout))
+      px_laid <- do.call(plotly::layout, c(list(px), combined_layout))
+      if (is.function(plotly_postprocess)) plotly_postprocess(px_laid) else px_laid
     }, error = function(e) {
       warning("render_plot: ggplotly() conversion failed (", conditionMessage(e),
               "). Falling back to static plot.")
