@@ -956,10 +956,18 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         )
     }
     
-    # Render plot - interactive for HTML, static for DOCX/PDF
-    render_plot(combined_drc, tooltip = "text")
+    # Render plot - interactive for HTML, static for DOCX/PDF.
+    # The plot and caption must be the final (return) value of this block so
+    # knitr auto-prints them. Wrapping in tagList keeps both in one object.
+    p <- render_plot(combined_drc, tooltip = "text")
     if (is_html_out()) {
-      knitr::asis_output(paste0('<p class="bs-plot-caption"><em>', tr("drc_legend_hint", lang), '</em></p>\n'))
+      htmltools::tagList(
+        p,
+        htmltools::tags$p(class = "bs-plot-caption",
+                          htmltools::tags$em(tr("drc_legend_hint", lang)))
+      )
+    } else {
+      p
     }
   }
 }
