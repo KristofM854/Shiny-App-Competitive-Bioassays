@@ -848,7 +848,7 @@ rm(list = ls(pattern = "^\\.qc_"))
 
 ## `r tr("section_drc_samples", lang)`
 
-```{r combined-drc, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, results='asis', fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
+```{r combined-drc, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   standards_plot_data <- data_long %>%
@@ -956,10 +956,18 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         )
     }
     
-    # Render plot - interactive for HTML, static for DOCX/PDF
-    render_plot(combined_drc, tooltip = "text")
+    # Render plot - interactive for HTML, static for DOCX/PDF.
+    # The plot and caption must be the final (return) value of this block so
+    # knitr auto-prints them. Wrapping in tagList keeps both in one object.
+    p <- render_plot(combined_drc, tooltip = "text")
     if (is_html_out()) {
-      cat(paste0('<p class="bs-plot-caption"><em>', tr("drc_legend_hint", lang), '</em></p>\n'))
+      htmltools::tagList(
+        p,
+        htmltools::tags$p(class = "bs-plot-caption",
+                          htmltools::tags$em(tr("drc_legend_hint", lang)))
+      )
+    } else {
+      p
     }
   }
 }
