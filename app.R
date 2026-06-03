@@ -1,6 +1,6 @@
 # ==============================================================================
 # Competitive Binding Assay Analysis App
-# Authors: Arnold Molina Porras (UCR) & Kristof Moeller (IAEA)
+# Author: Kristof Moeller (IAEA)
 # Version: 1.0.0
 #
 # Main Shiny application for RBA and ELISA competitive binding assay analysis.

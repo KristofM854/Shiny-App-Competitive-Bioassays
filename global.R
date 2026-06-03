@@ -127,7 +127,7 @@ APP_VERSION <- tryCatch(
 )
 
 APP_NAME <- "RBA & ELISA Analysis Suite"
-APP_AUTHOR <- "Arnold Molina Porras (UCR) & Kristof Moeller (IAEA)"
+APP_AUTHOR <- "Kristof Moeller (IAEA)"
 APP_CONTACT <- "kr.moeller@iaea.org"
 
 # --- Plate Constants ----------------------------------------------------------

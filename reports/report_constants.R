@@ -143,7 +143,7 @@ OUTPUT_FILES <- list(
 # Report metadata
 REPORT_INFO <- list(
   version = tryCatch(as.character(utils::packageVersion("RBAElisaApp")), error = function(e) "1.0.0"),
-  authors = c("Kristof Moeller (IAEA)", "Arnold Molina Porras (UCR)"),
+  authors = c("Kristof Moeller (IAEA)"),
   contact = "kr.moeller@iaea.org",
   feedback_url = "https://forms.office.com/e/q8eqJfp4QM"
 )
