@@ -9,8 +9,7 @@ and a formatted HTML/Word/PDF report — this app does that in a guided 5-step
 workflow. No R experience required beyond running one command. Works for
 single or multi-wavelength plate readers.
 
-Developed by **Arnold Molina Porras** (University of Costa Rica) and
-**Kristof Moeller** (IAEA Marine Environment Laboratories, Monaco).
+Developed by **Kristof Moeller** (IAEA Marine Environment Laboratories, Monaco).
 
 → Jump to: [Statement of need](#statement-of-need) · [Quick Start](#quick-start) · [Example Data](#try-it-with-example-data) · [Features](#features) · [Troubleshooting](#troubleshooting) · [Citation](#how-to-cite)
 
@@ -384,7 +383,7 @@ the curve near the top asymptote.
 
 If you use this software in published work, please cite:
 
-> Moeller, K. & Molina Porras, A. (2026). *Competitive Binding Assay Analysis Suite* (v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19691224
+> Moeller, K. (2026). *Competitive Binding Assay Analysis Suite* (v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19691224
 
 ## Contact
 
@@ -396,4 +395,4 @@ For questions or bug reports: kr.moeller@iaea.org
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 Kristof Moeller and Arnold Molina Porras.
+Copyright (c) 2026 Kristof Moeller.

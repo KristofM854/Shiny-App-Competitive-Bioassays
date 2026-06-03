@@ -13,9 +13,6 @@ authors:
     given-names: "Kristof"
     affiliation: "IAEA Marine Environment Laboratories, Monaco"
     orcid: "https://orcid.org/0000-0002-4590-6223"
-  - family-names: "Molina Porras"
-    given-names: "Arnold"
-    affiliation: "Universidad de Costa Rica"
 version: "1.0.0"
 date-released: "2026-05-25"
 license: MIT

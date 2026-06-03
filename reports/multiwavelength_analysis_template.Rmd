@@ -1,6 +1,6 @@
 ---
 title: "Multi-Wavelength Bioassay Analysis Report"
-author: "Kristof Moeller (IAEA, Monaco) and Arnold Molina Porras (Universidad de Costa Rica)"
+author: "Kristof Moeller (IAEA, Monaco)"
 output:
   html_document:
     df_print: paged
