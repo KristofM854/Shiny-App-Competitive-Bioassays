@@ -464,21 +464,14 @@ if (isTRUE(is_elisa)) {
 .app_ver_meta <- REPORT_INFO$version %||% "?"
 
 if (is_html_out()) {
+  # Tiles (render_report_header) own: Analyst, Analysis Date, Assay Type, Wells.
+  # Masthead keeps only fields not duplicated by tiles: Authors and Software.
   cat(paste0(
     '<header class="bs-report-meta">\n',
     '<div class="meta-row">',
       '<span class="label">Authors</span>',
       '<span class="value">Kristof Moeller (IAEA, Monaco)',
         ' · Arnold Molina Porras (Universidad de Costa Rica)</span>',
-    '</div>\n',
-    '<div class="meta-row">',
-      '<span class="label">Generated</span>',
-      sprintf('<span class="value">%s · %s</span>',
-              format(Sys.Date(), "%Y-%m-%d"), Sys.info()[["user"]]),
-    '</div>\n',
-    '<div class="meta-row">',
-      '<span class="label">Assay</span>',
-      sprintf('<span class="value">%s</span>', .assay_lbl),
     '</div>\n',
     '<div class="meta-row">',
       '<span class="label">Software</span>',
@@ -957,9 +950,30 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     }
     
     # Render plot - interactive for HTML, static for DOCX/PDF.
-    # The plot and caption must be the final (return) value of this block so
-    # knitr auto-prints them. Wrapping in tagList keeps both in one object.
-    p <- render_plot(combined_drc, tooltip = "text")
+    # ggplotly names traces as "(level, N)" when multiple discrete aesthetics
+    # interact. The fix must run on the raw plotly object inside render_plot()
+    # before it is wrapped in tagList — pass it as plotly_postprocess.
+    std_lbl   <- tr("plot_std_variability", lang)
+    known_std <- c(tr("variability_normal", lang), tr("variability_high", lang))
+    .fix_drc_legend <- function(px) {
+      px$x$data <- lapply(px$x$data, function(trace) {
+        nm    <- trace$name %||% ""
+        clean <- sub("^\\((.+),\\s*\\d+\\)$", "\\1", nm)
+        trace$name <- clean
+        if (clean %in% known_std) {
+          trace$legendgroup      <- "std_var"
+          trace$legendgrouptitle <- list(text = std_lbl)
+        } else if (clean %in% c("Within Range", "Out of Range", "Unknown")) {
+          trace$legendgroup      <- "smp_status"
+          trace$legendgrouptitle <- list(text = "Sample Status")
+        }
+        trace
+      })
+      px
+    }
+    p <- render_plot(combined_drc, tooltip = "text",
+                     plotly_postprocess = .fix_drc_legend)
+
     if (is_html_out()) {
       htmltools::tagList(
         p,
@@ -1209,9 +1223,20 @@ tryCatch({
                 file.path(output_dir, "unknown_results_summary.csv"), row.names = FALSE)
     }
 
-    cat("\n**", tr("output_files_created", lang), "**\n", sep = "")
-    cat("- ", tr("individual_results", lang), "\n", sep = "")
-    cat("- ", tr("summary_results", lang), "\n\n", sep = "")
+    if (is_html_out()) {
+      .fmt_code <- function(s) gsub("`([^`]+)`", "<code>\\1</code>", s)
+      cat(paste0(
+        '\n<p><strong>', tr("output_files_created", lang), '</strong></p>\n',
+        '<ul class="bs-output-files">\n',
+        '<li>', .fmt_code(tr("individual_results", lang)), '</li>\n',
+        '<li>', .fmt_code(tr("summary_results",    lang)), '</li>\n',
+        '</ul>\n\n'
+      ))
+    } else {
+      cat("\n**", tr("output_files_created", lang), "**\n\n", sep = "")
+      cat("- ", tr("individual_results", lang), "\n", sep = "")
+      cat("- ", tr("summary_results", lang), "\n\n", sep = "")
+    }
 
   } else {
     cat("*", tr("no_samples_quantified", lang), "*\n\n", sep = "")
@@ -2244,11 +2269,11 @@ tryCatch({
         paste0(round(calculated_bb0, 1), "% B/B0")
       } else { "" },
       hover_txt = paste0(
-        "Well: ",      well_id,          "<br>",
-        "Raw OD: ",    round(MeasurementValue, 4), "<br>",
-        if (nzchar(bb0_label)) paste0(bb0_label, "<br>") else "",
-        "Group: ",     SampleType,       "<br>",
-        "ID: ",        SampleID
+        "Well: ",   well_id,          "<br>",
+        "Raw OD: ", round(MeasurementValue, 4), "<br>",
+        ifelse(nzchar(bb0_label), paste0(bb0_label, "<br>"), ""),
+        "Group: ",  SampleType,       "<br>",
+        "ID: ",     SampleID
       )
     )
 
@@ -2292,7 +2317,7 @@ tryCatch({
     }
   }
 }, error = function(e) {
-  cat(sprintf("\n\n*Heatmap could not be generated: %s*\n\n", e$message))
+  cat("\n\n*Heatmap unavailable for this run.*\n\n")
 })
 ```
 
