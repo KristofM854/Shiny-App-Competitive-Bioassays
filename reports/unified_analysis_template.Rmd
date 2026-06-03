@@ -848,7 +848,7 @@ rm(list = ls(pattern = "^\\.qc_"))
 
 ## `r tr("section_drc_samples", lang)`
 
-```{r combined-drc, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
+```{r combined-drc, fig.width=12, fig.height=8, warning=FALSE, message=FALSE, results='asis', fig.cap="Dose-response curve with sample concentration estimates overlaid on the fitted model"}
 if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results) > 0) {
   
   standards_plot_data <- data_long %>%
