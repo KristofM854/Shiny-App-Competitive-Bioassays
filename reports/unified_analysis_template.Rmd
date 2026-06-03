@@ -950,15 +950,13 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
     }
     
     # Render plot - interactive for HTML, static for DOCX/PDF.
-    p <- render_plot(combined_drc, tooltip = "text")
-
     # ggplotly names traces as "(level, N)" when multiple discrete aesthetics
-    # interact. Strip that suffix and assign named legend groups so the two
-    # legend sections (standard variability / sample status) stay separate.
-    if (inherits(p, "plotly")) {
-      std_lbl   <- tr("plot_std_variability", lang)
-      known_std <- c(tr("variability_normal", lang), tr("variability_high", lang))
-      p$x$data  <- lapply(p$x$data, function(trace) {
+    # interact. The fix must run on the raw plotly object inside render_plot()
+    # before it is wrapped in tagList — pass it as plotly_postprocess.
+    std_lbl   <- tr("plot_std_variability", lang)
+    known_std <- c(tr("variability_normal", lang), tr("variability_high", lang))
+    .fix_drc_legend <- function(px) {
+      px$x$data <- lapply(px$x$data, function(trace) {
         nm    <- trace$name %||% ""
         clean <- sub("^\\((.+),\\s*\\d+\\)$", "\\1", nm)
         trace$name <- clean
@@ -971,7 +969,10 @@ if (exists("sample_results") && !is.null(sample_results) && nrow(sample_results)
         }
         trace
       })
+      px
     }
+    p <- render_plot(combined_drc, tooltip = "text",
+                     plotly_postprocess = .fix_drc_legend)
 
     if (is_html_out()) {
       htmltools::tagList(
