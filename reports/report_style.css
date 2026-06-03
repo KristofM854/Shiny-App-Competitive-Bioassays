@@ -416,6 +416,10 @@ table[style*="width: auto !important"] {
 .bs-table-legend ul { margin: 4px 0 0 0; padding-left: 18px; }
 .bs-table-legend li + li { margin-top: 2px; }
 
+/* Output-files list in the sample-results section */
+.bs-output-files { margin: 4px 0 12px; padding-left: 20px; }
+.bs-output-files li { margin-bottom: 3px; font-size: 13px; }
+
 /* ============================================================
    BS-TABLE-FILTER + BS-TABLE-SCROLL — sample-results table widget
    Type-to-filter input above the table + fixed-height scrollable
@@ -443,19 +447,25 @@ table[style*="width: auto !important"] {
 }
 
 .bs-table-scroll {
-  max-height: 600px;
-  overflow: auto;
+  overflow-x: auto;        /* horizontal scroll only when table is wider than viewport */
   border: 1px solid #e3e6ea;
   border-radius: 6px;
   margin: 0 0 16px;
 }
-/* Keep the header visible while scrolling vertically. */
+/* Sticky header while scrolling horizontally, but no fixed vertical height. */
 .bs-table-scroll thead th {
   position: sticky;
   top: 0;
   z-index: 2;
   background: #f1f3f5;
   box-shadow: inset 0 -1px 0 #e3e6ea;
+}
+/* Print / PDF: expand all rows, no clipped scroll regions. */
+@media print {
+  .bs-table-scroll {
+    overflow: visible;
+    max-height: none;
+  }
 }
 
 /* ============================================================
