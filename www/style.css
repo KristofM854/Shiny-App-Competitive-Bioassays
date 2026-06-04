@@ -1882,12 +1882,16 @@ table.bs-report td.num { text-align: right; }
 }
 
 /* --- §A.3 Plate preview --- */
+/* #layout_preview_plate is the Shiny output wrapper that is the actual
+   CSS grid cell — align-self must target it, not the inner .bs-plate-preview. */
+#layout_preview_plate {
+  align-self: center;
+}
 .bs-plate-preview {
   background: var(--c-surface);
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
   padding: 10px 12px;
-  align-self: center;
 }
 .bs-plate-preview-title {
   font-family: var(--ff-mono);
