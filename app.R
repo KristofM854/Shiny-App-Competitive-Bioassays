@@ -845,7 +845,7 @@ $(function() {
               ),
               column(
                 width = 6,
-                h5("Heatmap"),
+                uiOutput("heatmap_title_ui"),
                 tags$figure(
                   id = "heatmap_preview_section",
                   style = "margin: 0;",
