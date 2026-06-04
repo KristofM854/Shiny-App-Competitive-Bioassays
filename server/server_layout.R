@@ -555,7 +555,10 @@ server_layout <- function(input, output, session, shared) {
         }
       }
     }
-    sort(unique(groups))
+    # Natural (mixed) sort so R1,R2,…,R10,R11 not R1,R10,R11,…,R2
+    g        <- unique(groups)
+    num_part <- suppressWarnings(as.integer(gsub("\\D+", "", g)))
+    if (all(is.na(num_part))) sort(g) else g[order(num_part, g, na.last = TRUE)]
   })
 
   # Apply uniform extraction volume to all groups
