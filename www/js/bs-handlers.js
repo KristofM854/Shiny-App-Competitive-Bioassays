@@ -48,9 +48,13 @@ function bsAlignPlatePreview() {
   });
 }
 
-// Re-run whenever the preview output re-renders.
+// Re-run whenever the preview output re-renders, or when the ELISA controls
+// banner (a uiOutput above the Type matrix) is sent — it renders asynchronously
+// after assay_type changes and pushes the rHandsontable down.
 $(document).on('shiny:value', function(e) {
-  if (e.name === 'layout_preview_plate') setTimeout(bsAlignPlatePreview, 120);
+  if (e.name === 'layout_preview_plate' || e.name === 'elisa_controls_banner_ui') {
+    setTimeout(bsAlignPlatePreview, 120);
+  }
 });
 
 // Re-run when assay type or active layer changes.
