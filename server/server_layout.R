@@ -63,22 +63,38 @@ server_layout <- function(input, output, session, shared) {
 
   observeEvent(input$preset_layout, {
     req(input$preset_layout != "")
+
+    # Normalise a preset matrix to a clean 8×12 data frame with canonical
+    # row/col names so rHandsontable always renders at a consistent height.
+    norm_plate <- function(m) {
+      if (is.null(m)) return(NULL)
+      m <- enforce_plate_shape(as.data.frame(m, stringsAsFactors = FALSE))
+      rownames(m) <- ROW_NAMES
+      colnames(m) <- COL_NAMES
+      m
+    }
+
+    assay <- if (grepl("elisa", input$preset_layout)) "elisa" else "rba"
+
     preset_file <- file.path("presets", paste0(input$preset_layout, ".rds"))
     if (file.exists(preset_file)) {
       preset <- readRDS(preset_file)
-      if (!is.null(preset$type_matrix)) shared$matrix_type(preset$type_matrix)
-      if (!is.null(preset$id_matrix)) shared$matrix_id(preset$id_matrix)
-      if (!is.null(preset$dilution_matrix)) shared$matrix_dilution(preset$dilution_matrix)
-      if (!is.null(preset$replicate_matrix)) shared$matrix_replicate(preset$replicate_matrix)
+      shared$matrix_type(norm_plate(preset$type_matrix))
+      shared$matrix_id(norm_plate(preset$id_matrix))
+      shared$matrix_dilution(norm_plate(preset$dilution_matrix))
+      shared$matrix_replicate(norm_plate(preset$replicate_matrix))
     } else {
-      # Fallback: generate from functions when .rds not found
-      assay <- if (grepl("elisa", input$preset_layout)) "elisa" else "rba"
       n <- as.integer(input$num_standards %||% 8)
       shared$matrix_type(create_type_matrix(assay, n))
       shared$matrix_id(create_id_matrix(assay, n))
       shared$matrix_dilution(create_dilution_matrix())
       shared$matrix_replicate(create_replicate_matrix(assay))
     }
+
+    # Keep assay_type in sync with the preset so the ELISA banner
+    # conditionalPanel shows/hides correctly before the rHandsontable renders.
+    updateSelectInput(session, "assay_type", selected = assay)
+
     history$push(shared)
     showNotification("Preset layout loaded successfully.", type = "message", duration = 3)
   })
