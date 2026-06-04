@@ -53,9 +53,13 @@ $(document).on('shiny:value', function(e) {
   if (e.name === 'layout_preview_plate') setTimeout(bsAlignPlatePreview, 120);
 });
 
-// Re-run when assay type changes (different header heights for RBA vs ELISA).
+// Re-run when assay type or active layer changes.
+// active_layer switches which conditionalPanel (and rHandsontable) is visible,
+// changing the measured first-row top without re-rendering layout_preview_plate.
 $(document).on('shiny:inputchanged', function(e) {
-  if (e.name === 'assay_type') setTimeout(bsAlignPlatePreview, 250);
+  if (e.name === 'assay_type' || e.name === 'active_layer') {
+    setTimeout(bsAlignPlatePreview, 250);
+  }
 });
 
 // Final pass once Shiny becomes idle (catches deferred renders).
