@@ -845,16 +845,16 @@ $(function() {
               ),
               column(
                 width = 6,
-                h5("Heatmap"),
+                uiOutput("heatmap_title_ui"),
                 tags$figure(
                   id = "heatmap_preview_section",
                   style = "margin: 0;",
                   `aria-describedby` = "plate_heatmap_desc_text",
                   role = "figure",
-                  uiOutput("heatmap_title_ui"),
-                  tags$figcaption(id = "plate_heatmap_desc_text",
-                                  uiOutput("heatmap_caption_ui", inline = TRUE)),
                   plotly::plotlyOutput("plate_heatmap", height = "320px"),
+                  tags$figcaption(id = "plate_heatmap_desc_text",
+                                  style = "margin-top:4px;",
+                                  uiOutput("heatmap_caption_ui", inline = TRUE)),
                   div(class = "sr-only", `aria-live` = "polite",
                       textOutput("plate_heatmap_description"))
                 )
