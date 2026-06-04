@@ -55,8 +55,12 @@ source("server/report_pipeline.R")
 source("server/server_report.R")
 source("server/server_analysis.R")
 
-# Auto-generate preset .rds files if they don't exist
-if (!file.exists("presets/rba_stx_triplicate.rds")) {
+# Auto-generate preset .rds files when any are missing.
+# Check all three so stale ELISA presets are also regenerated.
+.preset_files <- c("presets/rba_stx_triplicate.rds",
+                   "presets/elisa_cortisol_cayman.rds",
+                   "presets/elisa_custom_blank.rds")
+if (!all(file.exists(.preset_files))) {
   tryCatch(source("presets/generate_presets.R"), error = function(e) {
     message("Could not generate presets: ", e$message)
   })
