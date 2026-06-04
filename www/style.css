@@ -1883,9 +1883,10 @@ table.bs-report td.num { text-align: right; }
 
 /* --- §A.3 Plate preview --- */
 /* #layout_preview_plate is the Shiny output wrapper that is the actual
-   CSS grid cell — align-self must target it, not the inner .bs-plate-preview. */
+   CSS grid cell — align-self: start so JS padding-top can nudge the preview
+   into row alignment with the adjacent rHandsontable. */
 #layout_preview_plate {
-  align-self: center;
+  align-self: start;
 }
 .bs-plate-preview {
   background: var(--c-surface);
