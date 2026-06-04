@@ -827,8 +827,12 @@ server_upload <- function(input, output, session, shared) {
         '</div>'
       )))
     }
-    HTML(knitr::kable(meas_mat, format = "html", digits = 3,
-                      table.attr = 'class="table table-condensed table-bordered"'))
+    HTML(paste0(
+      '<div style="overflow-x:auto;max-width:100%;padding-right:16px;">',
+      knitr::kable(meas_mat, format = "html", digits = 3,
+                   table.attr = 'class="table table-condensed table-bordered"'),
+      '</div>'
+    ))
   })
 
   # --------------------------------------------------------------------------

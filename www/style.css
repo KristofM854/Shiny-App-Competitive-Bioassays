@@ -1887,7 +1887,7 @@ table.bs-report td.num { text-align: right; }
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
   padding: 10px 12px;
-  align-self: start;
+  align-self: center;
 }
 .bs-plate-preview-title {
   font-family: var(--ff-mono);
